@@ -32,11 +32,27 @@ class VNEngine {
         this.menuButton = document.getElementById("menu-button");
         this.statsButton = document.getElementById("stats-button");
 
+        // Mobile toolbar
+        this.mobileToolbar = document.getElementById("mobile-toolbar");
+        this.toolbarToggle = document.getElementById("toolbar-toggle");
+        this.toolbarFuriganaToggle = document.getElementById("toolbar-furigana-toggle");
+        this.toolbarTranslationToggle = document.getElementById("toolbar-translation-toggle");
+        this.toolbarHintToggle = document.getElementById("toolbar-hint-toggle");
+
+        // Name entry overlay
+        this.nameEntryOverlay = document.getElementById("name-entry-overlay");
+        this.nameEntryInput = document.getElementById("name-entry-input");
+        this.nameEntrySubmit = document.getElementById("name-entry-submit");
+        this.nameEntryError = document.getElementById("name-entry-error");
+
         // Menu overlay
         this.menuOverlay = document.getElementById("menu-overlay");
         this.menuCloseButton = document.getElementById("menu-close-button");
         this.saveSlotsContainer = document.getElementById("save-slots-container");
         this.newGameButton = document.getElementById("new-game-button");
+        this.menuPlayerNameInput = document.getElementById("menu-player-name-input");
+        this.menuPlayerNameSave = document.getElementById("menu-player-name-save");
+        this.menuPlayerNameStatus = document.getElementById("menu-player-name-status");
 
         // History overlay
         this.historyOverlay = document.getElementById("history-overlay");
@@ -68,6 +84,7 @@ class VNEngine {
         this.lastAffection = null;
         this.lastLearning = null;
         this.lastTime = null;
+        this.playerName = "";
 
         this._bindEvents();
         this._init();
@@ -93,11 +110,22 @@ class VNEngine {
             }
             const meData = await meResp.json();
             this._setUsername(meData.username);
+            this.playerName = meData.player_name || "";
         } catch (e) {
             console.warn("[VNEngine] Auth verification failed:", e);
             return;
         }
 
+        // If no player name is set, require it before starting the game
+        if (!this.playerName) {
+            this._showNameEntry();
+            return;
+        }
+
+        await this._startGame();
+    }
+
+    async _startGame() {
         try {
             await this._fetchAvailableAssets();
             await this._fetchStartPrompt();
@@ -118,6 +146,84 @@ class VNEngine {
     _setUsername(username) {
         const el = document.getElementById("user-display");
         if (el) el.textContent = username;
+    }
+
+    // --- Player Name Entry ---
+
+    _showNameEntry() {
+        this.nameEntryOverlay.classList.remove("hidden");
+        this.nameEntryInput.value = "";
+        this.nameEntryError.textContent = "";
+        this.nameEntryInput.focus();
+    }
+
+    async _onNameEntrySubmit() {
+        const name = this.nameEntryInput.value.trim();
+        this.nameEntryError.textContent = "";
+
+        if (!name) {
+            this.nameEntryError.textContent = "Bitte einen Spielernamen eingeben.";
+            return;
+        }
+        if (name.length > 30) {
+            this.nameEntryError.textContent = "Maximal 30 Zeichen erlaubt.";
+            return;
+        }
+
+        try {
+            const resp = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/api/player_name`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ player_name: name }),
+            });
+            if (!resp.ok) {
+                const data = await resp.json().catch(() => ({}));
+                this.nameEntryError.textContent = data.detail || "Fehler beim Speichern.";
+                return;
+            }
+            this.playerName = name;
+            this.nameEntryOverlay.classList.add("hidden");
+            await this._startGame();
+        } catch (e) {
+            this.nameEntryError.textContent = "Verbindungsfehler.";
+        }
+    }
+
+    async _onMenuPlayerNameSave() {
+        const name = this.menuPlayerNameInput.value.trim();
+        this.menuPlayerNameStatus.textContent = "";
+        this.menuPlayerNameStatus.style.color = "";
+
+        if (!name) {
+            this.menuPlayerNameStatus.textContent = "Name darf nicht leer sein.";
+            this.menuPlayerNameStatus.style.color = "#e08080";
+            return;
+        }
+        if (name.length > 30) {
+            this.menuPlayerNameStatus.textContent = "Maximal 30 Zeichen.";
+            this.menuPlayerNameStatus.style.color = "#e08080";
+            return;
+        }
+
+        try {
+            const resp = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/api/player_name`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ player_name: name }),
+            });
+            if (!resp.ok) {
+                const data = await resp.json().catch(() => ({}));
+                this.menuPlayerNameStatus.textContent = data.detail || "Fehler.";
+                this.menuPlayerNameStatus.style.color = "#e08080";
+                return;
+            }
+            this.playerName = name;
+            this.menuPlayerNameStatus.textContent = "Gespeichert!";
+            this.menuPlayerNameStatus.style.color = "#80c080";
+        } catch (e) {
+            this.menuPlayerNameStatus.textContent = "Verbindungsfehler.";
+            this.menuPlayerNameStatus.style.color = "#e08080";
+        }
     }
 
     async _tryRestoreLastScene() {
@@ -183,16 +289,27 @@ class VNEngine {
         this.menuButton.addEventListener("click", () => this._openMenu());
         this.statsButton.addEventListener("click", () => this._openStats());
 
-        // Mobile: scroll textbox into view when keyboard opens
-        this.userInput.addEventListener("focus", () => {
-            setTimeout(() => {
-                this.userInput.scrollIntoView({ behavior: "smooth", block: "center" });
-            }, 300);
+        // Mobile toolbar toggle
+        this.toolbarToggle.addEventListener("click", () => this._toggleMobileToolbar());
+
+        // Mobile toolbar duplicate toggle buttons (synced with header toggles)
+        this.toolbarFuriganaToggle.addEventListener("click", () => this._toggleFurigana());
+        this.toolbarTranslationToggle.addEventListener("click", () => this._toggleTranslation());
+        this.toolbarHintToggle.addEventListener("click", () => this._toggleHints());
+
+        // Keyboard detection via visualViewport API
+        this._initKeyboardDetection();
+
+        // Name entry overlay
+        this.nameEntrySubmit.addEventListener("click", () => this._onNameEntrySubmit());
+        this.nameEntryInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") this._onNameEntrySubmit();
         });
 
         // Menu overlay
         this.menuCloseButton.addEventListener("click", () => this._closeMenu());
         this.newGameButton.addEventListener("click", () => this._onNewGame());
+        this.menuPlayerNameSave.addEventListener("click", () => this._onMenuPlayerNameSave());
 
         // Logout
         const logoutBtn = document.getElementById("logout-button");
@@ -229,6 +346,8 @@ class VNEngine {
         // Furigana and hints are on by default
         this.furiganaToggle.classList.add("active");
         this.hintToggle.classList.add("active");
+        this.toolbarFuriganaToggle.classList.add("active");
+        this.toolbarHintToggle.classList.add("active");
         this._updateBackButton();
     }
 
@@ -317,7 +436,7 @@ class VNEngine {
     async _fetchStartPrompt() {
         this.startPrompt = "(Spielstart)";
         try {
-            const response = await fetch(`${CONFIG.API_BASE_URL}/api/start_prompt`);
+            const response = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/api/start_prompt`);
             if (response.ok) {
                 const data = await response.json();
                 if (data.prompt) {
@@ -512,14 +631,16 @@ class VNEngine {
 
     /**
      * Convert furigana notation to HTML <ruby> tags.
-     * Handles pure kanji 漢字[かんじ] and mixed kanji+kana お願い[おねがい].
-     * The pattern matches any sequence containing at least one kanji
-     * (possibly mixed with hiragana) followed by [reading].
+     * Format: 漢字[かんじ] — kanji (possibly with trailing kana) followed by [reading].
+     * The match must START with a kanji character to avoid capturing preceding
+     * hiragana particles (の, で, が, etc.) into the ruby group.
      */
     _furiganaToRuby(text) {
         if (!text) return "";
+        // Normalize fullwidth brackets ［ ］ to halfwidth [ ]
+        text = text.replace(/\uff3b/g, "[").replace(/\uff3d/g, "]");
         return text.replace(
-            /([\u3040-\u309F\u3005\u3007\u3400-\u4DBF\u4E00-\u9FFF]*[\u3005\u3007\u3400-\u4DBF\u4E00-\u9FFF][\u3040-\u309F\u3005\u3007\u3400-\u4DBF\u4E00-\u9FFF]*)\[([^\]]+)\]/g,
+            /([\u3005-\u3007\u3400-\u4DBF\u4E00-\u9FFF\u30F5\u30F6][\u3040-\u309F\u3005-\u3007\u3400-\u4DBF\u4E00-\u9FFF\u30F5\u30F6]*)\[([^\]]+)\]/g,
             '<ruby>$1<rt>$2</rt></ruby>'
         );
     }
@@ -534,22 +655,60 @@ class VNEngine {
         this.showTranslation = !this.showTranslation;
         this.translationText.classList.toggle("hidden", !this.showTranslation);
         this.translationToggle.classList.toggle("active", this.showTranslation);
+        this.toolbarTranslationToggle.classList.toggle("active", this.showTranslation);
     }
 
     _toggleFurigana() {
         this.showFurigana = !this.showFurigana;
         this._applyFuriganaVisibility();
         this.furiganaToggle.classList.toggle("active", this.showFurigana);
+        this.toolbarFuriganaToggle.classList.toggle("active", this.showFurigana);
     }
 
     _toggleHints() {
         this.showHints = !this.showHints;
         this.hintToggle.classList.toggle("active", this.showHints);
+        this.toolbarHintToggle.classList.toggle("active", this.showHints);
         // Immediately show/hide current hint
         if (this.errorCorrectionHint) {
             const hasContent = this.errorCorrectionHint.textContent.trim() !== "";
             this.errorCorrectionHint.classList.toggle("hidden", !this.showHints || !hasContent);
         }
+    }
+
+    // --- Mobile Toolbar ---
+
+    _toggleMobileToolbar() {
+        this.mobileToolbar.classList.toggle("collapsed");
+        this.toolbarToggle.classList.toggle("active", !this.mobileToolbar.classList.contains("collapsed"));
+    }
+
+    _initKeyboardDetection() {
+        const vv = window.visualViewport;
+        if (!vv) return; // not supported (desktop browsers)
+
+        const gameContainer = document.getElementById("game-container");
+        const textboxLayer = document.getElementById("textbox-layer");
+        let initialHeight = vv.height;
+
+        const onResize = () => {
+            // Keyboard is considered open when viewport shrinks by >150px
+            const heightDiff = initialHeight - vv.height;
+            const keyboardOpen = heightDiff > 150;
+
+            gameContainer.classList.toggle("keyboard-open", keyboardOpen);
+
+            if (keyboardOpen) {
+                // Position textbox just above the keyboard
+                const keyboardHeight = window.innerHeight - vv.height;
+                textboxLayer.style.bottom = keyboardHeight + "px";
+            } else {
+                textboxLayer.style.bottom = "";
+                initialHeight = vv.height;
+            }
+        };
+
+        vv.addEventListener("resize", onResize);
     }
 
     // --- Character Name ---
@@ -567,6 +726,8 @@ class VNEngine {
 
     _openMenu() {
         this.menuOverlay.classList.remove("hidden");
+        this.menuPlayerNameInput.value = this.playerName;
+        this.menuPlayerNameStatus.textContent = "";
         this._refreshSaveSlots();
     }
 

@@ -2,7 +2,7 @@
 
 import pytest
 
-from backend.response_parser import ResponseParser, SceneData, AnalysisData, SceneStatus, _fix_reversed_furigana
+from backend.response_parser import ResponseParser, SceneData, AnalysisData, SceneStatus, _fix_reversed_furigana, _is_kanji, _has_kanji
 
 
 class TestParseScene:
@@ -313,3 +313,57 @@ class TestFixReversedFurigana:
         raw = '<scene><character>aoi</character><expression>happy</expression><dialog_jp>喉が渇いた</dialog_jp><dialog_jp_furigana>喉[のど]が渇[かわ]いた</dialog_jp_furigana><dialog_de>Ich habe Durst.</dialog_de></scene>'
         result = ResponseParser.parse_scene(raw)
         assert not any("reversed" in e.lower() for e in result.parse_errors)
+
+    def test_fullwidth_brackets_normalized(self):
+        """Fullwidth brackets ［ ］ should be normalized to halfwidth [ ]"""
+        raw = '<scene><character>aoi</character><expression>happy</expression><dialog_jp>下北沢の駅で会いましょう</dialog_jp><dialog_jp_furigana>下北沢［しもきたざわ］の駅［えき］で会［あ］いましょう</dialog_jp_furigana><dialog_de>Treffen wir uns am Bahnhof Shimokitazawa.</dialog_de></scene>'
+        result = ResponseParser.parse_scene(raw)
+        assert "下北沢[しもきたざわ]" in result.dialog_jp_furigana
+        assert "駅[えき]" in result.dialog_jp_furigana
+        assert "会[あ]" in result.dialog_jp_furigana
+        # No fullwidth brackets should remain
+        assert "\uff3b" not in result.dialog_jp_furigana
+        assert "\uff3d" not in result.dialog_jp_furigana
+
+
+class TestKatakanaKanjiCompounds:
+    """Tests for ヶ/ヵ and 〆 — characters that function like kanji in compounds."""
+
+    def test_is_kanji_includes_ke(self):
+        """ヶ (U+30F6) should be treated as kanji-like"""
+        assert _is_kanji("\u30F6")  # ヶ
+        assert _is_kanji("一ヶ月")
+
+    def test_is_kanji_includes_ka(self):
+        """ヵ (U+30F5) should be treated as kanji-like"""
+        assert _is_kanji("\u30F5")  # ヵ
+        assert _is_kanji("一ヵ所")
+
+    def test_is_kanji_includes_shime(self):
+        """〆 (U+3006) should be treated as kanji-like"""
+        assert _is_kanji("\u3006")  # 〆
+        assert _is_kanji("〆切")
+
+    def test_has_kanji_includes_ke(self):
+        """_has_kanji detects ヶ"""
+        assert _has_kanji("一ヶ月")
+
+    def test_reversed_furigana_with_ke(self):
+        """Reversed furigana with ヶ compound: いっかげつ[一ヶ月] → 一ヶ月[いっかげつ]"""
+        result = _fix_reversed_furigana("いっかげつ[一ヶ月]")
+        assert result == "一ヶ月[いっかげつ]"
+
+    def test_reversed_furigana_with_shime(self):
+        """Reversed furigana with 〆: しめきり[〆切] → 〆切[しめきり]"""
+        result = _fix_reversed_furigana("しめきり[〆切]")
+        assert result == "〆切[しめきり]"
+
+    def test_correct_ke_not_changed(self):
+        """Already correct: 一ヶ月[いっかげつ] stays as-is"""
+        text = "一ヶ月[いっかげつ]"
+        assert _fix_reversed_furigana(text) == text
+
+    def test_correct_shime_not_changed(self):
+        """Already correct: 〆切[しめきり] stays as-is"""
+        text = "〆切[しめきり]"
+        assert _fix_reversed_furigana(text) == text

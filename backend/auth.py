@@ -37,6 +37,7 @@ class UserRecord(BaseModel):
     hashed_password: str
     is_admin: bool = False
     created_at: str = ""
+    player_name: str = ""
 
 
 class UserStore(BaseModel):
@@ -57,6 +58,7 @@ class UserInfo(BaseModel):
     username: str
     is_admin: bool
     created_at: str
+    player_name: str = ""
 
 
 # --- User Store (JSON file) ---
@@ -94,7 +96,8 @@ class UserManager:
                 tmp.unlink()
 
     def create_user(
-        self, username: str, password: str, is_admin: bool = False
+        self, username: str, password: str, is_admin: bool = False,
+        player_name: str = "",
     ) -> UserRecord:
         username = username.lower().strip()
         if username in self.store.users:
@@ -109,6 +112,7 @@ class UserManager:
             hashed_password=_hash_password(password),
             is_admin=is_admin,
             created_at=datetime.now(timezone.utc).isoformat(),
+            player_name=player_name.strip(),
         )
         self.store.users[record.username] = record
         self._save()
@@ -138,9 +142,18 @@ class UserManager:
                 username=u.username,
                 is_admin=u.is_admin,
                 created_at=u.created_at,
+                player_name=u.player_name,
             )
             for u in self.store.users.values()
         ]
+
+    def update_player_name(self, username: str, player_name: str) -> bool:
+        user = self.store.users.get(username.lower())
+        if not user:
+            return False
+        user.player_name = player_name.strip()
+        self._save()
+        return True
 
     def delete_user(self, username: str) -> bool:
         if username.lower() in self.store.users:

@@ -25,7 +25,21 @@ def main():
     parser.add_argument(
         "--admin", action="store_true", help="Grant admin privileges"
     )
+    parser.add_argument(
+        "--player-name",
+        help="In-game player name (required, or will be prompted)",
+    )
     args = parser.parse_args()
+
+    player_name = args.player_name
+    if not player_name:
+        player_name = input("Spielername (Pflicht): ").strip()
+    if not player_name:
+        print("Error: Spielername darf nicht leer sein")
+        sys.exit(1)
+    if len(player_name) > 30:
+        print("Error: Spielername darf maximal 30 Zeichen lang sein")
+        sys.exit(1)
 
     password = getpass.getpass("Password: ")
     confirm = getpass.getpass("Confirm password: ")
@@ -42,9 +56,13 @@ def main():
     um = UserManager(data_dir=data_dir)
 
     try:
-        user = um.create_user(args.username, password, is_admin=args.admin)
+        user = um.create_user(
+            args.username, password, is_admin=args.admin,
+            player_name=player_name,
+        )
         role = " (admin)" if user.is_admin else ""
         print(f"User '{user.username}' created successfully{role}")
+        print(f"Spielername: {user.player_name}")
     except ValueError as e:
         print(f"Error: {e}")
         sys.exit(1)

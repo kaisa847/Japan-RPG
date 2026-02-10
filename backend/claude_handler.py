@@ -1,5 +1,6 @@
 """Anthropic API wrapper for scene generation."""
 
+import json
 import logging
 import os
 from pathlib import Path
@@ -15,9 +16,9 @@ Du bist der Erzähler von "Japanese Life: Tokyo Stories", einem Visual Novel,
 das deutschsprachigen Spielern Japanisch beibringt.
 
 PRÄMISSE:
-Der Spieler heißt Kai und ist auf einem Sabbatical in Shimokitazawa, Tokio.
+Der Spieler heißt {player_name} und ist auf einem Sabbatical in Shimokitazawa, Tokio.
 Er hat Aoi (林あおい) online in einem Sprachaustausch-Forum kennengelernt.
-Heute treffen sie sich zum ersten Mal persönlich. Aoi zeigt Kai die Gegend
+Heute treffen sie sich zum ersten Mal persönlich. Aoi zeigt {player_name} die Gegend
 und hilft ihm, sein Japanisch in echten Alltagssituationen zu verbessern.
 
 AOI-CHARAKTER:
@@ -59,20 +60,17 @@ VERFÜGBARE EXPRESSIONS FÜR AOI:
 {aoi_expressions}
 
 VERFÜGBARE HINTERGRÜNDE:
-apartment_room, shimokitazawa_station, shimokitazawa_street,
-cafe_shimokitazawa, ramen_shop, vintage_shop, record_store,
-bookshop, park, shrine, convenience_store, train_station,
-izakaya, karaoke, temple, rooftop
+{available_backgrounds}
 
 AKTUELLER SPIELSTAND:
 {game_state_summary}
 
 NARRATOR / SZENENBESCHREIBUNGEN:
-Wenn du als Erzähler sprichst (Szenenbeschreibungen, Übergänge, innere Gedanken von Kai),
+Wenn du als Erzähler sprichst (Szenenbeschreibungen, Übergänge, innere Gedanken von {player_name}),
 verwende ein LEERES character-Tag: <character></character>
 
 REGELN:
-- dialog_jp muss natürliches Japanisch sein, angepasst an Kais Sprachniveau
+- dialog_jp muss natürliches Japanisch sein, angepasst an das Sprachniveau von {player_name}
 - KEIN ROMAJI. Schreibe ALLES in Japanisch (Kanji, Hiragana, Katakana). Auch Ortsnamen: 下北沢 nicht "Shimokitazawa"
 - dialog_jp_furigana ist PFLICHT und NIEMALS leer. Es ist derselbe Text wie dialog_jp,
   aber mit Furigana-Klammern für JEDES Kanji.
@@ -85,8 +83,8 @@ REGELN:
 - dialog_de muss eine genaue deutsche Übersetzung sein
 - Halte Dialoge kurz (1-3 Sätze)
 - Passe die expression an den emotionalen Ton an
-- Führe die Geschichte natürlich basierend auf Kais Input weiter
-- Wenn Kai Japanisch versucht, reagiere ermutigend und korrigiere sanft
+- Führe die Geschichte natürlich basierend auf dem Input von {player_name} weiter
+- Wenn {player_name} Japanisch versucht, reagiere ermutigend und korrigiere sanft
 - Baue neue Vokabeln und Grammatik schrittweise ein
 - Passe Aois Verhalten an ihren aktuellen Zuneigungston an
 - Wenn der Spieler Schwächen hat, baue diese Themen gezielt in den Dialog ein
@@ -105,11 +103,11 @@ REGELN:
 """
 
 TONE_DESCRIPTIONS = {
-    "distant": "Aoi ist höflich aber zurückhaltend. Sie verwendet keigo und hält Distanz. Sie kennt Kai kaum.",
+    "distant": "Aoi ist höflich aber zurückhaltend. Sie verwendet keigo und hält Distanz. Sie kennt {player_name} kaum.",
     "neutral": "Aoi ist freundlich und hilfsbereit, aber noch etwas formell. Sie beginnt sich zu öffnen.",
     "friendly": "Aoi ist entspannt und gesprächig. Sie verwendet casual speech und teilt persönliche Geschichten.",
-    "warm": "Aoi ist herzlich und fürsorglich. Sie macht sich Sorgen um Kai und zeigt echtes Interesse.",
-    "intimate": "Aoi ist sehr vertraut. Sie neckt Kai liebevoll, teilt Geheimnisse und zeigt Verletzlichkeit.",
+    "warm": "Aoi ist herzlich und fürsorglich. Sie macht sich Sorgen um {player_name} und zeigt echtes Interesse.",
+    "intimate": "Aoi ist sehr vertraut. Sie neckt {player_name} liebevoll, teilt Geheimnisse und zeigt Verletzlichkeit.",
 }
 
 
@@ -134,6 +132,22 @@ class ClaudeHandler:
         self.data_dir = Path(data_dir)
         self.aoi_sheet: str = ""
         self._load_aoi_sheet()
+        self.locations: dict = {}
+        self._load_locations()
+
+    def _load_locations(self) -> None:
+        loc_path = self.data_dir / "locations.json"
+        if loc_path.exists():
+            try:
+                self.locations = json.loads(loc_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as e:
+                logger.warning("Failed to read locations.json: %s", e)
+        else:
+            logger.warning("Locations config not found: %s", loc_path)
+
+    def get_background_ids(self) -> list[str]:
+        """Return sorted list of location IDs from config."""
+        return sorted(self.locations.get("locations", {}).keys())
 
     def _load_aoi_sheet(self) -> None:
         aoi_path = self.data_dir / "characters" / "aoi.md"
@@ -150,14 +164,18 @@ class ClaudeHandler:
         game_state_summary: str,
         aoi_tone: str = "neutral",
         weak_points: list[str] | None = None,
+        player_name: str = "Spieler",
     ) -> str:
         aoi_expressions = ", ".join(CHARACTER_EXPRESSIONS.get("aoi", ["neutral"]))
         tone_desc = TONE_DESCRIPTIONS.get(aoi_tone, TONE_DESCRIPTIONS["neutral"])
+        tone_desc = tone_desc.format(player_name=player_name)
 
         if weak_points:
             weak_points_info = f"Der Spieler hat Schwierigkeiten mit: {', '.join(weak_points)}\nBaue diese Themen gezielt in den Dialog ein."
         else:
             weak_points_info = "Keine bekannten Schwächen. Führe grundlegende Themen ein."
+
+        backgrounds = ", ".join(self.get_background_ids())
 
         return SYSTEM_PROMPT_TEMPLATE.format(
             character_info=self.aoi_sheet,
@@ -165,7 +183,9 @@ class ClaudeHandler:
             tone_description=tone_desc,
             weak_points_info=weak_points_info,
             aoi_expressions=aoi_expressions,
+            available_backgrounds=backgrounds,
             game_state_summary=game_state_summary,
+            player_name=player_name,
         )
 
     async def generate_scene(
@@ -175,9 +195,10 @@ class ClaudeHandler:
         conversation_history: list[dict],
         aoi_tone: str = "neutral",
         weak_points: list[str] | None = None,
+        player_name: str = "Spieler",
     ) -> SceneData:
         system_prompt = self._build_system_prompt(
-            game_state_summary, aoi_tone, weak_points
+            game_state_summary, aoi_tone, weak_points, player_name=player_name
         )
 
         messages = []
@@ -205,11 +226,12 @@ class ClaudeHandler:
         conversation_history: list[dict],
         aoi_tone: str = "neutral",
         weak_points: list[str] | None = None,
+        player_name: str = "Spieler",
     ) -> SceneData:
         try:
             return await self.generate_scene(
                 user_input, game_state_summary, conversation_history,
-                aoi_tone, weak_points,
+                aoi_tone, weak_points, player_name=player_name,
             )
         except APITimeoutError:
             logger.error("Claude API timeout")

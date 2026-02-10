@@ -1,5 +1,6 @@
 """FastAPI server for the Visual Novel Engine."""
 
+import json
 import logging
 import os
 import secrets
@@ -58,6 +59,7 @@ class GameStateResponse(BaseModel):
     last_scene: Optional[dict] = None
     affection: Optional[dict] = None
     learning: Optional[dict] = None
+    player_name: str = ""
 
 
 class SaveSlotResponse(BaseModel):
@@ -152,7 +154,11 @@ async def login(request: Request, form: OAuth2PasswordRequestForm = Depends()):
 
 @app.get("/api/auth/me")
 async def get_me(user: UserRecord = Depends(get_current_user)):
-    return {"username": user.username, "is_admin": user.is_admin}
+    return {
+        "username": user.username,
+        "is_admin": user.is_admin,
+        "player_name": user.player_name,
+    }
 
 
 @app.post("/api/admin/users")
@@ -166,9 +172,14 @@ async def create_user_api(
     um: UserManager = request.app.state.user_manager
     try:
         new_user = um.create_user(
-            body["username"], body["password"], body.get("is_admin", False)
+            body["username"], body["password"], body.get("is_admin", False),
+            player_name=body.get("player_name", ""),
         )
-        return {"username": new_user.username, "is_admin": new_user.is_admin}
+        return {
+            "username": new_user.username,
+            "is_admin": new_user.is_admin,
+            "player_name": new_user.player_name,
+        }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -184,6 +195,29 @@ async def list_users_api(
     return {"users": [u.model_dump(exclude={"password_hash"}) for u in um.list_users()]}
 
 
+# --- Player name ---
+
+@app.get("/api/player_name")
+async def get_player_name(user: UserRecord = Depends(get_current_user)):
+    return {"player_name": user.player_name}
+
+
+@app.put("/api/player_name")
+async def update_player_name(
+    request: Request,
+    user: UserRecord = Depends(get_current_user),
+):
+    body = await request.json()
+    name = body.get("player_name", "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Spielername darf nicht leer sein.")
+    if len(name) > 30:
+        raise HTTPException(status_code=400, detail="Spielername darf maximal 30 Zeichen lang sein.")
+    um: UserManager = request.app.state.user_manager
+    um.update_player_name(user.username, name)
+    return {"player_name": name}
+
+
 # --- Root redirect ---
 
 @app.get("/")
@@ -194,11 +228,13 @@ async def root():
 # --- Start prompt ---
 
 @app.get("/api/start_prompt")
-async def get_start_prompt():
+async def get_start_prompt(user: UserRecord = Depends(get_current_user)):
     prompt_path = DATA_DIR / "start_prompt.txt"
     if prompt_path.exists():
         try:
             text = prompt_path.read_text(encoding="utf-8").strip()
+            player_name = user.player_name or "Spieler"
+            text = text.replace("{player_name}", player_name)
             return {"prompt": text}
         except OSError:
             pass
@@ -233,6 +269,15 @@ async def get_available_assets():
     return {"characters": characters, "backgrounds": backgrounds}
 
 
+@app.get("/api/locations")
+async def get_locations():
+    loc_path = DATA_DIR / "locations.json"
+    if not loc_path.exists():
+        raise HTTPException(status_code=404, detail="locations.json not found")
+    config = json.loads(loc_path.read_text(encoding="utf-8"))
+    return config
+
+
 # --- Game state ---
 
 @app.get("/game_state")
@@ -262,6 +307,7 @@ async def get_game_state(
         last_scene=last_scene,
         affection=s.affection.to_display_dict(),
         learning=s.learning.model_dump(),
+        player_name=user.player_name,
     )
 
 
@@ -282,6 +328,7 @@ async def reset_game_state(
         last_scene=None,
         affection=fresh.affection.to_display_dict(),
         learning=fresh.learning.model_dump(),
+        player_name=user.player_name,
     )
 
 
@@ -303,7 +350,8 @@ async def generate_scene(
     # Get current state info for Claude
     aoi_tone = sm.state.affection.tone
     weak_points = sm.state.learning.weak_points
-    context_summary = sm.get_context_summary()
+    player_name = user.player_name or "Spieler"
+    context_summary = sm.get_context_summary(player_name=player_name)
     history = sm.state.conversation_history
 
     if handler:
@@ -313,6 +361,7 @@ async def generate_scene(
             conversation_history=history,
             aoi_tone=aoi_tone,
             weak_points=weak_points,
+            player_name=player_name,
         )
     else:
         scene = SceneData(

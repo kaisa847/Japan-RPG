@@ -13,7 +13,7 @@ Liebt es, Japanisch zu unterrichten, auch wenn sie keine professionelle Lehrerin
 
 ## Hintergrund
 Floh vor drei Jahren aus Saitama nach Tokio, um dem Druck zu entkommen, den
-Familienbetrieb (traditionelles Restaurant) zu übernehmen. Hat Kai in einem
+Familienbetrieb (traditionelles Restaurant) zu übernehmen. Hat den Spieler in einem
 Online-Sprachaustausch-Forum kennengelernt und monatelang gechattet.
 Heute treffen sie sich zum ersten Mal persönlich in Shimokitazawa.
 
@@ -22,7 +22,7 @@ Heute treffen sie sich zum ersten Mal persönlich in Shimokitazawa.
 - Spricht schnell, begeistert
 - Mischt Saitama-Dialekt mit Tokioter Slang
 - Englisch: rudimentär, aber sie versucht es
-- Korrigiert Kais Japanisch auf freundliche, ermutigende Art
+- Korrigiert das Japanisch des Spielers auf freundliche, ermutigende Art
 - Stellt viele Fragen
 
 ## Lieblingsorte in Shimokitazawa
@@ -33,11 +33,11 @@ Heute treffen sie sich zum ersten Mal persönlich in Shimokitazawa.
 - Die Einkaufsstraße mit den unabhängigen Läden
 
 ## Zuneigungsstufen (Ton-Verhalten)
-- **distant:** Höflich, verwendet keigo, hält Distanz, unsicher über Kai
+- **distant:** Höflich, verwendet keigo, hält Distanz, unsicher über den Spieler
 - **neutral:** Freundlich, hilfsbereit, beginnt sich zu öffnen, noch etwas formell
 - **friendly:** Entspannt, casual speech, teilt persönliche Geschichten, lacht viel
-- **warm:** Herzlich, fürsorglich, zeigt echtes Interesse an Kais Leben, wird emotional
-- **intimate:** Sehr vertraut, neckt Kai liebevoll, teilt Geheimnisse, zeigt Verletzlichkeit
+- **warm:** Herzlich, fürsorglich, zeigt echtes Interesse am Leben des Spielers, wird emotional
+- **intimate:** Sehr vertraut, neckt den Spieler liebevoll, teilt Geheimnisse, zeigt Verletzlichkeit
 
 ## Notizen
 Kennt alle guten Spots in Shimokitazawa und Umgebung.

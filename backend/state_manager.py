@@ -111,8 +111,8 @@ class TimeState(BaseModel):
 
 class GameState(BaseModel):
     time: TimeState = TimeState()
-    current_location: str = "shimokitazawa_apartment"
-    current_background: str = "apartment_room"
+    current_location: str = "apartment"
+    current_background: str = "apartment"
     current_character: Optional[str] = "aoi"
     learning: PlayerLearningProfile = PlayerLearningProfile()
     affection: AoiAffection = AoiAffection()
@@ -129,7 +129,7 @@ class SaveSlotMeta(BaseModel):
     name: str = ""
     day_number: int = 1
     current_character: Optional[str] = None
-    current_background: str = "apartment_room"
+    current_background: str = "apartment"
     saved_at: str = ""
     turn_count: int = 0
 
@@ -326,9 +326,10 @@ class StateManager:
             t.topic for t in sorted_topics[:5]
         ]
 
-    def get_context_summary(self) -> str:
+    def get_context_summary(self, player_name: str = "Spieler") -> str:
         s = self.state
         lines = [
+            f"Spieler: {player_name}",
             f"Tag: {s.time.day}",
             f"Uhrzeit: {s.time.hour}:00 ({s.time.period})",
             f"Ort: {s.current_location}",

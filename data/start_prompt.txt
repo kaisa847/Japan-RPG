@@ -1,7 +1,7 @@
 (SPIELSTART – Regieanweisung, NICHT als Dialog anzeigen:
-Aoi trifft Kai am Südausgang des Bahnhofs Shimokitazawa. Es ist ein sonniger Nachmittag.
+Aoi trifft {player_name} am Südausgang des Bahnhofs Shimokitazawa. Es ist ein sonniger Nachmittag.
 Sie erkennt ihn sofort und ruft fröhlich nach ihm.
-Aoi begrüßt Kai auf Japanisch — einfaches, anfängerfreundliches Japanisch.
+Aoi begrüßt {player_name} auf Japanisch — einfaches, anfängerfreundliches Japanisch.
 Sie ist aufgeregt, ihn endlich persönlich zu treffen, nachdem sie monatelang online gechattet haben.
 Verwende character=aoi, expression=happy, background=shimokitazawa_station.
 Dies ist die ERSTE Begegnung — halte den Ton freundlich aber noch etwas formell.)

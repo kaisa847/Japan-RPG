@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 # Regex: detect reversed furigana like ひらがな[漢字] and fix to 漢字[ひらがな]
 _HIRAGANA_CHAR = r'[\u3040-\u309F]'
-_KANJI_CHAR = r'[\u3005\u3007\u3400-\u4DBF\u4E00-\u9FFF]'
+_KANJI_CHAR = r'[\u3005-\u3007\u3400-\u4DBF\u4E00-\u9FFF\u30F5\u30F6]'
 
 # Any bracket-annotation pattern: (some chars)[some chars]
 _ANY_BRACKET_RE = re.compile(
@@ -27,7 +27,8 @@ def _is_hiragana(s: str) -> bool:
 def _is_kanji(s: str) -> bool:
     return bool(s) and all(
         '\u4E00' <= c <= '\u9FFF' or '\u3400' <= c <= '\u4DBF'
-        or c in ('\u3005', '\u3007')
+        or '\u3005' <= c <= '\u3007'
+        or c in ('\u30F5', '\u30F6')
         for c in s
     )
 
@@ -36,7 +37,8 @@ def _has_kanji(s: str) -> bool:
     """Check if a string contains at least one kanji character."""
     return any(
         '\u4E00' <= c <= '\u9FFF' or '\u3400' <= c <= '\u4DBF'
-        or c in ('\u3005', '\u3007')
+        or '\u3005' <= c <= '\u3007'
+        or c in ('\u30F5', '\u30F6')
         for c in s
     )
 
@@ -159,6 +161,10 @@ class ResponseParser:
         dialog_jp = html.unescape(data.get("dialog_jp", "").strip())
         dialog_jp_furigana = html.unescape(data.get("dialog_jp_furigana", "").strip())
         dialog_de = html.unescape(data.get("dialog_de", "").strip())
+
+        # Normalize fullwidth brackets ［ ］ to halfwidth [ ]
+        if dialog_jp_furigana:
+            dialog_jp_furigana = dialog_jp_furigana.replace('\uff3b', '[').replace('\uff3d', ']')
 
         # Fix reversed furigana notation (e.g. のど[喉] → 喉[のど])
         if dialog_jp_furigana:

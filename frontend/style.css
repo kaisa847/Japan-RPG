@@ -133,9 +133,10 @@ html, body {
 #dialog-text {
     color: #f0f0f0;
     font-size: 18px;
-    line-height: 1.7;
+    line-height: 2.0;
     min-height: 2em;
     margin-bottom: 4px;
+    padding-top: 0.5em;
     word-break: break-word;
     overflow-y: auto;
     flex-shrink: 1;
@@ -154,7 +155,50 @@ html, body {
     display: none;
 }
 
-/* --- Toolbar Buttons (Back, History, Menu) — inline in input-area --- */
+/* --- Input Section: wraps toolbar + input row --- */
+
+#input-section {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    flex-shrink: 0;
+    align-items: center;
+}
+
+/* --- Toolbar: on desktop, inline nav buttons --- */
+
+.mobile-toolbar {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+    align-items: center;
+}
+
+/* On desktop, ignore collapsed state */
+.mobile-toolbar.collapsed {
+    max-height: none;
+    opacity: 1;
+    padding: 0;
+}
+
+/* Toolbar toggle button: mobile only */
+#toolbar-toggle {
+    display: none;
+}
+
+/* Duplicate toggle buttons: hidden on desktop (header toggles are visible) */
+#toolbar-furigana-toggle,
+#toolbar-translation-toggle,
+#toolbar-hint-toggle {
+    display: none;
+}
+
+/* Separator: hidden on desktop */
+.toolbar-separator {
+    display: none;
+}
+
+/* --- Toolbar Buttons (Back, History, Menu) — inline in input-area on desktop --- */
 
 #back-button,
 #history-button,
@@ -243,8 +287,9 @@ rt {
 #input-area {
     display: flex;
     gap: 8px;
-    margin-top: 8px;
-    flex-shrink: 0;
+    flex: 1;
+    min-width: 0;
+    align-items: center;
 }
 
 #user-input {
@@ -897,10 +942,11 @@ rt {
         max-height: none;
     }
 
-    /* --- Character: full height, textbox overlaps bottom --- */
+    /* --- Character: anchor to top so keyboard doesn't push face away --- */
     #character-sprite {
-        height: 90%;
-        bottom: 0;
+        height: 85%;
+        bottom: auto;
+        top: 0;
     }
 
     /* --- Textbox: full-width, bottom-pinned --- */
@@ -911,6 +957,7 @@ rt {
         border-radius: 16px 16px 0 0;
         padding: 10px 12px 10px;
         max-height: 50%;
+        transition: bottom 150ms ease-out;
     }
 
     /* --- Header row --- */
@@ -924,17 +971,22 @@ rt {
         padding: 2px 10px;
     }
 
-    /* --- Toggle buttons: compact --- */
-    #translation-toggle,
-    #furigana-toggle {
-        padding: 3px 8px;
-        font-size: 11px;
+    /* --- Toggle buttons: hide from header on mobile (they live in toolbar) --- */
+    #toggle-buttons {
+        display: none;
+    }
+
+    /* --- Input Section: stack vertically on mobile --- */
+    #input-section {
+        flex-direction: column;
+        gap: 0;
+        margin-top: 4px;
     }
 
     /* --- Dialog: smaller text --- */
     #dialog-text {
         font-size: 15px;
-        line-height: 1.6;
+        line-height: 1.9;
         min-height: 1.5em;
         margin-bottom: 2px;
     }
@@ -944,17 +996,40 @@ rt {
         margin-bottom: 4px;
     }
 
-    /* --- Input Area: all in one row, compact --- */
-    #input-area {
-        gap: 4px;
+    /* --- Mobile Toolbar: expandable strip above input --- */
+    .mobile-toolbar {
+        display: flex;
+        gap: 6px;
         margin-top: 4px;
+        padding: 6px 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        overflow: hidden;
+        transition: max-height 200ms ease-out, opacity 200ms ease-out, padding 200ms ease-out;
+        flex-wrap: wrap;
+        justify-content: center;
     }
 
-    #back-button,
-    #history-button,
-    #menu-button {
-        padding: 6px 8px;
-        font-size: 14px;
+    .mobile-toolbar.collapsed {
+        max-height: 0;
+        opacity: 0;
+        padding: 0;
+        border-top-color: transparent;
+    }
+
+    .mobile-toolbar:not(.collapsed) {
+        max-height: 50px;
+        opacity: 1;
+    }
+
+    .mobile-toolbar button {
+        background: rgba(80, 80, 100, 0.6);
+        color: #c0c0d0;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        padding: 6px 10px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: background 150ms;
         min-width: 34px;
         min-height: 34px;
         display: flex;
@@ -962,10 +1037,74 @@ rt {
         justify-content: center;
     }
 
+    .mobile-toolbar button:hover {
+        background: rgba(100, 100, 130, 0.8);
+        color: #e0e0f0;
+    }
+
+    .mobile-toolbar button.active {
+        background: rgba(120, 120, 180, 0.7);
+        color: #f0f0ff;
+        border-color: rgba(160, 160, 220, 0.5);
+    }
+
+    .mobile-toolbar button:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
+
+    .toolbar-separator {
+        width: 1px;
+        background: rgba(255, 255, 255, 0.15);
+        align-self: stretch;
+        margin: 2px 2px;
+    }
+
+    /* Show the duplicate toggles in toolbar on mobile */
+    #toolbar-furigana-toggle,
+    #toolbar-translation-toggle,
+    #toolbar-hint-toggle {
+        display: flex;
+    }
+
+    /* --- Show toolbar toggle button on mobile --- */
+    #toolbar-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(80, 80, 100, 0.6);
+        color: #c0c0d0;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        padding: 6px 8px;
+        font-size: 18px;
+        cursor: pointer;
+        transition: background 150ms;
+        min-width: 34px;
+        min-height: 34px;
+        flex-shrink: 0;
+        line-height: 1;
+    }
+
+    #toolbar-toggle:hover {
+        background: rgba(100, 100, 130, 0.8);
+        color: #e0e0f0;
+    }
+
+    #toolbar-toggle.active {
+        background: rgba(120, 120, 180, 0.7);
+        color: #f0f0ff;
+    }
+
+    /* --- Input Area: compact on mobile --- */
+    #input-area {
+        gap: 4px;
+    }
+
     #user-input {
         min-width: 0;
         padding: 8px 10px;
-        font-size: 15px;
+        font-size: 16px; /* prevent iOS zoom */
     }
 
     #send-button {
@@ -978,6 +1117,26 @@ rt {
         padding: 8px 8px;
         font-size: 14px;
         min-height: 34px;
+    }
+
+    /* --- Keyboard open: more compact textbox --- */
+    #game-container.keyboard-open #textbox-layer {
+        max-height: 45%;
+    }
+
+    #game-container.keyboard-open #dialog-text {
+        max-height: 3.5em;
+        overflow-y: auto;
+    }
+
+    #game-container.keyboard-open .mobile-toolbar:not(.collapsed) {
+        max-height: 38px;
+    }
+
+    #game-container.keyboard-open .mobile-toolbar button {
+        padding: 4px 8px;
+        min-height: 28px;
+        font-size: 12px;
     }
 
     /* --- Overlays: full-screen on mobile --- */
@@ -1020,17 +1179,6 @@ rt {
 
     #hud-affection-icon {
         font-size: 12px;
-    }
-
-    /* --- Stats button: same size as other toolbar buttons --- */
-    #stats-button {
-        padding: 6px 8px;
-        font-size: 14px;
-        min-width: 34px;
-        min-height: 34px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
     }
 
     /* --- Scene-End Choices: smaller on mobile --- */
@@ -1107,7 +1255,7 @@ rt {
     #dialog-text {
         font-size: 14px;
         min-height: 1.5em;
-        line-height: 1.5;
+        line-height: 1.8;
     }
 
     #translation-text {
@@ -1129,6 +1277,120 @@ rt {
         font-size: 11px;
         margin-top: 4px;
     }
+}
+
+/* --- Name Entry Overlay --- */
+
+.name-entry-panel {
+    text-align: center;
+    max-width: 400px;
+}
+
+.name-entry-panel h2 {
+    color: #e0e0f0;
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+
+.name-entry-description {
+    color: #a0a0b8;
+    font-size: 14px;
+    margin-bottom: 20px;
+    line-height: 1.5;
+}
+
+.name-entry-field {
+    margin-bottom: 12px;
+}
+
+.name-entry-field input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: #f0f0f0;
+    font-size: 16px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 150ms;
+    text-align: center;
+}
+
+.name-entry-field input:focus {
+    border-color: rgba(140, 140, 200, 0.6);
+}
+
+.name-entry-error {
+    color: #e08080;
+    font-size: 13px;
+    min-height: 1.3em;
+    margin-bottom: 8px;
+}
+
+/* --- Player Name in Menu --- */
+
+#player-name-section {
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.menu-label {
+    display: block;
+    color: #a0a0b8;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    letter-spacing: 0.3px;
+}
+
+.player-name-row {
+    display: flex;
+    gap: 8px;
+}
+
+.player-name-row input {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: #f0f0f0;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 150ms;
+}
+
+.player-name-row input:focus {
+    border-color: rgba(140, 140, 200, 0.6);
+}
+
+.player-name-row button {
+    background: rgba(80, 80, 120, 0.5);
+    color: #c0c0e0;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 150ms;
+    flex-shrink: 0;
+}
+
+.player-name-row button:hover {
+    background: rgba(100, 100, 150, 0.7);
+    color: #f0f0ff;
+}
+
+.player-name-status {
+    font-size: 12px;
+    margin-top: 6px;
+    min-height: 1.2em;
+    color: #80c080;
 }
 
 /* --- Login Page --- */
