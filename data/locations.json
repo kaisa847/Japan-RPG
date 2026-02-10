@@ -1,0 +1,133 @@
+{
+  "setting": "Shimokitazawa, Tokio (下北沢、東京)",
+  "start_location": "apartment",
+  "start_background": "apartment",
+  "locations": {
+    "apartment": {
+      "name_de": "Wohnung",
+      "name_jp": "アパート",
+      "description": "Kleine gemütliche Wohnung in Shimokitazawa, dein Zuhause während des Sabbaticals.",
+      "color": [70, 70, 100],
+      "category": "wohnen"
+    },
+    "shimokitazawa_station": {
+      "name_de": "Bahnhof Shimokitazawa",
+      "name_jp": "下北沢駅",
+      "description": "Der kürzlich renovierte Bahnhof — Knotenpunkt der Keio-Inokashira und Odakyu-Linie.",
+      "color": [140, 140, 160],
+      "category": "transport"
+    },
+    "shimokitazawa_street": {
+      "name_de": "Einkaufsstraße",
+      "name_jp": "商店街",
+      "description": "Enge Gassen voller unabhängiger Läden, Vintage-Shops und kleiner Restaurants.",
+      "color": [170, 130, 120],
+      "category": "straße"
+    },
+    "cafe": {
+      "name_de": "Café",
+      "name_jp": "カフェ",
+      "description": "Ein kleines Café in einer Seitenstraße — Aois Stammcafé mit handgebrühtem Kaffee.",
+      "color": [140, 110, 80],
+      "category": "gastronomie"
+    },
+    "ramen_shop": {
+      "name_de": "Ramen-Laden",
+      "name_jp": "ラーメン屋",
+      "description": "Winziger Ramen-Laden mit nur 8 Plätzen an der Theke. Der Besitzer kennt Aoi beim Namen.",
+      "color": [180, 120, 70],
+      "category": "gastronomie"
+    },
+    "vintage_shop": {
+      "name_de": "Vintage-Laden",
+      "name_jp": "古着屋",
+      "description": "Vollgestopfter Second-Hand-Laden mit Kleidung aus den 70ern bis 90ern.",
+      "color": [150, 120, 100],
+      "category": "einkaufen"
+    },
+    "record_store": {
+      "name_de": "Plattenladen",
+      "name_jp": "レコード屋",
+      "description": "Kleiner Plattenladen mit Vinyl-Schätzen — Jazz, City Pop und Indie.",
+      "color": [100, 80, 120],
+      "category": "einkaufen"
+    },
+    "bookshop": {
+      "name_de": "Buchladen",
+      "name_jp": "本屋",
+      "description": "Unabhängige Buchhandlung mit Manga, Literatur und einem Regal voller Zines.",
+      "color": [110, 95, 75],
+      "category": "einkaufen"
+    },
+    "park": {
+      "name_de": "Park",
+      "name_jp": "公園",
+      "description": "Shimokitazawa-Haltestelle-Park — grüne Oase auf dem ehemaligen Gleisgelände der Odakyu-Linie.",
+      "color": [70, 140, 70],
+      "category": "natur"
+    },
+    "shrine": {
+      "name_de": "Schrein",
+      "name_jp": "北沢八幡神社",
+      "description": "Kitazawa-Hachiman-Schrein auf dem Hügel — Aois Geheimtipp mit Blick über das Viertel.",
+      "color": [140, 60, 50],
+      "category": "kultur"
+    },
+    "konbini": {
+      "name_de": "Konbini",
+      "name_jp": "コンビニ",
+      "description": "24-Stunden-Convenience-Store — unverzichtbar für Onigiri, Getränke und nächtliche Snacks.",
+      "color": [200, 200, 180],
+      "category": "einkaufen"
+    },
+    "izakaya": {
+      "name_de": "Izakaya",
+      "name_jp": "居酒屋",
+      "description": "Gemütliche Kneipe mit Yakitori und Bier — abends der Treffpunkt der Nachbarschaft.",
+      "color": [160, 100, 60],
+      "category": "gastronomie"
+    },
+    "karaoke": {
+      "name_de": "Karaoke",
+      "name_jp": "カラオケ",
+      "description": "Karaoke-Box mit privaten Räumen — perfekt um Japanisch singend zu üben.",
+      "color": [130, 60, 140],
+      "category": "unterhaltung"
+    },
+    "live_house": {
+      "name_de": "Live House",
+      "name_jp": "ライブハウス",
+      "description": "Kleiner Musikclub — Shimokitazawas Indie-Szene mit Bands aus ganz Tokio.",
+      "color": [50, 50, 70],
+      "category": "unterhaltung"
+    },
+    "temple": {
+      "name_de": "Tempel",
+      "name_jp": "森巌寺",
+      "description": "Shingan-ji — ruhiger buddhistischer Tempel versteckt zwischen den Wohnhäusern.",
+      "color": [120, 90, 70],
+      "category": "kultur"
+    },
+    "rooftop": {
+      "name_de": "Dachterrasse",
+      "name_jp": "屋上",
+      "description": "Dachterrasse eines Gebäudes mit Blick über Shimokitazawa bis zum Fuji an klaren Tagen.",
+      "color": [100, 130, 180],
+      "category": "besonders"
+    },
+    "laundromat": {
+      "name_de": "Waschsalon",
+      "name_jp": "コインランドリー",
+      "description": "Kleiner Waschsalon um die Ecke — überraschend guter Ort für Gespräche beim Warten.",
+      "color": [170, 180, 190],
+      "category": "alltag"
+    },
+    "bath_house": {
+      "name_de": "Sentō",
+      "name_jp": "銭湯",
+      "description": "Traditionelles öffentliches Badehaus — japanische Badekultur hautnah erleben.",
+      "color": [130, 170, 190],
+      "category": "kultur"
+    }
+  }
+}

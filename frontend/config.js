@@ -5,7 +5,7 @@ const CONFIG = {
     TYPEWRITER_SPEED_MS: 30,
     FADE_TRANSITION_MS: 300,
     DEFAULT_EXPRESSION: "neutral",
-    DEFAULT_BACKGROUND: "apartment_room",
+    DEFAULT_BACKGROUND: "apartment",
     MAX_SAVE_SLOTS: 9,
     MAX_SCENE_HISTORY: 100,
     ASSET_PATHS: {

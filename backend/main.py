@@ -1,5 +1,6 @@
 """FastAPI server for the Visual Novel Engine."""
 
+import json
 import logging
 import os
 import secrets
@@ -266,6 +267,15 @@ async def get_available_assets():
         ])
 
     return {"characters": characters, "backgrounds": backgrounds}
+
+
+@app.get("/api/locations")
+async def get_locations():
+    loc_path = DATA_DIR / "locations.json"
+    if not loc_path.exists():
+        raise HTTPException(status_code=404, detail="locations.json not found")
+    config = json.loads(loc_path.read_text(encoding="utf-8"))
+    return config
 
 
 # --- Game state ---

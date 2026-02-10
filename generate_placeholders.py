@@ -1,5 +1,6 @@
 """Generate placeholder assets for all characters and backgrounds."""
 
+import json
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
@@ -51,27 +52,18 @@ CHARACTER_DISPLAY = {
     "sato_sachiko": "Sachiko",
 }
 
-BACKGROUNDS = {
-    "room_204": (70, 70, 100, "Zimmer 204 (Kai)"),
-    "room_203": (75, 75, 110, "Zimmer 203 (Aoi)"),
-    "room_202": (80, 70, 100, "Zimmer 202 (Sachiko)"),
-    "room_201": (60, 60, 80, "Zimmer 201 (Min-jun)"),
-    "room_102": (65, 65, 75, "Zimmer 102 (Rina)"),
-    "room_101": (85, 80, 70, "Zimmer 101 (Tanaka)"),
-    "sakura_house_living": (120, 100, 80, "Wohnzimmer"),
-    "sakura_house_kitchen": (140, 120, 90, "Kueche"),
-    "sakura_house_entrance": (100, 110, 100, "Eingang"),
-    "sakura_house_garden": (80, 130, 70, "Garten"),
-    "campus_entrance": (100, 140, 120, "Campus"),
-    "classroom_101": (160, 150, 130, "Klassenzimmer"),
-    "cafeteria": (180, 140, 100, "Cafeteria"),
-    "library": (100, 85, 70, "Bibliothek"),
-    "convenience_store": (200, 200, 180, "Konbini"),
-    "train_station": (140, 140, 160, "Bahnhof"),
-    "park": (70, 140, 70, "Park"),
-    "shopping_street": (170, 130, 120, "Einkaufsstrasse"),
-    "shrine": (140, 110, 90, "Schrein"),
-}
+def _load_backgrounds() -> dict:
+    """Load backgrounds from data/locations.json config."""
+    loc_path = Path("data/locations.json")
+    if not loc_path.exists():
+        raise FileNotFoundError(f"Locations config not found: {loc_path}")
+    config = json.loads(loc_path.read_text(encoding="utf-8"))
+    result = {}
+    for loc_id, loc in config.get("locations", {}).items():
+        r, g, b = loc["color"]
+        label = loc["name_de"]
+        result[loc_id] = (r, g, b, label)
+    return result
 
 
 def get_font(size: int):
@@ -170,11 +162,12 @@ def main():
     # Backgrounds
     bg_dir = base / "backgrounds"
     bg_dir.mkdir(parents=True, exist_ok=True)
-    for bg_id, (r, g, b, label) in BACKGROUNDS.items():
+    backgrounds = _load_backgrounds()
+    for bg_id, (r, g, b, label) in backgrounds.items():
         generate_background_placeholder(bg_id, (r, g, b), label, bg_dir)
-    print(f"  {len(BACKGROUNDS)} backgrounds")
+    print(f"  {len(backgrounds)} backgrounds")
 
-    total = sum(len(e) for e in CHARACTER_EXPRESSIONS.values()) + len(BACKGROUNDS)
+    total = sum(len(e) for e in CHARACTER_EXPRESSIONS.values()) + len(backgrounds)
     print(f"\nTotal: {total} assets generated.")
 
 

@@ -22,7 +22,7 @@ class TestStateManager:
         assert sm.state.time.day == 1
         assert sm.state.time.hour == 14
         assert sm.state.time.period == "afternoon"
-        assert sm.state.current_location == "shimokitazawa_apartment"
+        assert sm.state.current_location == "apartment"
         assert sm.state.current_character == "aoi"
 
     def test_save_and_reload(self, tmp_data_dir):

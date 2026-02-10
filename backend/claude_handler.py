@@ -1,5 +1,6 @@
 """Anthropic API wrapper for scene generation."""
 
+import json
 import logging
 import os
 from pathlib import Path
@@ -59,10 +60,7 @@ VERFÜGBARE EXPRESSIONS FÜR AOI:
 {aoi_expressions}
 
 VERFÜGBARE HINTERGRÜNDE:
-apartment_room, shimokitazawa_station, shimokitazawa_street,
-cafe_shimokitazawa, ramen_shop, vintage_shop, record_store,
-bookshop, park, shrine, convenience_store, train_station,
-izakaya, karaoke, temple, rooftop
+{available_backgrounds}
 
 AKTUELLER SPIELSTAND:
 {game_state_summary}
@@ -129,6 +127,22 @@ class ClaudeHandler:
         self.data_dir = Path(data_dir)
         self.aoi_sheet: str = ""
         self._load_aoi_sheet()
+        self.locations: dict = {}
+        self._load_locations()
+
+    def _load_locations(self) -> None:
+        loc_path = self.data_dir / "locations.json"
+        if loc_path.exists():
+            try:
+                self.locations = json.loads(loc_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as e:
+                logger.warning("Failed to read locations.json: %s", e)
+        else:
+            logger.warning("Locations config not found: %s", loc_path)
+
+    def get_background_ids(self) -> list[str]:
+        """Return sorted list of location IDs from config."""
+        return sorted(self.locations.get("locations", {}).keys())
 
     def _load_aoi_sheet(self) -> None:
         aoi_path = self.data_dir / "characters" / "aoi.md"
@@ -156,12 +170,15 @@ class ClaudeHandler:
         else:
             weak_points_info = "Keine bekannten Schwächen. Führe grundlegende Themen ein."
 
+        backgrounds = ", ".join(self.get_background_ids())
+
         return SYSTEM_PROMPT_TEMPLATE.format(
             character_info=self.aoi_sheet,
             aoi_tone=aoi_tone,
             tone_description=tone_desc,
             weak_points_info=weak_points_info,
             aoi_expressions=aoi_expressions,
+            available_backgrounds=backgrounds,
             game_state_summary=game_state_summary,
             player_name=player_name,
         )

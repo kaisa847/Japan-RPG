@@ -111,8 +111,8 @@ class TimeState(BaseModel):
 
 class GameState(BaseModel):
     time: TimeState = TimeState()
-    current_location: str = "shimokitazawa_apartment"
-    current_background: str = "apartment_room"
+    current_location: str = "apartment"
+    current_background: str = "apartment"
     current_character: Optional[str] = "aoi"
     learning: PlayerLearningProfile = PlayerLearningProfile()
     affection: AoiAffection = AoiAffection()
@@ -128,7 +128,7 @@ class SaveSlotMeta(BaseModel):
     name: str = ""
     day_number: int = 1
     current_character: Optional[str] = None
-    current_background: str = "apartment_room"
+    current_background: str = "apartment"
     saved_at: str = ""
     turn_count: int = 0
 
