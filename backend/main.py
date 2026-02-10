@@ -381,8 +381,21 @@ async def generate_scene(
         sm.process_analysis(scene.analysis.model_dump())
 
     # Process time update
-    if scene.scene_status and scene.scene_status.time_update:
-        sm.process_time_update(scene.scene_status.time_update)
+    time_advanced = False
+    if scene.scene_status:
+        time_update = scene.scene_status.time_update
+        if time_update:
+            sm.process_time_update(time_update)
+            time_advanced = True
+        elif scene.scene_status.scene_end:
+            # Fallback: scene ended but Claude forgot time_update → advance 1h
+            logger.warning("scene_end=true but no time_update provided, defaulting to +1h")
+            sm.process_time_update("+1h")
+            time_advanced = True
+
+    if not time_advanced:
+        # No explicit time advancement — use periodic fallback
+        sm.maybe_advance_time_periodic()
 
     # Update conversation history
     sm.add_conversation_turn("user", body.user_input)

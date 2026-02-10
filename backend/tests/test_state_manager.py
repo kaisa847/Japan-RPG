@@ -347,6 +347,69 @@ class TestProcessTimeUpdate:
         sm.process_time_update("invalid")
         assert sm.state.time.hour == 14  # unchanged
 
+    def test_resets_turns_counter_on_advance(self, tmp_data_dir):
+        sm = StateManager(data_dir=str(tmp_data_dir))
+        sm.state.turns_since_time_advance = 5
+        sm.process_time_update("+1h")
+        assert sm.state.turns_since_time_advance == 0
+
+    def test_resets_turns_counter_on_next_day(self, tmp_data_dir):
+        sm = StateManager(data_dir=str(tmp_data_dir))
+        sm.state.turns_since_time_advance = 3
+        sm.process_time_update("next_day")
+        assert sm.state.turns_since_time_advance == 0
+
+    def test_does_not_reset_counter_on_invalid(self, tmp_data_dir):
+        sm = StateManager(data_dir=str(tmp_data_dir))
+        sm.state.turns_since_time_advance = 4
+        sm.process_time_update("invalid")
+        assert sm.state.turns_since_time_advance == 4
+
+    def test_does_not_reset_counter_on_none(self, tmp_data_dir):
+        sm = StateManager(data_dir=str(tmp_data_dir))
+        sm.state.turns_since_time_advance = 4
+        sm.process_time_update(None)
+        assert sm.state.turns_since_time_advance == 4
+
+
+class TestPeriodicTimeAdvance:
+    def test_no_advance_before_threshold(self, tmp_data_dir):
+        sm = StateManager(data_dir=str(tmp_data_dir))
+        for _ in range(5):
+            sm.maybe_advance_time_periodic()
+        assert sm.state.time.hour == 14  # unchanged
+        assert sm.state.turns_since_time_advance == 5
+
+    def test_advances_at_threshold(self, tmp_data_dir):
+        sm = StateManager(data_dir=str(tmp_data_dir))
+        for _ in range(6):
+            sm.maybe_advance_time_periodic()
+        assert sm.state.time.hour == 15  # advanced 1h
+        assert sm.state.turns_since_time_advance == 0
+
+    def test_advances_multiple_cycles(self, tmp_data_dir):
+        sm = StateManager(data_dir=str(tmp_data_dir))
+        for _ in range(18):
+            sm.maybe_advance_time_periodic()
+        # 3 advances of 1h each: 14 → 17
+        assert sm.state.time.hour == 17
+        assert sm.state.turns_since_time_advance == 0
+
+    def test_explicit_update_resets_periodic_counter(self, tmp_data_dir):
+        sm = StateManager(data_dir=str(tmp_data_dir))
+        # Accumulate 4 turns
+        for _ in range(4):
+            sm.maybe_advance_time_periodic()
+        assert sm.state.turns_since_time_advance == 4
+        # Explicit update resets
+        sm.process_time_update("+2h")
+        assert sm.state.turns_since_time_advance == 0
+        assert sm.state.time.hour == 16
+        # Next 5 turns should not trigger periodic
+        for _ in range(5):
+            sm.maybe_advance_time_periodic()
+        assert sm.state.time.hour == 16  # still 16
+
 
 class TestSceneHistory:
     def test_scene_history_default_empty(self, tmp_data_dir):

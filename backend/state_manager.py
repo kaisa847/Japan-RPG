@@ -121,6 +121,7 @@ class GameState(BaseModel):
     last_scene: Optional[dict] = None
     flags: dict[str, bool] = {}
     last_updated: str = ""
+    turns_since_time_advance: int = 0
 
 
 class SaveSlotMeta(BaseModel):
@@ -278,6 +279,9 @@ class StateManager:
         # Recalculate weak points
         self._update_weak_points()
 
+    # Advance 1 hour automatically after this many turns without an explicit time_update
+    PERIODIC_TIME_ADVANCE_TURNS = 6
+
     def process_time_update(self, time_update: str | None) -> None:
         """Process time update from scene_status (e.g. '+1h', '+3h', 'next_day')."""
         if not time_update:
@@ -291,8 +295,23 @@ class StateManager:
                 self.state.time.advance_hours(hours)
             except ValueError:
                 logger.warning("Invalid time_update format: %s", time_update)
+                return
         else:
             logger.warning("Unknown time_update format: %s", time_update)
+            return
+        # Reset the periodic counter on successful time advancement
+        self.state.turns_since_time_advance = 0
+
+    def maybe_advance_time_periodic(self) -> None:
+        """Advance time by 1h if enough turns passed without an explicit time update."""
+        self.state.turns_since_time_advance += 1
+        if self.state.turns_since_time_advance >= self.PERIODIC_TIME_ADVANCE_TURNS:
+            logger.info(
+                "Periodic time advance after %d turns without explicit update",
+                self.state.turns_since_time_advance,
+            )
+            self.state.time.advance_hours(1)
+            self.state.turns_since_time_advance = 0
 
     def _update_weak_points(self) -> None:
         """Recalculate the top-5 weakest topics."""
