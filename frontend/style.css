@@ -133,9 +133,10 @@ html, body {
 #dialog-text {
     color: #f0f0f0;
     font-size: 18px;
-    line-height: 1.7;
+    line-height: 2.0;
     min-height: 2em;
     margin-bottom: 4px;
+    padding-top: 0.5em;
     word-break: break-word;
     overflow-y: auto;
     flex-shrink: 1;
@@ -934,7 +935,7 @@ rt {
     /* --- Dialog: smaller text --- */
     #dialog-text {
         font-size: 15px;
-        line-height: 1.6;
+        line-height: 1.9;
         min-height: 1.5em;
         margin-bottom: 2px;
     }
@@ -1107,7 +1108,7 @@ rt {
     #dialog-text {
         font-size: 14px;
         min-height: 1.5em;
-        line-height: 1.5;
+        line-height: 1.8;
     }
 
     #translation-text {

@@ -160,6 +160,10 @@ class ResponseParser:
         dialog_jp_furigana = html.unescape(data.get("dialog_jp_furigana", "").strip())
         dialog_de = html.unescape(data.get("dialog_de", "").strip())
 
+        # Normalize fullwidth brackets ［ ］ to halfwidth [ ]
+        if dialog_jp_furigana:
+            dialog_jp_furigana = dialog_jp_furigana.replace('\uff3b', '[').replace('\uff3d', ']')
+
         # Fix reversed furigana notation (e.g. のど[喉] → 喉[のど])
         if dialog_jp_furigana:
             fixed = _fix_reversed_furigana(dialog_jp_furigana)

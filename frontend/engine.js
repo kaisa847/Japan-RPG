@@ -618,14 +618,16 @@ class VNEngine {
 
     /**
      * Convert furigana notation to HTML <ruby> tags.
-     * Handles pure kanji 漢字[かんじ] and mixed kanji+kana お願い[おねがい].
-     * The pattern matches any sequence containing at least one kanji
-     * (possibly mixed with hiragana) followed by [reading].
+     * Format: 漢字[かんじ] — kanji (possibly with trailing kana) followed by [reading].
+     * The match must START with a kanji character to avoid capturing preceding
+     * hiragana particles (の, で, が, etc.) into the ruby group.
      */
     _furiganaToRuby(text) {
         if (!text) return "";
+        // Normalize fullwidth brackets ［ ］ to halfwidth [ ]
+        text = text.replace(/\uff3b/g, "[").replace(/\uff3d/g, "]");
         return text.replace(
-            /([\u3040-\u309F\u3005\u3007\u3400-\u4DBF\u4E00-\u9FFF]*[\u3005\u3007\u3400-\u4DBF\u4E00-\u9FFF][\u3040-\u309F\u3005\u3007\u3400-\u4DBF\u4E00-\u9FFF]*)\[([^\]]+)\]/g,
+            /([\u3005\u3007\u3400-\u4DBF\u4E00-\u9FFF][\u3040-\u309F\u3005\u3007\u3400-\u4DBF\u4E00-\u9FFF]*)\[([^\]]+)\]/g,
             '<ruby>$1<rt>$2</rt></ruby>'
         );
     }

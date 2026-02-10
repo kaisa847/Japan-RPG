@@ -313,3 +313,14 @@ class TestFixReversedFurigana:
         raw = '<scene><character>aoi</character><expression>happy</expression><dialog_jp>喉が渇いた</dialog_jp><dialog_jp_furigana>喉[のど]が渇[かわ]いた</dialog_jp_furigana><dialog_de>Ich habe Durst.</dialog_de></scene>'
         result = ResponseParser.parse_scene(raw)
         assert not any("reversed" in e.lower() for e in result.parse_errors)
+
+    def test_fullwidth_brackets_normalized(self):
+        """Fullwidth brackets ［ ］ should be normalized to halfwidth [ ]"""
+        raw = '<scene><character>aoi</character><expression>happy</expression><dialog_jp>下北沢の駅で会いましょう</dialog_jp><dialog_jp_furigana>下北沢［しもきたざわ］の駅［えき］で会［あ］いましょう</dialog_jp_furigana><dialog_de>Treffen wir uns am Bahnhof Shimokitazawa.</dialog_de></scene>'
+        result = ResponseParser.parse_scene(raw)
+        assert "下北沢[しもきたざわ]" in result.dialog_jp_furigana
+        assert "駅[えき]" in result.dialog_jp_furigana
+        assert "会[あ]" in result.dialog_jp_furigana
+        # No fullwidth brackets should remain
+        assert "\uff3b" not in result.dialog_jp_furigana
+        assert "\uff3d" not in result.dialog_jp_furigana
