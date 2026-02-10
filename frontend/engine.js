@@ -627,7 +627,7 @@ class VNEngine {
         // Normalize fullwidth brackets ［ ］ to halfwidth [ ]
         text = text.replace(/\uff3b/g, "[").replace(/\uff3d/g, "]");
         return text.replace(
-            /([\u3005\u3007\u3400-\u4DBF\u4E00-\u9FFF][\u3040-\u309F\u3005\u3007\u3400-\u4DBF\u4E00-\u9FFF]*)\[([^\]]+)\]/g,
+            /([\u3005-\u3007\u3400-\u4DBF\u4E00-\u9FFF\u30F5\u30F6][\u3040-\u309F\u3005-\u3007\u3400-\u4DBF\u4E00-\u9FFF\u30F5\u30F6]*)\[([^\]]+)\]/g,
             '<ruby>$1<rt>$2</rt></ruby>'
         );
     }
