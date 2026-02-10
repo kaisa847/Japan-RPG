@@ -96,7 +96,12 @@ REGELN:
   Die meisten Interaktionen sollten 0 oder +0.5 in höchstens 1-2 Faktoren ergeben.
 - SCENE_STATUS: Setze scene_end=true wenn eine natürliche Szene zu Ende geht.
   suggested_next sind 2-3 Ortsvorschläge für die nächste Aktivität (pipe-getrennt).
-  time_update: "+1h" für kurze Gespräche, "+2h" oder "+3h" für längere, "next_day" für Tageswechsel.
+  time_update ist PFLICHT und darf NIEMALS leer sein. Die Spielzeit MUSS voranschreiten:
+  * Bei scene_end=true: IMMER "+1h", "+2h" oder "+3h" setzen (je nach Länge der vergangenen Aktivität).
+    Ein Cafébesuch dauert ca. 1-2h, ein Einkaufsbummel 2-3h, ein Abendessen 2h, etc.
+  * Während einer laufenden Szene: "+1h" nach ca. 4-6 Gesprächsrunden setzen, damit die Zeit realistisch vergeht.
+  * "next_day" nur für Tageswechsel (z.B. "Lass uns morgen weitermachen").
+  * NIEMALS leer lassen! Wenn du unsicher bist, setze mindestens "+1h".
 """
 
 TONE_DESCRIPTIONS = {
