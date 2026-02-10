@@ -32,6 +32,13 @@ class VNEngine {
         this.menuButton = document.getElementById("menu-button");
         this.statsButton = document.getElementById("stats-button");
 
+        // Mobile toolbar
+        this.mobileToolbar = document.getElementById("mobile-toolbar");
+        this.toolbarToggle = document.getElementById("toolbar-toggle");
+        this.toolbarFuriganaToggle = document.getElementById("toolbar-furigana-toggle");
+        this.toolbarTranslationToggle = document.getElementById("toolbar-translation-toggle");
+        this.toolbarHintToggle = document.getElementById("toolbar-hint-toggle");
+
         // Name entry overlay
         this.nameEntryOverlay = document.getElementById("name-entry-overlay");
         this.nameEntryInput = document.getElementById("name-entry-input");
@@ -282,12 +289,16 @@ class VNEngine {
         this.menuButton.addEventListener("click", () => this._openMenu());
         this.statsButton.addEventListener("click", () => this._openStats());
 
-        // Mobile: scroll textbox into view when keyboard opens
-        this.userInput.addEventListener("focus", () => {
-            setTimeout(() => {
-                this.userInput.scrollIntoView({ behavior: "smooth", block: "center" });
-            }, 300);
-        });
+        // Mobile toolbar toggle
+        this.toolbarToggle.addEventListener("click", () => this._toggleMobileToolbar());
+
+        // Mobile toolbar duplicate toggle buttons (synced with header toggles)
+        this.toolbarFuriganaToggle.addEventListener("click", () => this._toggleFurigana());
+        this.toolbarTranslationToggle.addEventListener("click", () => this._toggleTranslation());
+        this.toolbarHintToggle.addEventListener("click", () => this._toggleHints());
+
+        // Keyboard detection via visualViewport API
+        this._initKeyboardDetection();
 
         // Name entry overlay
         this.nameEntrySubmit.addEventListener("click", () => this._onNameEntrySubmit());
@@ -335,6 +346,8 @@ class VNEngine {
         // Furigana and hints are on by default
         this.furiganaToggle.classList.add("active");
         this.hintToggle.classList.add("active");
+        this.toolbarFuriganaToggle.classList.add("active");
+        this.toolbarHintToggle.classList.add("active");
         this._updateBackButton();
     }
 
@@ -642,22 +655,60 @@ class VNEngine {
         this.showTranslation = !this.showTranslation;
         this.translationText.classList.toggle("hidden", !this.showTranslation);
         this.translationToggle.classList.toggle("active", this.showTranslation);
+        this.toolbarTranslationToggle.classList.toggle("active", this.showTranslation);
     }
 
     _toggleFurigana() {
         this.showFurigana = !this.showFurigana;
         this._applyFuriganaVisibility();
         this.furiganaToggle.classList.toggle("active", this.showFurigana);
+        this.toolbarFuriganaToggle.classList.toggle("active", this.showFurigana);
     }
 
     _toggleHints() {
         this.showHints = !this.showHints;
         this.hintToggle.classList.toggle("active", this.showHints);
+        this.toolbarHintToggle.classList.toggle("active", this.showHints);
         // Immediately show/hide current hint
         if (this.errorCorrectionHint) {
             const hasContent = this.errorCorrectionHint.textContent.trim() !== "";
             this.errorCorrectionHint.classList.toggle("hidden", !this.showHints || !hasContent);
         }
+    }
+
+    // --- Mobile Toolbar ---
+
+    _toggleMobileToolbar() {
+        this.mobileToolbar.classList.toggle("collapsed");
+        this.toolbarToggle.classList.toggle("active", !this.mobileToolbar.classList.contains("collapsed"));
+    }
+
+    _initKeyboardDetection() {
+        const vv = window.visualViewport;
+        if (!vv) return; // not supported (desktop browsers)
+
+        const gameContainer = document.getElementById("game-container");
+        const textboxLayer = document.getElementById("textbox-layer");
+        let initialHeight = vv.height;
+
+        const onResize = () => {
+            // Keyboard is considered open when viewport shrinks by >150px
+            const heightDiff = initialHeight - vv.height;
+            const keyboardOpen = heightDiff > 150;
+
+            gameContainer.classList.toggle("keyboard-open", keyboardOpen);
+
+            if (keyboardOpen) {
+                // Position textbox just above the keyboard
+                const keyboardHeight = window.innerHeight - vv.height;
+                textboxLayer.style.bottom = keyboardHeight + "px";
+            } else {
+                textboxLayer.style.bottom = "";
+                initialHeight = vv.height;
+            }
+        };
+
+        vv.addEventListener("resize", onResize);
     }
 
     // --- Character Name ---
