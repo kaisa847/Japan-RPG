@@ -38,6 +38,9 @@ class UserRecord(BaseModel):
     is_admin: bool = False
     created_at: str = ""
     player_name: str = ""
+    api_key: str = ""        # User's own API key (empty = use global)
+    api_provider: str = ""   # "anthropic", "openai", "google" (empty = global default)
+    api_model: str = ""      # Custom model name (empty = provider default)
 
 
 class UserStore(BaseModel):
@@ -59,6 +62,9 @@ class UserInfo(BaseModel):
     is_admin: bool
     created_at: str
     player_name: str = ""
+    has_api_key: bool = False
+    api_provider: str = ""
+    api_model: str = ""
 
 
 # --- User Store (JSON file) ---
@@ -143,6 +149,9 @@ class UserManager:
                 is_admin=u.is_admin,
                 created_at=u.created_at,
                 player_name=u.player_name,
+                has_api_key=bool(u.api_key),
+                api_provider=u.api_provider,
+                api_model=u.api_model,
             )
             for u in self.store.users.values()
         ]
@@ -161,6 +170,25 @@ class UserManager:
             self._save()
             return True
         return False
+
+    def update_api_settings(
+        self,
+        username: str,
+        api_key: str | None = None,
+        api_provider: str | None = None,
+        api_model: str | None = None,
+    ) -> bool:
+        user = self.store.users.get(username.lower())
+        if not user:
+            return False
+        if api_key is not None:
+            user.api_key = api_key.strip()
+        if api_provider is not None:
+            user.api_provider = api_provider.strip()
+        if api_model is not None:
+            user.api_model = api_model.strip()
+        self._save()
+        return True
 
     def change_password(self, username: str, new_password: str) -> bool:
         user = self.store.users.get(username.lower())

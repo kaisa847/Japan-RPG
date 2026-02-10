@@ -1,12 +1,11 @@
-"""Anthropic API wrapper for scene generation."""
+"""LLM-powered scene generation for the Visual Novel Engine."""
 
 import json
 import logging
 import os
 from pathlib import Path
 
-from anthropic import AsyncAnthropic, APIError, APITimeoutError, RateLimitError
-
+from backend.llm_providers import LLMProvider, AnthropicProvider, create_provider
 from backend.response_parser import ResponseParser, SceneData, CHARACTER_EXPRESSIONS
 
 logger = logging.getLogger(__name__)
@@ -117,18 +116,22 @@ class ClaudeHandler:
     TIMEOUT_SECONDS = 30
 
     def __init__(self, data_dir: str = "data"):
+        # Build default provider from environment (global API key)
         api_key = os.environ.get("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise ValueError(
-                "ANTHROPIC_API_KEY environment variable is not set. "
-                "Set it in a .env file or export it in your shell."
+        self.default_provider: LLMProvider | None = None
+
+        if api_key:
+            model = os.environ.get("CLAUDE_MODEL", self.FALLBACK_MODEL)
+            logger.info("Using default Claude model: %s", model)
+            self.default_provider = AnthropicProvider(
+                api_key=api_key, model=model, timeout=self.TIMEOUT_SECONDS
             )
-        self.model = os.environ.get("CLAUDE_MODEL", self.FALLBACK_MODEL)
-        logger.info("Using Claude model: %s", self.model)
-        self.client = AsyncAnthropic(
-            api_key=api_key,
-            timeout=self.TIMEOUT_SECONDS,
-        )
+        else:
+            logger.warning(
+                "ANTHROPIC_API_KEY not set. Global provider unavailable. "
+                "Users must configure their own API key."
+            )
+
         self.data_dir = Path(data_dir)
         self.aoi_sheet: str = ""
         self._load_aoi_sheet()
@@ -196,7 +199,16 @@ class ClaudeHandler:
         aoi_tone: str = "neutral",
         weak_points: list[str] | None = None,
         player_name: str = "Spieler",
+        provider: LLMProvider | None = None,
     ) -> SceneData:
+        effective_provider = provider or self.default_provider
+        if not effective_provider:
+            return SceneData(
+                dialog_de="[Kein API-Schlüssel konfiguriert. Bitte eigenen Key in den Einstellungen hinterlegen.]",
+                dialog_jp="[APIキーが設定されていません。設定で自分のキーを入力してください。]",
+                parse_errors=["No LLM provider available"],
+            )
+
         system_prompt = self._build_system_prompt(
             game_state_summary, aoi_tone, weak_points, player_name=player_name
         )
@@ -209,14 +221,9 @@ class ClaudeHandler:
             })
         messages.append({"role": "user", "content": user_input})
 
-        response = await self.client.messages.create(
-            model=self.model,
-            max_tokens=self.MAX_TOKENS,
-            system=system_prompt,
-            messages=messages,
+        raw_text = await effective_provider.generate(
+            system_prompt, messages, self.MAX_TOKENS
         )
-
-        raw_text = response.content[0].text
         return ResponseParser.parse_scene(raw_text)
 
     async def generate_scene_safe(
@@ -227,37 +234,45 @@ class ClaudeHandler:
         aoi_tone: str = "neutral",
         weak_points: list[str] | None = None,
         player_name: str = "Spieler",
+        provider: LLMProvider | None = None,
     ) -> SceneData:
         try:
             return await self.generate_scene(
                 user_input, game_state_summary, conversation_history,
                 aoi_tone, weak_points, player_name=player_name,
-            )
-        except APITimeoutError:
-            logger.error("Claude API timeout")
-            return SceneData(
-                dialog_de="[Verbindungstimeout. Bitte versuche es erneut.]",
-                dialog_jp="[接続タイムアウト。もう一度お試しください。]",
-                parse_errors=["API timeout"],
-            )
-        except RateLimitError:
-            logger.error("Claude API rate limit")
-            return SceneData(
-                dialog_de="[Zu viele Anfragen. Bitte warte einen Moment.]",
-                dialog_jp="[リクエストが多すぎます。少々お待ちください。]",
-                parse_errors=["Rate limit exceeded"],
-            )
-        except APIError as e:
-            logger.error("Claude API error: %s", e)
-            return SceneData(
-                dialog_de=f"[API-Fehler: {e.message}]",
-                dialog_jp="[APIエラー]",
-                parse_errors=[f"API error: {e.message}"],
+                provider=provider,
             )
         except Exception as e:
-            logger.error("Unexpected error in scene generation: %s", e)
-            return SceneData(
-                dialog_de="[Ein unerwarteter Fehler ist aufgetreten.]",
-                dialog_jp="[予期しないエラーが発生しました。]",
-                parse_errors=[f"Unexpected error: {str(e)}"],
-            )
+            error_type = type(e).__name__
+            error_msg = str(e)
+
+            # Check for common error patterns across providers
+            lower_msg = error_msg.lower()
+            if "timeout" in lower_msg or "timed out" in lower_msg:
+                logger.error("LLM API timeout: %s", e)
+                return SceneData(
+                    dialog_de="[Verbindungstimeout. Bitte versuche es erneut.]",
+                    dialog_jp="[接続タイムアウト。もう一度お試しください。]",
+                    parse_errors=["API timeout"],
+                )
+            elif "rate" in lower_msg and "limit" in lower_msg:
+                logger.error("LLM API rate limit: %s", e)
+                return SceneData(
+                    dialog_de="[Zu viele Anfragen. Bitte warte einen Moment.]",
+                    dialog_jp="[リクエストが多すぎます。少々お待ちください。]",
+                    parse_errors=["Rate limit exceeded"],
+                )
+            elif "invalid" in lower_msg and ("key" in lower_msg or "auth" in lower_msg):
+                logger.error("LLM API auth error: %s", e)
+                return SceneData(
+                    dialog_de="[Ungültiger API-Schlüssel. Bitte überprüfe deine Einstellungen.]",
+                    dialog_jp="[無効なAPIキー。設定を確認してください。]",
+                    parse_errors=[f"Authentication error: {error_msg}"],
+                )
+            else:
+                logger.error("LLM error (%s): %s", error_type, e)
+                return SceneData(
+                    dialog_de=f"[API-Fehler: {error_msg}]",
+                    dialog_jp="[APIエラー]",
+                    parse_errors=[f"{error_type}: {error_msg}"],
+                )

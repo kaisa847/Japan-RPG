@@ -54,6 +54,15 @@ class VNEngine {
         this.menuPlayerNameSave = document.getElementById("menu-player-name-save");
         this.menuPlayerNameStatus = document.getElementById("menu-player-name-status");
 
+        // API Settings
+        this.apiProviderSelect = document.getElementById("api-provider-select");
+        this.apiKeyInput = document.getElementById("api-key-input");
+        this.apiModelSelect = document.getElementById("api-model-select");
+        this.apiSettingsSave = document.getElementById("api-settings-save");
+        this.apiSettingsReset = document.getElementById("api-settings-reset");
+        this.apiSettingsStatus = document.getElementById("api-settings-status");
+        this.apiGlobalInfo = document.getElementById("api-global-info");
+
         // History overlay
         this.historyOverlay = document.getElementById("history-overlay");
         this.historyCloseButton = document.getElementById("history-close-button");
@@ -85,6 +94,9 @@ class VNEngine {
         this.lastLearning = null;
         this.lastTime = null;
         this.playerName = "";
+
+        // API provider data
+        this.providersData = null;
 
         this._bindEvents();
         this._init();
@@ -310,6 +322,11 @@ class VNEngine {
         this.menuCloseButton.addEventListener("click", () => this._closeMenu());
         this.newGameButton.addEventListener("click", () => this._onNewGame());
         this.menuPlayerNameSave.addEventListener("click", () => this._onMenuPlayerNameSave());
+
+        // API Settings
+        this.apiSettingsSave.addEventListener("click", () => this._onApiSettingsSave());
+        this.apiSettingsReset.addEventListener("click", () => this._onApiSettingsReset());
+        this.apiProviderSelect.addEventListener("change", () => this._onProviderChange());
 
         // Logout
         const logoutBtn = document.getElementById("logout-button");
@@ -729,6 +746,7 @@ class VNEngine {
         this.menuPlayerNameInput.value = this.playerName;
         this.menuPlayerNameStatus.textContent = "";
         this._refreshSaveSlots();
+        this._refreshApiSettings();
     }
 
     _closeMenu() {
@@ -1094,6 +1112,204 @@ class VNEngine {
                 <span class="stats-topic-value">${pct}%</span>
             `;
             section.appendChild(row);
+        }
+    }
+
+    // --- API Settings ---
+
+    async _loadProviders() {
+        try {
+            const resp = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/api/providers`);
+            if (resp.ok) {
+                this.providersData = await resp.json();
+            }
+        } catch (e) {
+            console.warn("[VNEngine] Could not load providers:", e);
+        }
+    }
+
+    async _loadApiSettings() {
+        try {
+            const resp = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/api/settings`);
+            if (resp.ok) {
+                return await resp.json();
+            }
+        } catch (e) {
+            console.warn("[VNEngine] Could not load API settings:", e);
+        }
+        return null;
+    }
+
+    _populateProviderSelect(currentProvider) {
+        this.apiProviderSelect.innerHTML = "";
+
+        // Default option (global server key)
+        const defaultOpt = document.createElement("option");
+        defaultOpt.value = "";
+        defaultOpt.textContent = "Standard (Server)";
+        this.apiProviderSelect.appendChild(defaultOpt);
+
+        if (!this.providersData) return;
+
+        for (const [id, info] of Object.entries(this.providersData.providers)) {
+            const opt = document.createElement("option");
+            opt.value = id;
+            opt.textContent = info.name;
+            this.apiProviderSelect.appendChild(opt);
+        }
+
+        this.apiProviderSelect.value = currentProvider || "";
+    }
+
+    _populateModelSelect(providerName, currentModel) {
+        this.apiModelSelect.innerHTML = "";
+
+        const defaultOpt = document.createElement("option");
+        defaultOpt.value = "";
+        defaultOpt.textContent = "Standard";
+        this.apiModelSelect.appendChild(defaultOpt);
+
+        if (!providerName || !this.providersData) return;
+
+        const provider = this.providersData.providers[providerName];
+        if (!provider) return;
+
+        for (const model of provider.models) {
+            const opt = document.createElement("option");
+            opt.value = model;
+            opt.textContent = model;
+            this.apiModelSelect.appendChild(opt);
+        }
+
+        this.apiModelSelect.value = currentModel || "";
+    }
+
+    _onProviderChange() {
+        const provider = this.apiProviderSelect.value;
+        this._populateModelSelect(provider, "");
+
+        // Show/hide API key field based on provider selection
+        const keyField = this.apiKeyInput.closest(".api-field");
+        const modelField = this.apiModelSelect.closest(".api-field");
+        if (!provider) {
+            keyField.style.display = "none";
+            modelField.style.display = "none";
+        } else {
+            keyField.style.display = "";
+            modelField.style.display = "";
+        }
+    }
+
+    async _refreshApiSettings() {
+        if (!this.providersData) {
+            await this._loadProviders();
+        }
+
+        const settings = await this._loadApiSettings();
+
+        // Update global info text
+        if (this.providersData && this.providersData.has_global_key) {
+            this.apiGlobalInfo.textContent = "Globaler Anthropic-Key aktiv. Eigener Key optional.";
+        } else {
+            this.apiGlobalInfo.textContent = "Kein globaler Key. Bitte eigenen Key eingeben.";
+            this.apiGlobalInfo.style.color = "#e0a060";
+        }
+
+        if (settings) {
+            this._populateProviderSelect(settings.api_provider);
+            this._populateModelSelect(settings.api_provider, settings.api_model);
+
+            // Show masked key as placeholder if set
+            if (settings.api_key_set) {
+                this.apiKeyInput.placeholder = settings.api_key_masked;
+            } else {
+                this.apiKeyInput.placeholder = "Eigenen Key eingeben (optional)";
+            }
+            this.apiKeyInput.value = "";
+        } else {
+            this._populateProviderSelect("");
+            this._populateModelSelect("", "");
+        }
+
+        this._onProviderChange();
+    }
+
+    async _onApiSettingsSave() {
+        this.apiSettingsStatus.textContent = "";
+        this.apiSettingsStatus.style.color = "";
+
+        const provider = this.apiProviderSelect.value;
+        const model = this.apiModelSelect.value;
+        const key = this.apiKeyInput.value.trim();
+
+        // If provider is selected but no key entered and no key already set, warn
+        if (provider && !key) {
+            const currentSettings = await this._loadApiSettings();
+            if (!currentSettings || !currentSettings.api_key_set) {
+                this.apiSettingsStatus.textContent = "API-Key erforderlich wenn eigener Provider gewählt.";
+                this.apiSettingsStatus.style.color = "#e08080";
+                return;
+            }
+        }
+
+        const body = {
+            api_provider: provider,
+            api_model: model,
+        };
+        // Only send key if user typed a new one
+        if (key) {
+            body.api_key = key;
+        }
+
+        try {
+            const resp = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/api/settings`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body),
+            });
+
+            if (!resp.ok) {
+                const data = await resp.json().catch(() => ({}));
+                this.apiSettingsStatus.textContent = data.detail || "Fehler beim Speichern.";
+                this.apiSettingsStatus.style.color = "#e08080";
+                return;
+            }
+
+            const result = await resp.json();
+            this.apiSettingsStatus.textContent = "Gespeichert!";
+            this.apiSettingsStatus.style.color = "#80c080";
+
+            // Update placeholder with masked key
+            if (result.api_key_set) {
+                this.apiKeyInput.placeholder = result.api_key_masked;
+            }
+            this.apiKeyInput.value = "";
+        } catch (e) {
+            this.apiSettingsStatus.textContent = "Verbindungsfehler.";
+            this.apiSettingsStatus.style.color = "#e08080";
+        }
+    }
+
+    async _onApiSettingsReset() {
+        this.apiSettingsStatus.textContent = "";
+        this.apiSettingsStatus.style.color = "";
+
+        try {
+            const resp = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/api/settings/api-key`, {
+                method: "DELETE",
+            });
+
+            if (resp.ok) {
+                this.apiSettingsStatus.textContent = "Auf Standard zurückgesetzt.";
+                this.apiSettingsStatus.style.color = "#80c080";
+                await this._refreshApiSettings();
+            } else {
+                this.apiSettingsStatus.textContent = "Fehler beim Zurücksetzen.";
+                this.apiSettingsStatus.style.color = "#e08080";
+            }
+        } catch (e) {
+            this.apiSettingsStatus.textContent = "Verbindungsfehler.";
+            this.apiSettingsStatus.style.color = "#e08080";
         }
     }
 

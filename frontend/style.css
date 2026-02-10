@@ -1393,6 +1393,102 @@ rt {
     color: #80c080;
 }
 
+/* --- API Settings --- */
+
+#api-settings-section {
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.api-info-text {
+    color: #808098;
+    font-size: 12px;
+    margin-bottom: 10px;
+    font-style: italic;
+}
+
+.api-field {
+    margin-bottom: 10px;
+}
+
+.api-field-label {
+    display: block;
+    color: #a0a0b8;
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    letter-spacing: 0.3px;
+}
+
+.api-field select,
+.api-field input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: #f0f0f0;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 150ms;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.api-field select {
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23a0a0b8'%3E%3Cpath d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+}
+
+.api-field select:focus,
+.api-field input:focus {
+    border-color: rgba(140, 140, 200, 0.6);
+}
+
+.api-field select option {
+    background: #1a1a2e;
+    color: #f0f0f0;
+}
+
+.api-actions-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.api-actions-row button {
+    background: rgba(80, 80, 120, 0.5);
+    color: #c0c0e0;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 150ms;
+    flex: 1;
+}
+
+.api-actions-row button:hover {
+    background: rgba(100, 100, 150, 0.7);
+    color: #f0f0ff;
+}
+
+.api-reset-btn {
+    background: rgba(100, 60, 60, 0.4) !important;
+    color: #d0b0b0 !important;
+}
+
+.api-reset-btn:hover {
+    background: rgba(140, 60, 60, 0.6) !important;
+    color: #e0c0c0 !important;
+}
+
 /* --- Login Page --- */
 
 .login-container {

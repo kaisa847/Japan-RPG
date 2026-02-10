@@ -22,6 +22,7 @@ from pydantic import BaseModel
 from backend.auth import (
     UserManager, UserRecord, create_access_token, get_current_user,
 )
+from backend.llm_providers import PROVIDERS, create_provider
 from backend.response_parser import SceneData
 from backend.state_manager import StateManager
 
@@ -92,14 +93,10 @@ async def lifespan(app: FastAPI):
     app.state.user_manager = UserManager(data_dir=data_dir)
     app.state.user_state_managers: dict[str, StateManager] = {}
 
-    # Claude handler (may fail without API key)
-    try:
-        from backend.claude_handler import ClaudeHandler
-        app.state.claude_handler = ClaudeHandler(data_dir=data_dir)
-        logger.info("Claude handler initialized")
-    except Exception as e:
-        logger.warning("Claude handler not available: %s", e)
-        app.state.claude_handler = None
+    # Scene handler (works with or without global API key)
+    from backend.claude_handler import ClaudeHandler
+    app.state.claude_handler = ClaudeHandler(data_dir=data_dir)
+    logger.info("Scene handler initialized")
 
     yield
 
@@ -216,6 +213,96 @@ async def update_player_name(
     um: UserManager = request.app.state.user_manager
     um.update_player_name(user.username, name)
     return {"player_name": name}
+
+
+# --- API Settings ---
+
+def _mask_api_key(key: str) -> str:
+    """Mask API key for display (show only last 4 characters)."""
+    if not key:
+        return ""
+    if len(key) <= 4:
+        return "****"
+    return "*" * (len(key) - 4) + key[-4:]
+
+
+@app.get("/api/providers")
+async def list_providers():
+    """Return available LLM providers and their models."""
+    has_global_key = bool(os.environ.get("ANTHROPIC_API_KEY"))
+    return {
+        "providers": PROVIDERS,
+        "has_global_key": has_global_key,
+    }
+
+
+@app.get("/api/settings")
+async def get_settings(user: UserRecord = Depends(get_current_user)):
+    """Get current user's API settings."""
+    return {
+        "api_key_set": bool(user.api_key),
+        "api_key_masked": _mask_api_key(user.api_key),
+        "api_provider": user.api_provider,
+        "api_model": user.api_model,
+    }
+
+
+@app.put("/api/settings")
+async def update_settings(
+    request: Request,
+    user: UserRecord = Depends(get_current_user),
+):
+    """Update user's API settings (key, provider, model)."""
+    body = await request.json()
+    um: UserManager = request.app.state.user_manager
+
+    api_key = body.get("api_key")
+    api_provider = body.get("api_provider")
+    api_model = body.get("api_model")
+
+    # Validate provider
+    if api_provider is not None and api_provider != "":
+        if api_provider not in PROVIDERS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unbekannter Provider: {api_provider}",
+            )
+
+    # Validate model belongs to provider
+    if api_model is not None and api_model != "" and api_provider:
+        valid_models = PROVIDERS.get(api_provider, {}).get("models", [])
+        if api_model not in valid_models:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unbekanntes Modell '{api_model}' für Provider '{api_provider}'.",
+            )
+
+    um.update_api_settings(
+        user.username,
+        api_key=api_key,
+        api_provider=api_provider,
+        api_model=api_model,
+    )
+
+    # Reload user to return updated state
+    updated_user = um.get_user(user.username)
+    return {
+        "api_key_set": bool(updated_user.api_key),
+        "api_key_masked": _mask_api_key(updated_user.api_key),
+        "api_provider": updated_user.api_provider,
+        "api_model": updated_user.api_model,
+    }
+
+
+@app.delete("/api/settings/api-key")
+async def delete_api_key(
+    request: Request,
+    user: UserRecord = Depends(get_current_user),
+):
+    """Remove user's custom API key, reverting to global default."""
+    um: UserManager = request.app.state.user_manager
+    um.update_api_settings(user.username, api_key="", api_provider="", api_model="")
+    return {"api_key_set": False, "api_key_masked": "", "api_provider": "", "api_model": ""}
 
 
 # --- Root redirect ---
@@ -347,12 +434,24 @@ async def generate_scene(
     sm = get_user_state_manager(user, request.app.state)
     handler = request.app.state.claude_handler
 
-    # Get current state info for Claude
+    # Get current state info for the LLM
     aoi_tone = sm.state.affection.tone
     weak_points = sm.state.learning.weak_points
     player_name = user.player_name or "Spieler"
     context_summary = sm.get_context_summary(player_name=player_name)
     history = sm.state.conversation_history
+
+    # Build per-user provider if custom API key is set
+    user_provider = None
+    if user.api_key and user.api_provider:
+        try:
+            user_provider = create_provider(
+                provider_name=user.api_provider,
+                api_key=user.api_key,
+                model=user.api_model or None,
+            )
+        except Exception as e:
+            logger.warning("Failed to create user provider for %s: %s", user.username, e)
 
     if handler:
         scene = await handler.generate_scene_safe(
@@ -362,12 +461,13 @@ async def generate_scene(
             aoi_tone=aoi_tone,
             weak_points=weak_points,
             player_name=player_name,
+            provider=user_provider,
         )
     else:
         scene = SceneData(
-            dialog_de="[API-Schlüssel nicht konfiguriert. Bitte ANTHROPIC_API_KEY setzen.]",
-            dialog_jp="[APIキーが設定されていません。]",
-            parse_errors=["Claude handler not available - no API key configured"],
+            dialog_de="[API nicht verfügbar. Bitte ANTHROPIC_API_KEY setzen oder eigenen Key konfigurieren.]",
+            dialog_jp="[APIが利用できません。]",
+            parse_errors=["Scene handler not initialized"],
         )
 
     # Update game state from scene

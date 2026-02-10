@@ -103,6 +103,33 @@
                         </div>
                         <div id="menu-player-name-status" class="player-name-status"></div>
                     </div>
+                    <div id="api-settings-section">
+                        <label class="menu-label">API-Einstellungen</label>
+                        <div id="api-global-info" class="api-info-text"></div>
+                        <div class="api-field">
+                            <label class="api-field-label" for="api-provider-select">Provider</label>
+                            <select id="api-provider-select">
+                                <option value="">Standard (Server)</option>
+                            </select>
+                        </div>
+                        <div class="api-field">
+                            <label class="api-field-label" for="api-key-input">API-Schl&uuml;ssel</label>
+                            <input type="password" id="api-key-input"
+                                   placeholder="Eigenen Key eingeben (optional)"
+                                   autocomplete="off" />
+                        </div>
+                        <div class="api-field">
+                            <label class="api-field-label" for="api-model-select">Modell</label>
+                            <select id="api-model-select">
+                                <option value="">Standard</option>
+                            </select>
+                        </div>
+                        <div class="api-actions-row">
+                            <button id="api-settings-save">Speichern</button>
+                            <button id="api-settings-reset" class="api-reset-btn">Zur&uuml;cksetzen</button>
+                        </div>
+                        <div id="api-settings-status" class="player-name-status"></div>
+                    </div>
                     <div id="user-info">
                         Angemeldet als <strong id="user-display"></strong>
                     </div>
