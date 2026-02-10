@@ -60,6 +60,21 @@
             </div>
         </div>
 
+        <!-- Name Entry Overlay (shown on first login when no player name is set) -->
+        <div id="name-entry-overlay" class="overlay hidden">
+            <div class="overlay-panel name-entry-panel">
+                <h2>Willkommen bei Tokyo Stories!</h2>
+                <p class="name-entry-description">Wie soll dein Charakter hei&szlig;en?</p>
+                <div class="name-entry-field">
+                    <input type="text" id="name-entry-input"
+                           placeholder="Spielername eingeben"
+                           maxlength="30" autocomplete="off" />
+                </div>
+                <div id="name-entry-error" class="name-entry-error"></div>
+                <button id="name-entry-submit" class="login-button">Spiel starten</button>
+            </div>
+        </div>
+
         <!-- Menu Overlay -->
         <div id="menu-overlay" class="overlay hidden">
             <div id="menu-panel" class="overlay-panel">
@@ -69,6 +84,15 @@
                 </div>
                 <div id="save-slots-container"></div>
                 <div id="menu-actions">
+                    <div id="player-name-section">
+                        <label class="menu-label">Spielername</label>
+                        <div class="player-name-row">
+                            <input type="text" id="menu-player-name-input"
+                                   maxlength="30" autocomplete="off" />
+                            <button id="menu-player-name-save">Speichern</button>
+                        </div>
+                        <div id="menu-player-name-status" class="player-name-status"></div>
+                    </div>
                     <div id="user-info">
                         Angemeldet als <strong id="user-display"></strong>
                     </div>

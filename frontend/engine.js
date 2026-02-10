@@ -32,11 +32,20 @@ class VNEngine {
         this.menuButton = document.getElementById("menu-button");
         this.statsButton = document.getElementById("stats-button");
 
+        // Name entry overlay
+        this.nameEntryOverlay = document.getElementById("name-entry-overlay");
+        this.nameEntryInput = document.getElementById("name-entry-input");
+        this.nameEntrySubmit = document.getElementById("name-entry-submit");
+        this.nameEntryError = document.getElementById("name-entry-error");
+
         // Menu overlay
         this.menuOverlay = document.getElementById("menu-overlay");
         this.menuCloseButton = document.getElementById("menu-close-button");
         this.saveSlotsContainer = document.getElementById("save-slots-container");
         this.newGameButton = document.getElementById("new-game-button");
+        this.menuPlayerNameInput = document.getElementById("menu-player-name-input");
+        this.menuPlayerNameSave = document.getElementById("menu-player-name-save");
+        this.menuPlayerNameStatus = document.getElementById("menu-player-name-status");
 
         // History overlay
         this.historyOverlay = document.getElementById("history-overlay");
@@ -68,6 +77,7 @@ class VNEngine {
         this.lastAffection = null;
         this.lastLearning = null;
         this.lastTime = null;
+        this.playerName = "";
 
         this._bindEvents();
         this._init();
@@ -93,11 +103,22 @@ class VNEngine {
             }
             const meData = await meResp.json();
             this._setUsername(meData.username);
+            this.playerName = meData.player_name || "";
         } catch (e) {
             console.warn("[VNEngine] Auth verification failed:", e);
             return;
         }
 
+        // If no player name is set, require it before starting the game
+        if (!this.playerName) {
+            this._showNameEntry();
+            return;
+        }
+
+        await this._startGame();
+    }
+
+    async _startGame() {
         try {
             await this._fetchAvailableAssets();
             await this._fetchStartPrompt();
@@ -118,6 +139,84 @@ class VNEngine {
     _setUsername(username) {
         const el = document.getElementById("user-display");
         if (el) el.textContent = username;
+    }
+
+    // --- Player Name Entry ---
+
+    _showNameEntry() {
+        this.nameEntryOverlay.classList.remove("hidden");
+        this.nameEntryInput.value = "";
+        this.nameEntryError.textContent = "";
+        this.nameEntryInput.focus();
+    }
+
+    async _onNameEntrySubmit() {
+        const name = this.nameEntryInput.value.trim();
+        this.nameEntryError.textContent = "";
+
+        if (!name) {
+            this.nameEntryError.textContent = "Bitte einen Spielernamen eingeben.";
+            return;
+        }
+        if (name.length > 30) {
+            this.nameEntryError.textContent = "Maximal 30 Zeichen erlaubt.";
+            return;
+        }
+
+        try {
+            const resp = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/api/player_name`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ player_name: name }),
+            });
+            if (!resp.ok) {
+                const data = await resp.json().catch(() => ({}));
+                this.nameEntryError.textContent = data.detail || "Fehler beim Speichern.";
+                return;
+            }
+            this.playerName = name;
+            this.nameEntryOverlay.classList.add("hidden");
+            await this._startGame();
+        } catch (e) {
+            this.nameEntryError.textContent = "Verbindungsfehler.";
+        }
+    }
+
+    async _onMenuPlayerNameSave() {
+        const name = this.menuPlayerNameInput.value.trim();
+        this.menuPlayerNameStatus.textContent = "";
+        this.menuPlayerNameStatus.style.color = "";
+
+        if (!name) {
+            this.menuPlayerNameStatus.textContent = "Name darf nicht leer sein.";
+            this.menuPlayerNameStatus.style.color = "#e08080";
+            return;
+        }
+        if (name.length > 30) {
+            this.menuPlayerNameStatus.textContent = "Maximal 30 Zeichen.";
+            this.menuPlayerNameStatus.style.color = "#e08080";
+            return;
+        }
+
+        try {
+            const resp = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/api/player_name`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ player_name: name }),
+            });
+            if (!resp.ok) {
+                const data = await resp.json().catch(() => ({}));
+                this.menuPlayerNameStatus.textContent = data.detail || "Fehler.";
+                this.menuPlayerNameStatus.style.color = "#e08080";
+                return;
+            }
+            this.playerName = name;
+            this.menuPlayerNameStatus.textContent = "Gespeichert!";
+            this.menuPlayerNameStatus.style.color = "#80c080";
+        } catch (e) {
+            this.menuPlayerNameStatus.textContent = "Verbindungsfehler.";
+            this.menuPlayerNameStatus.style.color = "#e08080";
+        }
     }
 
     async _tryRestoreLastScene() {
@@ -190,9 +289,16 @@ class VNEngine {
             }, 300);
         });
 
+        // Name entry overlay
+        this.nameEntrySubmit.addEventListener("click", () => this._onNameEntrySubmit());
+        this.nameEntryInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") this._onNameEntrySubmit();
+        });
+
         // Menu overlay
         this.menuCloseButton.addEventListener("click", () => this._closeMenu());
         this.newGameButton.addEventListener("click", () => this._onNewGame());
+        this.menuPlayerNameSave.addEventListener("click", () => this._onMenuPlayerNameSave());
 
         // Logout
         const logoutBtn = document.getElementById("logout-button");
@@ -317,7 +423,7 @@ class VNEngine {
     async _fetchStartPrompt() {
         this.startPrompt = "(Spielstart)";
         try {
-            const response = await fetch(`${CONFIG.API_BASE_URL}/api/start_prompt`);
+            const response = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/api/start_prompt`);
             if (response.ok) {
                 const data = await response.json();
                 if (data.prompt) {
@@ -567,6 +673,8 @@ class VNEngine {
 
     _openMenu() {
         this.menuOverlay.classList.remove("hidden");
+        this.menuPlayerNameInput.value = this.playerName;
+        this.menuPlayerNameStatus.textContent = "";
         this._refreshSaveSlots();
     }
 

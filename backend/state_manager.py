@@ -307,9 +307,10 @@ class StateManager:
             t.topic for t in sorted_topics[:5]
         ]
 
-    def get_context_summary(self) -> str:
+    def get_context_summary(self, player_name: str = "Spieler") -> str:
         s = self.state
         lines = [
+            f"Spieler: {player_name}",
             f"Tag: {s.time.day}",
             f"Uhrzeit: {s.time.hour}:00 ({s.time.period})",
             f"Ort: {s.current_location}",
