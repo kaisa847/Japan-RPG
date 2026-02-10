@@ -106,44 +106,99 @@ Optional ein anderes Claude-Modell waehlen (Standard: `claude-sonnet-4-5-2025092
 CLAUDE_MODEL=claude-sonnet-4-5-20250929
 ```
 
-### Platzhalter-Assets generieren
+### Schnellstart
 
 ```bash
-python generate_placeholders.py
+pip install -r backend/requirements.txt   # Abhaengigkeiten installieren
+python generate_placeholders.py            # Platzhalter-Grafiken erstellen
+python -m backend.create_user admin --admin # Ersten Admin-Benutzer anlegen
+python run.py                              # Server starten
 ```
 
-Generiert Platzhalter-PNGs fuer alle Charaktersprites (400x800px) und Hintergruende (1920x1080px). Fuer das fertige Spiel koennen diese durch echte Assets ersetzt werden.
+Oeffne `http://localhost:8000` im Browser. Der Server leitet automatisch zur Login-Seite weiter.
 
-### Benutzer erstellen
+## CLI-Referenz
+
+### `run.py` -- Entwicklungsserver
+
+Startet den FastAPI-Server auf Port 8000.
+
+```bash
+python run.py              # Mit Auto-Reload (benoetigt watchfiles)
+python run.py --no-reload  # Ohne Auto-Reload
+```
+
+| Option | Beschreibung |
+|--------|--------------|
+| *(ohne)* | Startet mit File-Watcher, der bei Aenderungen an `.py`, `.js`, `.css`, `.html` in `backend/` und `frontend/` automatisch neustartet. Benoetigt `watchfiles` (`pip install watchfiles`). Faellt ohne `watchfiles` automatisch auf einfachen Modus zurueck. |
+| `--no-reload` | Startet den Server einmalig ohne File-Watching. |
+
+**Netzwerk:** Lauscht auf `0.0.0.0:8000` (erreichbar von allen Netzwerkschnittstellen).
+
+Alternativ direkt mit uvicorn (mehr Kontrolle ueber Host/Port):
+
+```bash
+uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+### `backend/create_user.py` -- Benutzerverwaltung
+
+Erstellt einen neuen Benutzer fuer das Spiel. Fragt interaktiv nach dem Passwort.
 
 ```bash
 python -m backend.create_user <benutzername> [--admin]
 ```
 
-Der erste Benutzer sollte mit `--admin` erstellt werden, um weitere Benutzer ueber die API anlegen zu koennen.
+| Argument | Beschreibung |
+|----------|--------------|
+| `benutzername` | Pflicht. 3-20 Zeichen, nur Buchstaben, Ziffern und Unterstriche. Wird als Kleinbuchstaben gespeichert. |
+| `--admin` | Optional. Gibt dem Benutzer Admin-Rechte (kann ueber die API weitere Benutzer erstellen und auflisten). |
 
-### Server starten
+**Passwort-Regeln:** Mindestens 4 Zeichen, muss zweimal identisch eingegeben werden.
 
-```bash
-python run.py              # Mit Auto-Reload bei Codeaenderungen
-python run.py --no-reload  # Ohne Auto-Reload
-```
-
-Oder direkt mit uvicorn:
+**Beispiele:**
 
 ```bash
-uvicorn backend.main:app --reload --port 8000
+# Ersten Admin-Benutzer erstellen (empfohlen als erster Schritt)
+python -m backend.create_user admin --admin
+
+# Normalen Spieler erstellen
+python -m backend.create_user kai
+
+# Weiterer Spieler
+python -m backend.create_user player2
 ```
 
-Oeffne `http://localhost:8000` im Browser. Der Server leitet automatisch zur Login-Seite weiter.
+Benutzer werden in `data/users.json` gespeichert. Jeder Benutzer erhaelt einen eigenen Spielstand-Ordner unter `data/users/<benutzername>/`.
 
-### Tests
+### `generate_placeholders.py` -- Asset-Generierung
+
+Generiert farbcodierte Platzhalter-Grafiken fuer Entwicklung und Tests.
 
 ```bash
-pytest backend/tests/ -v
+python generate_placeholders.py
 ```
 
-Testet: Authentifizierung, Spielzustandsverwaltung, XML-Parsing, Furigana-Korrektur, Zeitsystem, Zuneigungssystem, Speicherplaetze und API-Endpunkte.
+Keine Optionen. Erzeugt:
+- **Charakter-Sprites** in `assets/characters/<id>/` (400x800px, RGBA PNG) -- einfache Silhouetten mit Farbkennung und Expression-Label
+- **Hintergruende** in `assets/backgrounds/` (1920x1080px, RGB PNG) -- einfarbige Flaechen mit Farbverlauf und Orts-Label
+
+Benutzt Pillow (PIL). Farben pro Charakter: Aoi (Kornblumenblau), Tanaka (Olivgruen), Rina (Grau), Min-jun (Anthrazit), Sachiko (Pastellrosa).
+
+Diese Platzhalter koennen jederzeit durch echte Grafiken ersetzt werden -- das Spiel erkennt automatisch vorhandene PNG/JPG/WEBP-Dateien ueber den `/api/assets/available`-Endpunkt.
+
+### `pytest` -- Tests ausfuehren
+
+```bash
+pytest backend/tests/ -v                    # Alle Tests
+pytest backend/tests/test_state_manager.py  # Nur Spielzustand-Tests
+pytest backend/tests/test_auth.py           # Nur Auth-Tests
+pytest backend/tests/test_response_parser.py # Nur Parser-Tests
+pytest backend/tests/test_integration.py    # Nur API-Integrationstests
+pytest backend/tests/ -v -k "time"          # Nur Tests mit "time" im Namen
+```
+
+Testet: Authentifizierung (JWT, bcrypt, User-CRUD), Spielzustandsverwaltung (Laden, Speichern, Reset), XML-Parsing (Szenen, Analyse, Scene-Status), Furigana-Korrektur (vertauschte Notation), Zeitsystem (Stunden, Tage, Perioden, periodischer Fallback), Zuneigungssystem (Gewichtung, Clamping, Daempfung, Tonstufen), Speicherplaetze (CRUD, Snapshot-Integritaet) und alle API-Endpunkte.
 
 ## Projektstruktur
 
