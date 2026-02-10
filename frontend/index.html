@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+    <title>Japanese Life: Tokyo Stories</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <!-- Background Layer -->
+        <div id="background-layer"></div>
+
+        <!-- Character Layer -->
+        <img id="character-sprite" class="hidden" src="" alt="" />
+
+        <!-- HUD Bar -->
+        <div id="hud-bar">
+            <div id="hud-time">
+                <span id="hud-day">Tag 1</span>
+                <span id="hud-hour">14:00</span>
+            </div>
+            <div id="hud-affection">
+                <span id="hud-affection-icon">&#9829;</span>
+                <span id="hud-affection-label">Neutral</span>
+            </div>
+        </div>
+
+        <!-- Textbox Layer -->
+        <div id="textbox-layer">
+            <div id="textbox-header">
+                <div id="character-name"></div>
+                <div id="toggle-buttons">
+                    <button id="furigana-toggle" title="Furigana-Lesehilfe anzeigen">&#12405;&#12426;</button>
+                    <button id="translation-toggle" title="Deutsche &Uuml;bersetzung anzeigen">DE</button>
+                    <button id="hint-toggle" class="active" title="Korrekturtipps anzeigen">&#128161;</button>
+                </div>
+            </div>
+            <div id="dialog-text"></div>
+            <div id="translation-text" class="hidden"></div>
+            <div id="error-correction-hint" class="hidden"></div>
+            <div id="scene-end-choices" class="hidden"></div>
+            <div id="input-area">
+                <button id="back-button" title="Zur&uuml;ck">&#10226;</button>
+                <button id="history-button" title="Verlauf">&#9776;</button>
+                <button id="menu-button" title="Spielmen&uuml;">&#9881;</button>
+                <button id="stats-button" title="Lernstatistik">&#128202;</button>
+                <input type="text" id="user-input"
+                       placeholder="Was m&ouml;chtest du tun oder sagen?"
+                       autocomplete="off" />
+                <button id="send-button">Senden</button>
+                <button id="continue-button" title="Geschichte fortsetzen">&#9654;</button>
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="hidden">
+            <div class="loading-dots">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
+
+        <!-- Menu Overlay -->
+        <div id="menu-overlay" class="overlay hidden">
+            <div id="menu-panel" class="overlay-panel">
+                <div class="overlay-header">
+                    <h2>Spielmen&uuml;</h2>
+                    <button id="menu-close-button" class="close-button">&times;</button>
+                </div>
+                <div id="save-slots-container"></div>
+                <div id="menu-actions">
+                    <div id="user-info">
+                        Angemeldet als <strong id="user-display"></strong>
+                    </div>
+                    <button id="new-game-button" class="danger-button">Neues Spiel</button>
+                    <button id="logout-button" class="logout-button">Abmelden</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- History Overlay -->
+        <div id="history-overlay" class="overlay hidden">
+            <div id="history-panel" class="overlay-panel">
+                <div class="overlay-header">
+                    <h2>Verlauf</h2>
+                    <button id="history-close-button" class="close-button">&times;</button>
+                </div>
+                <div id="history-entries"></div>
+            </div>
+        </div>
+
+        <!-- Stats Overlay -->
+        <div id="stats-overlay" class="overlay hidden">
+            <div id="stats-panel" class="overlay-panel">
+                <div class="overlay-header">
+                    <h2>Lernstatistik</h2>
+                    <button id="stats-close-button" class="close-button">&times;</button>
+                </div>
+                <div id="stats-content">
+                    <div id="stats-affection-section">
+                        <h3>Zuneigung</h3>
+                    </div>
+                    <div id="stats-learning-section">
+                        <h3>Grammatik-Fortschritt</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="auth.js"></script>
+    <script src="config.js"></script>
+    <script src="engine.js"></script>
+</body>
+</html>

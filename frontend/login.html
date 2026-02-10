@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Login - Japanese Life: Tokyo Stories</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-panel">
+            <h1>Tokyo Stories</h1>
+            <form id="login-form">
+                <div class="login-field">
+                    <label for="username">Benutzername</label>
+                    <input type="text" id="username" name="username"
+                           autocomplete="username" required autofocus />
+                </div>
+                <div class="login-field">
+                    <label for="password">Passwort</label>
+                    <input type="password" id="password" name="password"
+                           autocomplete="current-password" required />
+                </div>
+                <button type="submit" class="login-button">Anmelden</button>
+                <div id="login-error" class="login-error"></div>
+            </form>
+        </div>
+    </div>
+
+    <script src="auth.js"></script>
+    <script>
+        // If already logged in, go straight to game
+        if (Auth.isLoggedIn()) {
+            window.location.href = "/app/index.html";
+        }
+
+        const form = document.getElementById("login-form");
+        const errorEl = document.getElementById("login-error");
+
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            errorEl.textContent = "";
+
+            const username = document.getElementById("username").value.trim();
+            const password = document.getElementById("password").value;
+
+            if (!username || !password) {
+                errorEl.textContent = "Bitte alle Felder ausf\u00fcllen.";
+                return;
+            }
+
+            try {
+                const body = new URLSearchParams();
+                body.append("username", username);
+                body.append("password", password);
+
+                const resp = await fetch("/api/auth/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: body,
+                });
+
+                if (!resp.ok) {
+                    const data = await resp.json().catch(() => ({}));
+                    errorEl.textContent = data.detail || "Anmeldung fehlgeschlagen.";
+                    return;
+                }
+
+                const data = await resp.json();
+                Auth.setAuth(data.access_token, data.username);
+                window.location.href = "/app/index.html";
+            } catch (err) {
+                errorEl.textContent = "Verbindungsfehler. Bitte erneut versuchen.";
+            }
+        });
+    </script>
+</body>
+</html>

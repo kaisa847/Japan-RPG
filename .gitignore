@@ -1,0 +1,13 @@
+.env
+__pycache__/
+*.pyc
+data/game_state.json
+data/session_log.json
+data/users/
+data/.jwt_secret
+data/users.json
+data/saves/
+.pytest_cache/
+assets/
+.claude/
+*- Kopie*

@@ -1,0 +1,979 @@
+class VNEngine {
+    constructor() {
+        // Core elements
+        this.backgroundLayer = document.getElementById("background-layer");
+        this.characterSprite = document.getElementById("character-sprite");
+        this.characterName = document.getElementById("character-name");
+        this.dialogText = document.getElementById("dialog-text");
+        this.translationText = document.getElementById("translation-text");
+        this.translationToggle = document.getElementById("translation-toggle");
+        this.furiganaToggle = document.getElementById("furigana-toggle");
+        this.hintToggle = document.getElementById("hint-toggle");
+        this.userInput = document.getElementById("user-input");
+        this.sendButton = document.getElementById("send-button");
+        this.continueButton = document.getElementById("continue-button");
+        this.loadingOverlay = document.getElementById("loading-overlay");
+
+        // HUD elements
+        this.hudDay = document.getElementById("hud-day");
+        this.hudHour = document.getElementById("hud-hour");
+        this.hudAffectionIcon = document.getElementById("hud-affection-icon");
+        this.hudAffectionLabel = document.getElementById("hud-affection-label");
+
+        // Error correction hint
+        this.errorCorrectionHint = document.getElementById("error-correction-hint");
+
+        // Scene-end choices
+        this.sceneEndChoices = document.getElementById("scene-end-choices");
+
+        // Toolbar buttons
+        this.backButton = document.getElementById("back-button");
+        this.historyButton = document.getElementById("history-button");
+        this.menuButton = document.getElementById("menu-button");
+        this.statsButton = document.getElementById("stats-button");
+
+        // Menu overlay
+        this.menuOverlay = document.getElementById("menu-overlay");
+        this.menuCloseButton = document.getElementById("menu-close-button");
+        this.saveSlotsContainer = document.getElementById("save-slots-container");
+        this.newGameButton = document.getElementById("new-game-button");
+
+        // History overlay
+        this.historyOverlay = document.getElementById("history-overlay");
+        this.historyCloseButton = document.getElementById("history-close-button");
+        this.historyEntries = document.getElementById("history-entries");
+
+        // Stats overlay
+        this.statsOverlay = document.getElementById("stats-overlay");
+        this.statsCloseButton = document.getElementById("stats-close-button");
+        this.statsAffectionSection = document.getElementById("stats-affection-section");
+        this.statsLearningSection = document.getElementById("stats-learning-section");
+
+        // State
+        this.currentScene = null;
+        this.isLoading = false;
+        this.showTranslation = false;
+        this.showFurigana = true;
+        this.showHints = true;
+        this.typewriterTimeout = null;
+        this.assetCache = new Map();
+        this.availableAssets = null;
+        this.startPrompt = "(Spielstart)";
+
+        // Scene history for back-button navigation
+        this.sceneHistory = [];
+        this.sceneHistoryIndex = -1;
+
+        // Cached game state data (affection, learning, time)
+        this.lastAffection = null;
+        this.lastLearning = null;
+        this.lastTime = null;
+
+        this._bindEvents();
+        this._init();
+    }
+
+    // --- Initialization ---
+
+    async _init() {
+        console.log("[VNEngine] Initializing...");
+
+        // Auth check — redirect to login if no token
+        if (!Auth.isLoggedIn()) {
+            Auth.redirectToLogin();
+            return;
+        }
+
+        // Verify token is still valid
+        try {
+            const meResp = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/api/auth/me`);
+            if (!meResp.ok) {
+                Auth.logout();
+                return;
+            }
+            const meData = await meResp.json();
+            this._setUsername(meData.username);
+        } catch (e) {
+            console.warn("[VNEngine] Auth verification failed:", e);
+            return;
+        }
+
+        try {
+            await this._fetchAvailableAssets();
+            await this._fetchStartPrompt();
+
+            const restored = await this._tryRestoreLastScene();
+            if (restored) {
+                console.log("[VNEngine] Restored last scene from saved state.");
+            } else {
+                console.log("[VNEngine] No saved state, starting new game.");
+                await this.sendInput(this.startPrompt);
+            }
+        } catch (e) {
+            console.error("[VNEngine] Init failed:", e);
+            this._setLoading(false);
+        }
+    }
+
+    _setUsername(username) {
+        const el = document.getElementById("user-display");
+        if (el) el.textContent = username;
+    }
+
+    async _tryRestoreLastScene() {
+        try {
+            const response = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/game_state`);
+            if (!response.ok) {
+                console.warn("[VNEngine] /game_state returned", response.status);
+                return false;
+            }
+
+            const state = await response.json();
+            console.log("[VNEngine] game_state:", { has_history: state.has_history, has_last_scene: !!state.last_scene });
+
+            // Cache game state data for HUD and stats
+            if (state.affection) this.lastAffection = state.affection;
+            if (state.learning) this.lastLearning = state.learning;
+            if (state.time) this.lastTime = state.time;
+
+            // Update HUD with restored state
+            this._updateHUD(state.time, state.affection);
+
+            if (state.has_history && state.last_scene) {
+                // Load scene history from backend
+                await this._loadSceneHistory();
+                await this._renderScene(state.last_scene, { skipTypewriter: true });
+                return true;
+            }
+        } catch (e) {
+            console.warn("[VNEngine] Could not restore last scene:", e);
+        }
+        return false;
+    }
+
+    async _loadSceneHistory() {
+        try {
+            const response = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/api/scene_history`);
+            if (response.ok) {
+                const data = await response.json();
+                this.sceneHistory = data.scenes || [];
+                this.sceneHistoryIndex = this.sceneHistory.length - 1;
+                console.log(`[VNEngine] Loaded ${this.sceneHistory.length} scene history entries.`);
+            }
+        } catch (e) {
+            console.warn("[VNEngine] Could not load scene history:", e);
+        }
+    }
+
+    // --- Event Binding ---
+
+    _bindEvents() {
+        this.sendButton.addEventListener("click", () => this._onSend());
+        this.continueButton.addEventListener("click", () => this._onContinue());
+        this.userInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && !this.isLoading) this._onSend();
+        });
+        this.translationToggle.addEventListener("click", () => this._toggleTranslation());
+        this.furiganaToggle.addEventListener("click", () => this._toggleFurigana());
+        this.hintToggle.addEventListener("click", () => this._toggleHints());
+
+        // Toolbar buttons
+        this.backButton.addEventListener("click", () => this._onBack());
+        this.historyButton.addEventListener("click", () => this._openHistory());
+        this.menuButton.addEventListener("click", () => this._openMenu());
+        this.statsButton.addEventListener("click", () => this._openStats());
+
+        // Mobile: scroll textbox into view when keyboard opens
+        this.userInput.addEventListener("focus", () => {
+            setTimeout(() => {
+                this.userInput.scrollIntoView({ behavior: "smooth", block: "center" });
+            }, 300);
+        });
+
+        // Menu overlay
+        this.menuCloseButton.addEventListener("click", () => this._closeMenu());
+        this.newGameButton.addEventListener("click", () => this._onNewGame());
+
+        // Logout
+        const logoutBtn = document.getElementById("logout-button");
+        if (logoutBtn) logoutBtn.addEventListener("click", () => Auth.logout());
+        this.menuOverlay.addEventListener("click", (e) => {
+            if (e.target === this.menuOverlay) this._closeMenu();
+        });
+
+        // History overlay
+        this.historyCloseButton.addEventListener("click", () => this._closeHistory());
+        this.historyOverlay.addEventListener("click", (e) => {
+            if (e.target === this.historyOverlay) this._closeHistory();
+        });
+
+        // Stats overlay
+        this.statsCloseButton.addEventListener("click", () => this._closeStats());
+        this.statsOverlay.addEventListener("click", (e) => {
+            if (e.target === this.statsOverlay) this._closeStats();
+        });
+
+        // Keyboard: Escape closes overlays
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") {
+                if (!this.menuOverlay.classList.contains("hidden")) {
+                    this._closeMenu();
+                } else if (!this.historyOverlay.classList.contains("hidden")) {
+                    this._closeHistory();
+                } else if (!this.statsOverlay.classList.contains("hidden")) {
+                    this._closeStats();
+                }
+            }
+        });
+
+        // Furigana and hints are on by default
+        this.furiganaToggle.classList.add("active");
+        this.hintToggle.classList.add("active");
+        this._updateBackButton();
+    }
+
+    _onSend() {
+        const text = this.userInput.value.trim();
+        if (!text || this.isLoading) return;
+        this.sendInput(text);
+    }
+
+    _onContinue() {
+        if (this.isLoading) return;
+        this.sendInput("(Weiter)");
+    }
+
+    // --- Back Button ---
+
+    _onBack() {
+        if (this.sceneHistoryIndex <= 0 || this.isLoading) return;
+        this.sceneHistoryIndex--;
+        const scene = this.sceneHistory[this.sceneHistoryIndex];
+        this._renderScene(scene, { skipTypewriter: true });
+        this._updateBackButton();
+    }
+
+    _updateBackButton() {
+        this.backButton.disabled = this.sceneHistoryIndex <= 0;
+    }
+
+    // --- API Communication ---
+
+    async sendInput(text) {
+        if (this.isLoading) return;
+        this._setLoading(true);
+        this.userInput.value = "";
+
+        // Hide scene-end choices and error hint when sending new input
+        this._hideSceneEndChoices();
+        this._hideErrorCorrection();
+
+        try {
+            const response = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/generate_scene`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ user_input: text }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Server-Fehler: ${response.status}`);
+            }
+
+            const sceneData = await response.json();
+
+            // Push to local scene history
+            this.sceneHistory.push(sceneData);
+            this.sceneHistoryIndex = this.sceneHistory.length - 1;
+            this._updateBackButton();
+
+            // Cache affection, learning, time data from response
+            if (sceneData.aoi_affection) this.lastAffection = sceneData.aoi_affection;
+            if (sceneData.time) this.lastTime = sceneData.time;
+
+            // Update HUD
+            this._updateHUD(sceneData.time, sceneData.aoi_affection);
+
+            // Render the scene
+            await this._renderScene(sceneData);
+
+            // Show error correction hint if present
+            if (sceneData.analysis && sceneData.analysis.error_correction) {
+                this._showErrorCorrection(sceneData.analysis.error_correction);
+            }
+
+            // Handle scene-end choices
+            if (sceneData.scene_status && sceneData.scene_status.scene_end) {
+                this._showSceneEndChoices(sceneData.scene_status.suggested_next || []);
+            }
+
+        } catch (error) {
+            this._showError(error.message);
+        } finally {
+            this._setLoading(false);
+            this.userInput.focus();
+        }
+    }
+
+    async _fetchStartPrompt() {
+        this.startPrompt = "(Spielstart)";
+        try {
+            const response = await fetch(`${CONFIG.API_BASE_URL}/api/start_prompt`);
+            if (response.ok) {
+                const data = await response.json();
+                if (data.prompt) {
+                    this.startPrompt = data.prompt;
+                    console.log("[VNEngine] Loaded start prompt from server.");
+                }
+            }
+        } catch (e) {
+            console.warn("[VNEngine] Could not fetch start prompt:", e);
+        }
+    }
+
+    async _fetchAvailableAssets() {
+        try {
+            const response = await fetch(`${CONFIG.API_BASE_URL}/api/assets/available`);
+            if (response.ok) {
+                this.availableAssets = await response.json();
+            }
+        } catch (e) {
+            console.warn("Could not fetch available assets:", e);
+        }
+    }
+
+    // --- HUD ---
+
+    _updateHUD(time, affection) {
+        if (time) {
+            this.hudDay.textContent = `Tag ${time.day || 1}`;
+            const hour = time.hour != null ? time.hour : 14;
+            this.hudHour.textContent = `${String(hour).padStart(2, "0")}:00`;
+        }
+
+        if (affection) {
+            const tone = affection.tone || "neutral";
+            const toneConfig = CONFIG.AFFECTION_TONES[tone] || CONFIG.AFFECTION_TONES.neutral;
+            this.hudAffectionLabel.textContent = toneConfig.label;
+            this.hudAffectionLabel.style.color = toneConfig.color;
+            this.hudAffectionIcon.style.color = toneConfig.color;
+        }
+    }
+
+    // --- Error Correction ---
+
+    _showErrorCorrection(text) {
+        if (!this.errorCorrectionHint || !text) return;
+        this.errorCorrectionHint.textContent = text;
+        // Only show if hints are enabled
+        this.errorCorrectionHint.classList.toggle("hidden", !this.showHints);
+    }
+
+    _hideErrorCorrection() {
+        if (!this.errorCorrectionHint) return;
+        this.errorCorrectionHint.classList.add("hidden");
+        this.errorCorrectionHint.textContent = "";
+    }
+
+    // --- Scene-End Choices ---
+
+    _showSceneEndChoices(choices) {
+        if (!this.sceneEndChoices || choices.length === 0) return;
+
+        this.sceneEndChoices.innerHTML = "";
+
+        for (const choice of choices) {
+            const btn = document.createElement("button");
+            btn.className = "scene-choice-button";
+            // Format the choice label: replace underscores with spaces, capitalize
+            btn.textContent = choice.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+            btn.addEventListener("click", () => {
+                this._hideSceneEndChoices();
+                this.sendInput(`(Nächste Szene: ${choice})`);
+            });
+            this.sceneEndChoices.appendChild(btn);
+        }
+
+        this.sceneEndChoices.classList.remove("hidden");
+
+        // Hide the regular input while choices are shown
+        this.userInput.style.display = "none";
+        this.sendButton.style.display = "none";
+        this.continueButton.style.display = "none";
+    }
+
+    _hideSceneEndChoices() {
+        if (!this.sceneEndChoices) return;
+        this.sceneEndChoices.classList.add("hidden");
+        this.sceneEndChoices.innerHTML = "";
+
+        // Restore input area
+        this.userInput.style.display = "";
+        this.sendButton.style.display = "";
+        this.continueButton.style.display = "";
+    }
+
+    // --- Scene Rendering ---
+
+    async _renderScene(sceneData, { skipTypewriter = false } = {}) {
+        this.currentScene = sceneData;
+
+        if (sceneData.background) {
+            await this._transitionBackground(sceneData.background);
+        }
+
+        await this._transitionCharacter(sceneData.character, sceneData.expression);
+        this._updateCharacterName(sceneData.character);
+        this._typewriteDialog(
+            sceneData.dialog_jp,
+            sceneData.dialog_jp_furigana || "",
+            sceneData.dialog_de,
+            skipTypewriter,
+        );
+    }
+
+    // --- Background ---
+
+    async _transitionBackground(backgroundId) {
+        const url = `${CONFIG.ASSET_PATHS.backgrounds}/${backgroundId}.png`;
+        await this._preloadImage(url);
+        this.backgroundLayer.classList.add("fade-out");
+        await this._wait(CONFIG.FADE_TRANSITION_MS);
+        this.backgroundLayer.style.backgroundImage = `url('${url}')`;
+        this.backgroundLayer.classList.remove("fade-out");
+    }
+
+    // --- Character ---
+
+    async _transitionCharacter(characterId, expression) {
+        if (!characterId) {
+            this.characterSprite.classList.add("hidden");
+            return;
+        }
+        const expr = this._resolveExpression(characterId, expression);
+        const url = `${CONFIG.ASSET_PATHS.characters}/${characterId}/${expr}.png`;
+        await this._preloadImage(url);
+        this.characterSprite.classList.add("fade-out");
+        await this._wait(CONFIG.FADE_TRANSITION_MS);
+        this.characterSprite.src = url;
+        this.characterSprite.alt = `${characterId} - ${expr}`;
+        this.characterSprite.classList.remove("fade-out", "hidden");
+    }
+
+    _resolveExpression(characterId, expression) {
+        if (!this.availableAssets || !this.availableAssets.characters) {
+            return expression || CONFIG.DEFAULT_EXPRESSION;
+        }
+        const available = this.availableAssets.characters[characterId];
+        if (!available) return expression || CONFIG.DEFAULT_EXPRESSION;
+        if (available.includes(expression)) return expression;
+        if (available.includes(CONFIG.DEFAULT_EXPRESSION)) return CONFIG.DEFAULT_EXPRESSION;
+        return available[0] || CONFIG.DEFAULT_EXPRESSION;
+    }
+
+    // --- Dialog ---
+
+    _typewriteDialog(dialogJp, dialogJpFurigana, dialogDe, skipTypewriter = false) {
+        if (this.typewriterTimeout) {
+            clearTimeout(this.typewriterTimeout);
+            this.typewriterTimeout = null;
+        }
+
+        this.dialogText.innerHTML = "";
+        this.translationText.textContent = dialogDe || "";
+
+        if (!dialogJp) {
+            this.dialogText.textContent = dialogDe || "";
+            return;
+        }
+
+        const displayText = dialogJpFurigana || dialogJp;
+        const rubyHtml = this._furiganaToRuby(displayText);
+
+        if (skipTypewriter) {
+            this.dialogText.innerHTML = rubyHtml;
+            this._applyFuriganaVisibility();
+            return;
+        }
+
+        const plainChars = dialogJp.split("");
+        let index = 0;
+        const type = () => {
+            if (index < plainChars.length) {
+                this.dialogText.textContent = dialogJp.substring(0, index + 1);
+                index++;
+                this.typewriterTimeout = setTimeout(type, CONFIG.TYPEWRITER_SPEED_MS);
+            } else {
+                this.dialogText.innerHTML = rubyHtml;
+                this._applyFuriganaVisibility();
+            }
+        };
+        type();
+    }
+
+    /**
+     * Convert furigana notation to HTML <ruby> tags.
+     * Handles pure kanji 漢字[かんじ] and mixed kanji+kana お願い[おねがい].
+     * The pattern matches any sequence containing at least one kanji
+     * (possibly mixed with hiragana) followed by [reading].
+     */
+    _furiganaToRuby(text) {
+        if (!text) return "";
+        return text.replace(
+            /([\u3040-\u309F\u3005\u3007\u3400-\u4DBF\u4E00-\u9FFF]*[\u3005\u3007\u3400-\u4DBF\u4E00-\u9FFF][\u3040-\u309F\u3005\u3007\u3400-\u4DBF\u4E00-\u9FFF]*)\[([^\]]+)\]/g,
+            '<ruby>$1<rt>$2</rt></ruby>'
+        );
+    }
+
+    _applyFuriganaVisibility() {
+        this.dialogText.classList.toggle("hide-furigana", !this.showFurigana);
+    }
+
+    // --- Toggle Buttons ---
+
+    _toggleTranslation() {
+        this.showTranslation = !this.showTranslation;
+        this.translationText.classList.toggle("hidden", !this.showTranslation);
+        this.translationToggle.classList.toggle("active", this.showTranslation);
+    }
+
+    _toggleFurigana() {
+        this.showFurigana = !this.showFurigana;
+        this._applyFuriganaVisibility();
+        this.furiganaToggle.classList.toggle("active", this.showFurigana);
+    }
+
+    _toggleHints() {
+        this.showHints = !this.showHints;
+        this.hintToggle.classList.toggle("active", this.showHints);
+        // Immediately show/hide current hint
+        if (this.errorCorrectionHint) {
+            const hasContent = this.errorCorrectionHint.textContent.trim() !== "";
+            this.errorCorrectionHint.classList.toggle("hidden", !this.showHints || !hasContent);
+        }
+    }
+
+    // --- Character Name ---
+
+    _updateCharacterName(characterId) {
+        if (!characterId) {
+            this.characterName.textContent = "";
+            return;
+        }
+        this.characterName.textContent =
+            CONFIG.CHARACTER_NAMES[characterId] || characterId;
+    }
+
+    // --- Menu System ---
+
+    _openMenu() {
+        this.menuOverlay.classList.remove("hidden");
+        this._refreshSaveSlots();
+    }
+
+    _closeMenu() {
+        this.menuOverlay.classList.add("hidden");
+    }
+
+    async _refreshSaveSlots() {
+        this.saveSlotsContainer.innerHTML = "";
+        let existingSlots = {};
+
+        try {
+            const response = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/api/save_slots`);
+            if (response.ok) {
+                const data = await response.json();
+                for (const slot of data.slots) {
+                    existingSlots[slot.slot_id] = slot;
+                }
+            }
+        } catch (e) {
+            console.warn("[VNEngine] Failed to load save slots:", e);
+        }
+
+        for (let i = 1; i <= CONFIG.MAX_SAVE_SLOTS; i++) {
+            const slotEl = this._createSlotElement(i, existingSlots[i] || null);
+            this.saveSlotsContainer.appendChild(slotEl);
+        }
+    }
+
+    _createSlotElement(slotId, slotData) {
+        const el = document.createElement("div");
+        el.className = "save-slot";
+
+        const num = document.createElement("div");
+        num.className = "slot-number";
+        num.textContent = slotId;
+        el.appendChild(num);
+
+        const info = document.createElement("div");
+        info.className = "slot-info";
+
+        if (slotData) {
+            const name = document.createElement("div");
+            name.className = "slot-name";
+            name.textContent = slotData.name || `Spielstand ${slotId}`;
+            info.appendChild(name);
+
+            const details = document.createElement("div");
+            details.className = "slot-details";
+            const date = new Date(slotData.saved_at).toLocaleString("de-DE");
+            details.textContent = `Tag ${slotData.day_number} · ${slotData.turn_count} Züge · ${date}`;
+            info.appendChild(details);
+        } else {
+            const empty = document.createElement("div");
+            empty.className = "slot-empty";
+            empty.textContent = "— Leer —";
+            info.appendChild(empty);
+        }
+        el.appendChild(info);
+
+        const actions = document.createElement("div");
+        actions.className = "slot-actions";
+
+        // Save button (always shown)
+        const saveBtn = document.createElement("button");
+        saveBtn.textContent = "Speichern";
+        saveBtn.addEventListener("click", () => this._saveToSlot(slotId));
+        actions.appendChild(saveBtn);
+
+        if (slotData) {
+            // Load button
+            const loadBtn = document.createElement("button");
+            loadBtn.className = "load-btn";
+            loadBtn.textContent = "Laden";
+            loadBtn.addEventListener("click", () => this._loadFromSlot(slotId));
+            actions.appendChild(loadBtn);
+        }
+
+        el.appendChild(actions);
+        return el;
+    }
+
+    async _saveToSlot(slotId) {
+        try {
+            const response = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/api/save_slots/${slotId}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: "" }),
+            });
+            if (!response.ok) throw new Error(`Save failed: ${response.status}`);
+            console.log(`[VNEngine] Saved to slot ${slotId}`);
+            await this._refreshSaveSlots();
+        } catch (e) {
+            console.error("[VNEngine] Save failed:", e);
+        }
+    }
+
+    async _loadFromSlot(slotId) {
+        try {
+            const response = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/api/save_slots/${slotId}/load`, {
+                method: "POST",
+            });
+            if (!response.ok) throw new Error(`Load failed: ${response.status}`);
+            console.log(`[VNEngine] Loaded slot ${slotId}`);
+
+            // Reload scene history from backend
+            await this._loadSceneHistory();
+
+            // Refresh game state (HUD + last scene)
+            const stateResp = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/game_state`);
+            if (stateResp.ok) {
+                const state = await stateResp.json();
+                if (state.affection) this.lastAffection = state.affection;
+                if (state.learning) this.lastLearning = state.learning;
+                if (state.time) this.lastTime = state.time;
+                this._updateHUD(state.time, state.affection);
+
+                if (state.last_scene) {
+                    await this._renderScene(state.last_scene, { skipTypewriter: true });
+                }
+            }
+
+            this._hideErrorCorrection();
+            this._hideSceneEndChoices();
+            this._closeMenu();
+        } catch (e) {
+            console.error("[VNEngine] Load failed:", e);
+        }
+    }
+
+    async _refreshGameState() {
+        try {
+            const response = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/game_state`);
+            if (response.ok) {
+                const state = await response.json();
+                if (state.affection) this.lastAffection = state.affection;
+                if (state.learning) this.lastLearning = state.learning;
+                if (state.time) this.lastTime = state.time;
+                this._updateHUD(state.time, state.affection);
+            }
+        } catch (e) {
+            console.warn("[VNEngine] Could not refresh game state:", e);
+        }
+    }
+
+    async _onNewGame() {
+        if (!confirm("Neues Spiel starten? Der aktuelle Fortschritt geht verloren, wenn er nicht gespeichert wurde.")) {
+            return;
+        }
+
+        try {
+            const resp = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/game_state/reset`, { method: "POST" });
+            if (resp.ok) {
+                const freshState = await resp.json();
+                if (freshState.time) this.lastTime = freshState.time;
+                if (freshState.affection) this.lastAffection = freshState.affection;
+                if (freshState.learning) this.lastLearning = freshState.learning;
+                this._updateHUD(freshState.time, freshState.affection);
+            }
+        } catch (e) {
+            console.warn("[VNEngine] Reset request failed:", e);
+        }
+
+        this.sceneHistory = [];
+        this.sceneHistoryIndex = -1;
+        this._updateBackButton();
+        this._closeMenu();
+
+        // Clear any stale loading state before starting fresh
+        this._setLoading(false);
+        this.dialogText.innerHTML = "";
+        this.translationText.textContent = "";
+        this.characterName.textContent = "";
+        this.characterSprite.classList.add("hidden");
+        this._hideErrorCorrection();
+        this._hideSceneEndChoices();
+
+        await this.sendInput(this.startPrompt);
+    }
+
+    // --- History Panel ---
+
+    _openHistory() {
+        this.historyOverlay.classList.remove("hidden");
+        this._renderHistoryEntries();
+    }
+
+    _closeHistory() {
+        this.historyOverlay.classList.add("hidden");
+    }
+
+    _renderHistoryEntries() {
+        this.historyEntries.innerHTML = "";
+
+        if (this.sceneHistory.length === 0) {
+            const empty = document.createElement("div");
+            empty.className = "slot-empty";
+            empty.style.textAlign = "center";
+            empty.style.padding = "20px";
+            empty.textContent = "Noch kein Verlauf vorhanden.";
+            this.historyEntries.appendChild(empty);
+            return;
+        }
+
+        for (const scene of this.sceneHistory) {
+            const entry = document.createElement("div");
+            entry.className = "history-entry";
+
+            const isNarrator = !scene.character;
+            if (isNarrator) entry.classList.add("narrator");
+
+            // Character name
+            const charName = document.createElement("div");
+            charName.className = "history-char-name";
+            if (isNarrator) {
+                charName.textContent = "Erzähler";
+            } else {
+                charName.textContent = CONFIG.CHARACTER_NAMES[scene.character] || scene.character;
+            }
+            entry.appendChild(charName);
+
+            // Japanese dialog (with furigana)
+            if (scene.dialog_jp) {
+                const jp = document.createElement("div");
+                jp.className = "history-dialog-jp";
+                const furiganaText = scene.dialog_jp_furigana || scene.dialog_jp;
+                jp.innerHTML = this._furiganaToRuby(furiganaText);
+                entry.appendChild(jp);
+            }
+
+            // German translation
+            if (scene.dialog_de) {
+                const de = document.createElement("div");
+                de.className = "history-dialog-de";
+                de.textContent = scene.dialog_de;
+                entry.appendChild(de);
+            }
+
+            this.historyEntries.appendChild(entry);
+        }
+
+        // Scroll to bottom (latest entry)
+        this.historyEntries.scrollTop = this.historyEntries.scrollHeight;
+    }
+
+    // --- Stats Panel ---
+
+    _openStats() {
+        this.statsOverlay.classList.remove("hidden");
+        this._renderStats();
+    }
+
+    _closeStats() {
+        this.statsOverlay.classList.add("hidden");
+    }
+
+    _renderStats() {
+        this._renderAffectionStats();
+        this._renderLearningStats();
+    }
+
+    _renderAffectionStats() {
+        const section = this.statsAffectionSection;
+        section.innerHTML = "<h3>Zuneigung</h3>";
+
+        const affection = this.lastAffection;
+        if (!affection) {
+            const msg = document.createElement("div");
+            msg.className = "stats-empty-message";
+            msg.textContent = "Noch keine Daten vorhanden.";
+            section.appendChild(msg);
+            return;
+        }
+
+        // Tone display
+        const tone = affection.tone || "neutral";
+        const toneConfig = CONFIG.AFFECTION_TONES[tone] || CONFIG.AFFECTION_TONES.neutral;
+        const score = affection.weighted_score != null ? affection.weighted_score : 20;
+
+        const toneDisplay = document.createElement("div");
+        toneDisplay.className = "stats-tone-display";
+        toneDisplay.innerHTML = `
+            <span class="stats-tone-icon" style="color: ${toneConfig.color}">&#9829;</span>
+            <div class="stats-tone-info">
+                <div class="stats-tone-label" style="color: ${toneConfig.color}">${toneConfig.label}</div>
+                <div class="stats-tone-score">Score: ${score.toFixed(1)} / 100</div>
+            </div>
+        `;
+        section.appendChild(toneDisplay);
+
+        // Factor bars
+        const factors = [
+            { key: "language_effort", label: "Sprachbemühung", weight: "35%" },
+            { key: "cultural_interest", label: "Kulturinteresse", weight: "25%" },
+            { key: "personal_bond", label: "Pers. Bindung", weight: "20%" },
+            { key: "humor", label: "Humor", weight: "10%" },
+            { key: "reliability", label: "Zuverlässigkeit", weight: "10%" },
+        ];
+
+        for (const factor of factors) {
+            const value = affection[factor.key] != null ? affection[factor.key] : 20;
+            const pct = Math.min(100, Math.max(0, value));
+
+            const row = document.createElement("div");
+            row.className = "stats-factor";
+            row.innerHTML = `
+                <span class="stats-factor-name">${factor.label} (${factor.weight})</span>
+                <div class="stats-factor-bar">
+                    <div class="stats-factor-fill" style="width: ${pct}%; background: ${toneConfig.color}"></div>
+                </div>
+                <span class="stats-factor-value">${pct.toFixed(0)}</span>
+            `;
+            section.appendChild(row);
+        }
+    }
+
+    _renderLearningStats() {
+        const section = this.statsLearningSection;
+        section.innerHTML = "<h3>Grammatik-Fortschritt</h3>";
+
+        const learning = this.lastLearning;
+        if (!learning) {
+            const msg = document.createElement("div");
+            msg.className = "stats-empty-message";
+            msg.textContent = "Noch keine Daten vorhanden.";
+            section.appendChild(msg);
+            return;
+        }
+
+        // Overall level badge
+        const level = learning.overall_level || "N5";
+        const badge = document.createElement("div");
+        badge.className = "stats-level-badge";
+        badge.textContent = `Level: ${level}`;
+        section.appendChild(badge);
+
+        // Topics
+        const topics = learning.topics || {};
+        const topicEntries = Object.entries(topics);
+
+        if (topicEntries.length === 0) {
+            const msg = document.createElement("div");
+            msg.className = "stats-empty-message";
+            msg.textContent = "Noch keine Grammatik-Themen geübt.";
+            section.appendChild(msg);
+            return;
+        }
+
+        // Sort by mastery (lowest first to show weak points at top)
+        topicEntries.sort((a, b) => (a[1].mastery || 0) - (b[1].mastery || 0));
+
+        for (const [topicId, topicData] of topicEntries) {
+            const mastery = Math.min(1, Math.max(0, topicData.mastery || 0));
+            const pct = (mastery * 100).toFixed(0);
+            const label = topicId.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+
+            const row = document.createElement("div");
+            row.className = "stats-topic";
+            row.innerHTML = `
+                <span class="stats-topic-name" title="${topicId}">${label}</span>
+                <div class="stats-topic-bar">
+                    <div class="stats-topic-fill" style="width: ${pct}%"></div>
+                </div>
+                <span class="stats-topic-value">${pct}%</span>
+            `;
+            section.appendChild(row);
+        }
+    }
+
+    // --- Utility ---
+
+    _preloadImage(url) {
+        if (this.assetCache.has(url)) return Promise.resolve();
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                this.assetCache.set(url, true);
+                resolve();
+            };
+            img.onerror = () => {
+                console.warn("Failed to load asset:", url);
+                resolve();
+            };
+            img.src = url;
+        });
+    }
+
+    _wait(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    _setLoading(loading) {
+        this.isLoading = loading;
+        this.loadingOverlay.classList.toggle("hidden", !loading);
+        this.sendButton.disabled = loading;
+        this.continueButton.disabled = loading;
+        this.userInput.disabled = loading;
+    }
+
+    _showError(message) {
+        this.dialogText.textContent = `[Fehler: ${message}]`;
+        this.translationText.textContent = "";
+        this.characterName.textContent = "";
+    }
+}
+
+// --- Bootstrap ---
+document.addEventListener("DOMContentLoaded", () => {
+    window.vnEngine = new VNEngine();
+});
