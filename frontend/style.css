@@ -943,10 +943,11 @@ rt {
     }
 
     /* --- Character: anchor to top so keyboard doesn't push face away --- */
+    /* top: 28px avoids overlapping with the HUD bar (time/affection row) */
     #character-sprite {
         height: 85%;
         bottom: auto;
-        top: 0;
+        top: 28px;
     }
 
     /* --- Textbox: full-width, bottom-pinned --- */
@@ -1017,7 +1018,7 @@ rt {
     }
 
     .mobile-toolbar:not(.collapsed) {
-        max-height: 50px;
+        max-height: 90px;
         opacity: 1;
     }
 
@@ -1130,7 +1131,7 @@ rt {
     }
 
     #game-container.keyboard-open .mobile-toolbar:not(.collapsed) {
-        max-height: 38px;
+        max-height: 76px;
     }
 
     #game-container.keyboard-open .mobile-toolbar button {
