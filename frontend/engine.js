@@ -11,7 +11,6 @@ class VNEngine {
         this.hintToggle = document.getElementById("hint-toggle");
         this.userInput = document.getElementById("user-input");
         this.sendButton = document.getElementById("send-button");
-        this.continueButton = document.getElementById("continue-button");
         this.loadingOverlay = document.getElementById("loading-overlay");
 
         // HUD elements
@@ -275,7 +274,6 @@ class VNEngine {
 
     _bindEvents() {
         this.sendButton.addEventListener("click", () => this._onSend());
-        this.continueButton.addEventListener("click", () => this._onContinue());
         this.userInput.addEventListener("keydown", (e) => {
             if (e.key === "Enter" && !this.isLoading) this._onSend();
         });
@@ -352,14 +350,9 @@ class VNEngine {
     }
 
     _onSend() {
-        const text = this.userInput.value.trim();
-        if (!text || this.isLoading) return;
-        this.sendInput(text);
-    }
-
-    _onContinue() {
         if (this.isLoading) return;
-        this.sendInput("(Weiter)");
+        const text = this.userInput.value.trim();
+        this.sendInput(text || "(Weiter)");
     }
 
     // --- Back Button ---
@@ -517,7 +510,6 @@ class VNEngine {
         // Hide the regular input while choices are shown
         this.userInput.style.display = "none";
         this.sendButton.style.display = "none";
-        this.continueButton.style.display = "none";
     }
 
     _hideSceneEndChoices() {
@@ -528,7 +520,6 @@ class VNEngine {
         // Restore input area
         this.userInput.style.display = "";
         this.sendButton.style.display = "";
-        this.continueButton.style.display = "";
     }
 
     // --- Scene Rendering ---
@@ -1123,7 +1114,6 @@ class VNEngine {
         this.isLoading = loading;
         this.loadingOverlay.classList.toggle("hidden", !loading);
         this.sendButton.disabled = loading;
-        this.continueButton.disabled = loading;
         this.userInput.disabled = loading;
     }
 

@@ -338,26 +338,6 @@ rt {
     cursor: not-allowed;
 }
 
-#continue-button {
-    background: rgba(80, 130, 100, 0.5);
-    color: #c0e0d0;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 8px;
-    padding: 10px 16px;
-    font-size: 16px;
-    cursor: pointer;
-    transition: background 150ms;
-    flex-shrink: 0;
-}
-
-#continue-button:hover:not(:disabled) {
-    background: rgba(100, 160, 120, 0.7);
-}
-
-#continue-button:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-}
 
 /* --- HUD Bar --- */
 
@@ -1113,11 +1093,6 @@ rt {
         min-height: 34px;
     }
 
-    #continue-button {
-        padding: 8px 8px;
-        font-size: 14px;
-        min-height: 34px;
-    }
 
     /* --- Keyboard open: more compact textbox --- */
     #game-container.keyboard-open #textbox-layer {
