@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import re
 from pathlib import Path
 
 from anthropic import AsyncAnthropic, APIError, APITimeoutError, RateLimitError
@@ -68,6 +69,14 @@ AKTUELLER SPIELSTAND:
 NARRATOR / SZENENBESCHREIBUNGEN:
 Wenn du als Erzähler sprichst (Szenenbeschreibungen, Übergänge, innere Gedanken von {player_name}),
 verwende ein LEERES character-Tag: <character></character>
+
+GESPRÄCHSFÜHRUNG:
+- Die assistant-Nachrichten in der Historie zeigen Aois bisherige Dialoge. Die user-Nachrichten sind {player_name}s Eingaben.
+- Lies die bisherigen Nachrichten AUFMERKSAM. Reagiere DIREKT auf das, was {player_name} gerade gesagt oder gefragt hat.
+- Wenn du {player_name} eine Frage gestellt hast und er darauf antwortet, nimm seine Antwort auf und führe das Gespräch natürlich weiter. Stelle NICHT dieselbe Frage nochmal.
+- Wenn {player_name} dir eine Frage stellt, beantworte sie als Aoi.
+- Behalte das aktuelle Gesprächsthema im Blick. Wechsle nicht abrupt das Thema, es sei denn {player_name} tut es.
+- Behandle {player_name}s Eingabe NIEMALS als deine eigene Aussage. Was {player_name} sagt, ist SEINE Aussage — du reagierst darauf als Aoi.
 
 REGELN:
 - dialog_jp muss natürliches Japanisch sein, angepasst an das Sprachniveau von {player_name}
@@ -188,6 +197,26 @@ class ClaudeHandler:
             player_name=player_name,
         )
 
+    @staticmethod
+    def _clean_history_content(content: str) -> str:
+        """Strip non-conversational XML blocks from old-format assistant history.
+
+        Older history entries may contain full XML responses including
+        <analysis> and <scene_status> blocks.  These are game-engine
+        metadata and clutter the conversational context that Claude sees,
+        leading to confused responses.  This method strips them and keeps
+        only the <scene> dialog content.
+        """
+        # Remove <analysis>...</analysis>
+        content = re.sub(r'\s*<analysis>.*?</analysis>', '', content, flags=re.DOTALL)
+        # Remove <scene_status>...</scene_status>
+        content = re.sub(r'\s*<scene_status>.*?</scene_status>', '', content, flags=re.DOTALL)
+        # Remove non-essential visual-only fields inside <scene>
+        content = re.sub(r'\s*<expression>.*?</expression>', '', content, flags=re.DOTALL)
+        content = re.sub(r'\s*<background>.*?</background>', '', content, flags=re.DOTALL)
+        content = re.sub(r'\s*<dialog_jp_furigana>.*?</dialog_jp_furigana>', '', content, flags=re.DOTALL)
+        return content.strip()
+
     async def generate_scene(
         self,
         user_input: str,
@@ -203,9 +232,13 @@ class ClaudeHandler:
 
         messages = []
         for turn in conversation_history:
+            content = turn["content"]
+            # Clean old-format assistant entries that still contain full XML
+            if turn["role"] == "assistant":
+                content = self._clean_history_content(content)
             messages.append({
                 "role": turn["role"],
-                "content": turn["content"],
+                "content": content,
             })
         messages.append({"role": "user", "content": user_input})
 

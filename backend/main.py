@@ -397,9 +397,16 @@ async def generate_scene(
         # No explicit time advancement — use periodic fallback
         sm.maybe_advance_time_periodic()
 
-    # Update conversation history
+    # Update conversation history (dialog-only, no analysis/scene_status noise)
     sm.add_conversation_turn("user", body.user_input)
-    sm.add_conversation_turn("assistant", scene.raw_response)
+    dialog_summary = (
+        f"<scene>\n"
+        f"  <character>{scene.character or ''}</character>\n"
+        f"  <dialog_jp>{scene.dialog_jp}</dialog_jp>\n"
+        f"  <dialog_de>{scene.dialog_de}</dialog_de>\n"
+        f"</scene>"
+    )
+    sm.add_conversation_turn("assistant", dialog_summary)
 
     # Store last scene for restoring UI state
     scene_dict = {
