@@ -32,6 +32,42 @@ DATA_DIR = PROJECT_ROOT / "data"
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
 ASSETS_DIR = PROJECT_ROOT / "assets"
 
+DEFAULT_SCENARIO = """\
+Der Spieler heißt {player_name} und ist auf einem Sabbatical in Shimokitazawa, Tokio.
+Er hat Aoi (林あおい) online in einem Sprachaustausch-Forum kennengelernt.
+Heute treffen sie sich zum ersten Mal persönlich. Aoi zeigt {player_name} die Gegend \
+und hilft ihm, sein Japanisch in echten Alltagssituationen zu verbessern.
+
+SPIELSTART:
+Aoi trifft {player_name} am Südausgang des Bahnhofs Shimokitazawa. \
+Es ist ein sonniger Nachmittag. \
+Sie erkennt ihn sofort und ruft fröhlich nach ihm. \
+Aoi begrüßt {player_name} auf Japanisch — einfaches, anfängerfreundliches Japanisch. \
+Sie ist aufgeregt, ihn endlich persönlich zu treffen, nachdem sie monatelang online gechattet haben. \
+Verwende character=aoi, expression=happy, background=shimokitazawa_station. \
+Dies ist die ERSTE Begegnung — halte den Ton freundlich aber noch etwas formell.\
+"""
+
+
+def _parse_scenario(scenario_text: str, player_name: str) -> tuple[str, str]:
+    """Split scenario into (premise, start_prompt) and substitute player_name.
+
+    If the text contains a 'SPIELSTART:' marker, everything before it becomes
+    the premise (PRÄMISSE) and everything after becomes the start prompt.
+    Otherwise the full text is used for both.
+    """
+    text = scenario_text.replace("{player_name}", player_name)
+    marker = "SPIELSTART:"
+    idx = text.find(marker)
+    if idx >= 0:
+        premise = text[:idx].strip()
+        start = text[idx + len(marker):].strip()
+        start_prompt = f"(SPIELSTART – Regieanweisung, NICHT als Dialog anzeigen:\n{start})"
+    else:
+        premise = text.strip()
+        start_prompt = f"(SPIELSTART – Regieanweisung, NICHT als Dialog anzeigen:\n{premise})"
+    return premise, start_prompt
+
 
 # --- Response Models ---
 
@@ -218,6 +254,42 @@ async def update_player_name(
     return {"player_name": name}
 
 
+# --- Scenario ---
+
+@app.get("/api/scenario")
+async def get_scenario(user: UserRecord = Depends(get_current_user)):
+    return {
+        "scenario": user.custom_scenario or DEFAULT_SCENARIO,
+        "is_default": not user.custom_scenario,
+    }
+
+
+@app.put("/api/scenario")
+async def update_scenario(
+    request: Request,
+    user: UserRecord = Depends(get_current_user),
+):
+    body = await request.json()
+    scenario = body.get("scenario", "").strip()
+    if not scenario:
+        raise HTTPException(status_code=400, detail="Szenario darf nicht leer sein.")
+    if len(scenario) > 5000:
+        raise HTTPException(status_code=400, detail="Szenario darf maximal 5000 Zeichen lang sein.")
+    um: UserManager = request.app.state.user_manager
+    um.update_scenario(user.username, scenario)
+    return {"scenario": scenario, "is_default": False}
+
+
+@app.post("/api/scenario/reset")
+async def reset_scenario(
+    request: Request,
+    user: UserRecord = Depends(get_current_user),
+):
+    um: UserManager = request.app.state.user_manager
+    um.update_scenario(user.username, "")
+    return {"scenario": DEFAULT_SCENARIO, "is_default": True}
+
+
 # --- Root redirect ---
 
 @app.get("/")
@@ -229,16 +301,10 @@ async def root():
 
 @app.get("/api/start_prompt")
 async def get_start_prompt(user: UserRecord = Depends(get_current_user)):
-    prompt_path = DATA_DIR / "start_prompt.txt"
-    if prompt_path.exists():
-        try:
-            text = prompt_path.read_text(encoding="utf-8").strip()
-            player_name = user.player_name or "Spieler"
-            text = text.replace("{player_name}", player_name)
-            return {"prompt": text}
-        except OSError:
-            pass
-    return {"prompt": "(Spielstart)"}
+    player_name = user.player_name or "Spieler"
+    scenario_text = user.custom_scenario or DEFAULT_SCENARIO
+    _premise, start_prompt = _parse_scenario(scenario_text, player_name)
+    return {"prompt": start_prompt}
 
 
 # --- Asset availability ---
@@ -354,6 +420,10 @@ async def generate_scene(
     context_summary = sm.get_context_summary(player_name=player_name)
     history = sm.state.conversation_history
 
+    # Resolve custom scenario premise
+    scenario_text = user.custom_scenario or DEFAULT_SCENARIO
+    custom_premise, _start = _parse_scenario(scenario_text, player_name)
+
     if handler:
         scene = await handler.generate_scene_safe(
             user_input=body.user_input,
@@ -362,6 +432,7 @@ async def generate_scene(
             aoi_tone=aoi_tone,
             weak_points=weak_points,
             player_name=player_name,
+            custom_premise=custom_premise,
         )
     else:
         scene = SceneData(

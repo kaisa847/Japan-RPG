@@ -54,6 +54,12 @@ class VNEngine {
         this.menuPlayerNameSave = document.getElementById("menu-player-name-save");
         this.menuPlayerNameStatus = document.getElementById("menu-player-name-status");
 
+        // Scenario elements
+        this.menuScenarioInput = document.getElementById("menu-scenario-input");
+        this.menuScenarioSave = document.getElementById("menu-scenario-save");
+        this.menuScenarioReset = document.getElementById("menu-scenario-reset");
+        this.menuScenarioStatus = document.getElementById("menu-scenario-status");
+
         // History overlay
         this.historyOverlay = document.getElementById("history-overlay");
         this.historyCloseButton = document.getElementById("history-close-button");
@@ -226,6 +232,79 @@ class VNEngine {
         }
     }
 
+    // --- Scenario Management ---
+
+    async _loadScenario() {
+        try {
+            const resp = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/api/scenario`);
+            if (resp.ok) {
+                const data = await resp.json();
+                this.menuScenarioInput.value = data.scenario || "";
+            }
+        } catch (e) {
+            console.warn("[VNEngine] Could not load scenario:", e);
+        }
+    }
+
+    async _onScenarioSave() {
+        const scenario = this.menuScenarioInput.value.trim();
+        this.menuScenarioStatus.textContent = "";
+        this.menuScenarioStatus.style.color = "";
+
+        if (!scenario) {
+            this.menuScenarioStatus.textContent = "Szenario darf nicht leer sein.";
+            this.menuScenarioStatus.style.color = "#e08080";
+            return;
+        }
+        if (scenario.length > 5000) {
+            this.menuScenarioStatus.textContent = "Maximal 5000 Zeichen.";
+            this.menuScenarioStatus.style.color = "#e08080";
+            return;
+        }
+
+        try {
+            const resp = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/api/scenario`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ scenario }),
+            });
+            if (!resp.ok) {
+                const data = await resp.json().catch(() => ({}));
+                this.menuScenarioStatus.textContent = data.detail || "Fehler.";
+                this.menuScenarioStatus.style.color = "#e08080";
+                return;
+            }
+            this.menuScenarioStatus.textContent = "Gespeichert! Starte ein neues Spiel, um das Szenario zu verwenden.";
+            this.menuScenarioStatus.style.color = "#80c080";
+            // Re-fetch start prompt so a new game uses the updated scenario
+            await this._fetchStartPrompt();
+        } catch (e) {
+            this.menuScenarioStatus.textContent = "Verbindungsfehler.";
+            this.menuScenarioStatus.style.color = "#e08080";
+        }
+    }
+
+    async _onScenarioReset() {
+        this.menuScenarioStatus.textContent = "";
+        this.menuScenarioStatus.style.color = "";
+
+        try {
+            const resp = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/api/scenario/reset`, {
+                method: "POST",
+            });
+            if (resp.ok) {
+                const data = await resp.json();
+                this.menuScenarioInput.value = data.scenario || "";
+                this.menuScenarioStatus.textContent = "Auf Standard zurückgesetzt.";
+                this.menuScenarioStatus.style.color = "#80c080";
+                await this._fetchStartPrompt();
+            }
+        } catch (e) {
+            this.menuScenarioStatus.textContent = "Verbindungsfehler.";
+            this.menuScenarioStatus.style.color = "#e08080";
+        }
+    }
+
     async _tryRestoreLastScene() {
         try {
             const response = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/game_state`);
@@ -310,6 +389,8 @@ class VNEngine {
         this.menuCloseButton.addEventListener("click", () => this._closeMenu());
         this.newGameButton.addEventListener("click", () => this._onNewGame());
         this.menuPlayerNameSave.addEventListener("click", () => this._onMenuPlayerNameSave());
+        this.menuScenarioSave.addEventListener("click", () => this._onScenarioSave());
+        this.menuScenarioReset.addEventListener("click", () => this._onScenarioReset());
 
         // Logout
         const logoutBtn = document.getElementById("logout-button");
@@ -728,7 +809,9 @@ class VNEngine {
         this.menuOverlay.classList.remove("hidden");
         this.menuPlayerNameInput.value = this.playerName;
         this.menuPlayerNameStatus.textContent = "";
+        this.menuScenarioStatus.textContent = "";
         this._refreshSaveSlots();
+        this._loadScenario();
     }
 
     _closeMenu() {

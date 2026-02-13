@@ -103,6 +103,17 @@
                         </div>
                         <div id="menu-player-name-status" class="player-name-status"></div>
                     </div>
+                    <div id="scenario-section">
+                        <label class="menu-label">Szenario</label>
+                        <p class="scenario-hint">Beschreibe die Spielwelt und den Startpunkt. Verwende {player_name} als Platzhalter f&uuml;r den Spielernamen. Trenne Pr&auml;misse und Startanweisung mit &bdquo;SPIELSTART:&ldquo;.</p>
+                        <textarea id="menu-scenario-input" rows="6" maxlength="5000"
+                                  placeholder="Szenario eingeben..."></textarea>
+                        <div class="scenario-actions">
+                            <button id="menu-scenario-save">Speichern</button>
+                            <button id="menu-scenario-reset" class="scenario-reset-btn">Standard</button>
+                        </div>
+                        <div id="menu-scenario-status" class="player-name-status"></div>
+                    </div>
                     <div id="user-info">
                         Angemeldet als <strong id="user-display"></strong>
                     </div>
