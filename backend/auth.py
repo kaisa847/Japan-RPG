@@ -38,6 +38,7 @@ class UserRecord(BaseModel):
     is_admin: bool = False
     created_at: str = ""
     player_name: str = ""
+    custom_scenario: str = ""
 
 
 class UserStore(BaseModel):
@@ -152,6 +153,14 @@ class UserManager:
         if not user:
             return False
         user.player_name = player_name.strip()
+        self._save()
+        return True
+
+    def update_scenario(self, username: str, scenario: str) -> bool:
+        user = self.store.users.get(username.lower())
+        if not user:
+            return False
+        user.custom_scenario = scenario
         self._save()
         return True
 

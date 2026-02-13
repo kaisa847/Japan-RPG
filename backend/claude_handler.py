@@ -17,10 +17,7 @@ Du bist der Erzähler von "Japanese Life: Tokyo Stories", einem Visual Novel,
 das deutschsprachigen Spielern Japanisch beibringt.
 
 PRÄMISSE:
-Der Spieler heißt {player_name} und ist auf einem Sabbatical in Shimokitazawa, Tokio.
-Er hat Aoi (林あおい) online in einem Sprachaustausch-Forum kennengelernt.
-Heute treffen sie sich zum ersten Mal persönlich. Aoi zeigt {player_name} die Gegend
-und hilft ihm, sein Japanisch in echten Alltagssituationen zu verbessern.
+{premise}
 
 AOI-CHARAKTER:
 {character_info}
@@ -125,6 +122,12 @@ REGELN:
   * NIEMALS leer lassen! Wenn du unsicher bist, setze mindestens "+1h".
 """
 
+DEFAULT_PREMISE = """\
+Der Spieler heißt {player_name} und ist auf einem Sabbatical in Shimokitazawa, Tokio.
+Er hat Aoi (林あおい) online in einem Sprachaustausch-Forum kennengelernt.
+Heute treffen sie sich zum ersten Mal persönlich. Aoi zeigt {player_name} die Gegend \
+und hilft ihm, sein Japanisch in echten Alltagssituationen zu verbessern."""
+
 TONE_DESCRIPTIONS = {
     "distant": "Aoi ist höflich aber zurückhaltend. Sie verwendet keigo und hält Distanz. Sie kennt {player_name} kaum.",
     "neutral": "Aoi ist freundlich und hilfsbereit, aber noch etwas formell. Sie beginnt sich zu öffnen.",
@@ -188,6 +191,7 @@ class ClaudeHandler:
         aoi_tone: str = "neutral",
         weak_points: list[str] | None = None,
         player_name: str = "Spieler",
+        custom_premise: str | None = None,
     ) -> str:
         aoi_expressions = ", ".join(CHARACTER_EXPRESSIONS.get("aoi", ["neutral"]))
         tone_desc = TONE_DESCRIPTIONS.get(aoi_tone, TONE_DESCRIPTIONS["neutral"])
@@ -200,7 +204,10 @@ class ClaudeHandler:
 
         backgrounds = ", ".join(self.get_background_ids())
 
+        premise = custom_premise if custom_premise else DEFAULT_PREMISE.format(player_name=player_name)
+
         return SYSTEM_PROMPT_TEMPLATE.format(
+            premise=premise,
             character_info=self.aoi_sheet,
             aoi_tone=aoi_tone,
             tone_description=tone_desc,
@@ -239,9 +246,11 @@ class ClaudeHandler:
         aoi_tone: str = "neutral",
         weak_points: list[str] | None = None,
         player_name: str = "Spieler",
+        custom_premise: str | None = None,
     ) -> SceneData:
         system_prompt = self._build_system_prompt(
-            game_state_summary, aoi_tone, weak_points, player_name=player_name
+            game_state_summary, aoi_tone, weak_points,
+            player_name=player_name, custom_premise=custom_premise,
         )
 
         messages = []
@@ -274,11 +283,13 @@ class ClaudeHandler:
         aoi_tone: str = "neutral",
         weak_points: list[str] | None = None,
         player_name: str = "Spieler",
+        custom_premise: str | None = None,
     ) -> SceneData:
         try:
             return await self.generate_scene(
                 user_input, game_state_summary, conversation_history,
                 aoi_tone, weak_points, player_name=player_name,
+                custom_premise=custom_premise,
             )
         except APITimeoutError:
             logger.error("Claude API timeout")
