@@ -138,7 +138,7 @@ class ResponseParser:
         scene_xml = ResponseParser._extract_xml_block(raw_response, "scene")
         if not scene_xml:
             return SceneData(
-                dialog_de=raw_response.strip(),
+                dialog_jp=raw_response.strip(),
                 raw_response=raw_response,
                 parse_errors=["No <scene> tag found in response"],
             )
