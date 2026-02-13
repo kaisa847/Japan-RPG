@@ -36,6 +36,10 @@
 10. **determined** - Fokussierter Blick, geschlossener Mund, Faust geballt
 11. **worried** - Zusammengezogene Augenbrauen, besorgter Blick
 12. **sleepy** - Halb geschlossene Augen, gähnender Mund
+13. **angry** - Zusammengezogene Augenbrauen, zusammengebissene Zähne, intensiver Blick, geballte Fäuste
+14. **disgusted** - Gerümpfte Nase, verzogener Mund, leicht abgewandter Kopf, angewiderte Miene
+15. **shocked** - Weit aufgerissene Augen, offener Mund, zurückgelehnte Körperhaltung, Hände erhoben
+16. **ahegao** - Verdrehte Augen, herausgestreckte Zunge, errötete Wangen, entrückter Ausdruck
 
 ## Prompt Template (Stable Diffusion)
 
@@ -66,3 +70,7 @@ negative prompt: realistic, 3d, photograph, multiple girls, messy, dark colors, 
 - determined: `focused gaze, closed mouth, fist clenched`
 - worried: `furrowed brows, concerned look`
 - sleepy: `half-closed eyes, yawning mouth`
+- angry: `furrowed brows, clenched teeth, intense glare, clenched fists`
+- disgusted: `wrinkled nose, twisted mouth, head slightly turned away, disgusted expression`
+- shocked: `wide open eyes, open mouth, leaning back, hands raised`
+- ahegao: `rolling eyes, tongue out, flushed cheeks, dazed expression`
