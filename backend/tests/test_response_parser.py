@@ -54,7 +54,8 @@ class TestParseScene:
     def test_no_scene_tag(self):
         raw = "Ich bin ein freier Text ohne XML."
         result = ResponseParser.parse_scene(raw)
-        assert result.dialog_de == raw
+        assert result.dialog_jp == raw
+        assert result.dialog_de == ""
         assert result.character is None
         assert len(result.parse_errors) > 0
 
