@@ -19,7 +19,8 @@ CHARACTER_EXPRESSIONS = {
     "aoi": [
         "neutral", "happy", "excited", "curious", "talking",
         "laughing", "surprised", "thinking", "embarrassed",
-        "determined", "worried", "sleepy",
+        "determined", "worried", "sleepy", "angry",
+        "disgusted", "shocked", "ahegao",
     ],
     "tanaka_kenji": [
         "neutral", "gentle_smile", "concerned", "explaining",
