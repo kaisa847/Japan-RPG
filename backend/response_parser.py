@@ -43,6 +43,17 @@ def _has_kanji(s: str) -> bool:
     )
 
 
+def _is_japanese_text(s: str) -> bool:
+    """Check if a string contains Japanese characters (hiragana, katakana, or kanji)."""
+    return any(
+        '\u3040' <= c <= '\u309F'  # Hiragana
+        or '\u30A0' <= c <= '\u30FF'  # Katakana
+        or '\u4E00' <= c <= '\u9FFF'  # CJK Unified Ideographs
+        or '\u3400' <= c <= '\u4DBF'  # CJK Extension A
+        for c in s
+    )
+
+
 def _fix_reversed_furigana(text: str) -> str:
     """Fix reversed furigana notation: ひらがな[漢字] → 漢字[ひらがな].
 
@@ -172,6 +183,11 @@ class ResponseParser:
             if fixed != dialog_jp_furigana:
                 errors.append("Fixed reversed furigana notation")
                 dialog_jp_furigana = fixed
+
+        # Validate dialog_de: if it contains Japanese, Claude forgot to translate
+        if dialog_de and _is_japanese_text(dialog_de):
+            errors.append("dialog_de contains Japanese text, clearing it")
+            dialog_de = ""
 
         # Fallback: if furigana is missing, use plain dialog_jp
         if dialog_jp and not dialog_jp_furigana:

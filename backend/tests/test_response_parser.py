@@ -2,7 +2,7 @@
 
 import pytest
 
-from backend.response_parser import ResponseParser, SceneData, AnalysisData, SceneStatus, _fix_reversed_furigana, _is_kanji, _has_kanji
+from backend.response_parser import ResponseParser, SceneData, AnalysisData, SceneStatus, _fix_reversed_furigana, _is_kanji, _has_kanji, _is_japanese_text
 
 
 class TestParseScene:
@@ -124,6 +124,20 @@ class TestParseScene:
         result = ResponseParser.parse_scene(raw)
         assert result.character is None
         assert result.background == "park"
+
+    def test_dialog_de_japanese_text_cleared(self):
+        """When Claude puts Japanese in dialog_de, it should be cleared."""
+        raw = "<scene><character></character><dialog_jp>公園に到着した。</dialog_jp><dialog_jp_furigana>公園[こうえん]に到着[とうちゃく]した。</dialog_jp_furigana><dialog_de>公園に到着した。</dialog_de></scene>"
+        result = ResponseParser.parse_scene(raw)
+        assert result.dialog_jp == "公園に到着した。"
+        assert result.dialog_de == ""
+        assert any("Japanese" in e for e in result.parse_errors)
+
+    def test_dialog_de_german_text_preserved(self):
+        """Normal German translation should not be affected."""
+        raw = "<scene><character>aoi</character><expression>happy</expression><dialog_jp>おはよう！</dialog_jp><dialog_de>Guten Morgen!</dialog_de></scene>"
+        result = ResponseParser.parse_scene(raw)
+        assert result.dialog_de == "Guten Morgen!"
 
     def test_no_analysis_returns_none(self):
         raw = "<scene><character>aoi</character><expression>neutral</expression><dialog_jp>テスト</dialog_jp><dialog_de>Test</dialog_de></scene>"
