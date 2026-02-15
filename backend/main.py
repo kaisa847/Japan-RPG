@@ -149,9 +149,12 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Japanese Life: Tokyo Stories", lifespan=lifespan)
 
+_cors_origin = os.getenv("CORS_ORIGIN", "")
+_allowed_origins = [_cors_origin] if _cors_origin else ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_allowed_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )

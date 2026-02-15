@@ -1,0 +1,28 @@
+[Unit]
+Description=Japan-RPG Visual Novel Server
+After=network.target
+
+[Service]
+Type=exec
+User=jrpg
+Group=jrpg
+WorkingDirectory=/home/jrpg
+EnvironmentFile=/home/jrpg/.env
+ExecStart=/home/jrpg/venv/bin/gunicorn backend.main:app \
+    --worker-class uvicorn.workers.UvicornWorker \
+    --workers 2 \
+    --bind 127.0.0.1:8000 \
+    --timeout 120 \
+    --access-logfile - \
+    --error-logfile -
+Restart=on-failure
+RestartSec=5
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/home/jrpg/data
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
