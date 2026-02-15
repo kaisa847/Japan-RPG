@@ -1169,13 +1169,26 @@ class VNEngine {
 
             const row = document.createElement("div");
             row.className = "stats-topic";
-            row.innerHTML = `
-                <span class="stats-topic-name" title="${topicId}">${label}</span>
-                <div class="stats-topic-bar">
-                    <div class="stats-topic-fill" style="width: ${pct}%"></div>
-                </div>
-                <span class="stats-topic-value">${pct}%</span>
-            `;
+
+            const nameSpan = document.createElement("span");
+            nameSpan.className = "stats-topic-name";
+            nameSpan.title = topicId;
+            nameSpan.textContent = label;
+            row.appendChild(nameSpan);
+
+            const barDiv = document.createElement("div");
+            barDiv.className = "stats-topic-bar";
+            const fillDiv = document.createElement("div");
+            fillDiv.className = "stats-topic-fill";
+            fillDiv.style.width = `${pct}%`;
+            barDiv.appendChild(fillDiv);
+            row.appendChild(barDiv);
+
+            const valueSpan = document.createElement("span");
+            valueSpan.className = "stats-topic-value";
+            valueSpan.textContent = `${pct}%`;
+            row.appendChild(valueSpan);
+
             section.appendChild(row);
         }
     }

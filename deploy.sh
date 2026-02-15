@@ -45,6 +45,11 @@ if [[ -z "$DOMAIN" || -z "$EMAIL" ]]; then
     exit 1
 fi
 
+if [[ ! "$DOMAIN" =~ ^[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?$ ]]; then
+    error "Invalid domain name: $DOMAIN"
+    exit 1
+fi
+
 info "Domain: $DOMAIN"
 info "Email:  $EMAIL"
 
@@ -125,8 +130,9 @@ if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
     exit 1
 fi
 
-# Set ownership
+# Set ownership & restrict .env permissions
 chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
+chmod 600 "$INSTALL_DIR/.env"
 
 # ─── Step 5: Install systemd service ─────────────────────────────────────────
 
@@ -219,10 +225,9 @@ print(len(um.list_users()))
 if [[ "$USER_COUNT" == "0" ]]; then
     read -rsp "Choose admin password: " ADMIN_PW
     echo
-    sudo -u "$SERVICE_USER" bash -c "
-        cd $INSTALL_DIR
-        echo '$ADMIN_PW' | $INSTALL_DIR/venv/bin/python -m backend.create_user admin --admin
-    "
+    # Use printf to avoid shell injection via password characters
+    printf '%s\n' "$ADMIN_PW" | sudo -u "$SERVICE_USER" \
+        "$INSTALL_DIR/venv/bin/python" -m backend.create_user admin --admin
     info "Admin user 'admin' created."
 else
     info "Users already exist — skipping admin creation."

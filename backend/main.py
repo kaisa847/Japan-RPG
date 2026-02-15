@@ -123,6 +123,7 @@ async def lifespan(app: FastAPI):
         app.state.jwt_secret = secrets.token_urlsafe(32)
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         jwt_secret_path.write_text(app.state.jwt_secret, encoding="utf-8")
+        jwt_secret_path.chmod(0o600)
 
     # User manager
     app.state.user_manager = UserManager(data_dir=data_dir)
@@ -150,7 +151,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Japanese Life: Tokyo Stories", lifespan=lifespan)
 
 _cors_origin = os.getenv("CORS_ORIGIN", "")
-_allowed_origins = [_cors_origin] if _cors_origin else ["*"]
+_allowed_origins = [_cors_origin] if _cors_origin else []
 
 app.add_middleware(
     CORSMiddleware,
@@ -183,6 +184,12 @@ if FRONTEND_DIR.exists():
 
 @app.post("/api/auth/login")
 async def login(request: Request, form: OAuth2PasswordRequestForm = Depends()):
+    # CSRF protection: verify Origin/Referer matches this server
+    origin = request.headers.get("origin") or request.headers.get("referer") or ""
+    expected = _cors_origin or str(request.base_url).rstrip("/")
+    if origin and not origin.startswith(expected):
+        raise HTTPException(status_code=403, detail="Cross-origin request blocked.")
+
     um: UserManager = request.app.state.user_manager
     user = um.authenticate(form.username, form.password)
     if not user:
@@ -208,10 +215,13 @@ async def create_user_api(
     if not user.is_admin:
         raise HTTPException(status_code=403, detail="Admin only.")
     body = await request.json()
+    password = body.get("password", "")
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Passwort muss mindestens 8 Zeichen lang sein.")
     um: UserManager = request.app.state.user_manager
     try:
         new_user = um.create_user(
-            body["username"], body["password"], body.get("is_admin", False),
+            body["username"], password, body.get("is_admin", False),
             player_name=body.get("player_name", ""),
         )
         return {
