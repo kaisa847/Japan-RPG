@@ -48,8 +48,8 @@ def main():
         print("Error: Passwords do not match")
         sys.exit(1)
 
-    if len(password) < 4:
-        print("Error: Password must be at least 4 characters")
+    if len(password) < 8:
+        print("Error: Password must be at least 8 characters")
         sys.exit(1)
 
     data_dir = str(PROJECT_ROOT / "data")
