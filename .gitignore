@@ -11,3 +11,4 @@ data/saves/
 assets/
 .claude/
 *- Kopie*
+deploy/nginx/active.conf
