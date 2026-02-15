@@ -10,8 +10,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-INSTALL_DIR="/opt/japan-rpg"
-SERVICE_USER="japan-rpg"
+INSTALL_DIR="/home/jrpg"
+SERVICE_USER="jrpg"
 
 # ─── Colors ───────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
@@ -58,8 +58,8 @@ apt-get install -y -qq python3 python3-venv python3-pip nginx certbot python3-ce
 
 info "Step 2/7 — Setting up service user and directories..."
 if ! id "$SERVICE_USER" &>/dev/null; then
-    useradd --system --no-create-home --shell /usr/sbin/nologin "$SERVICE_USER"
-    info "User '$SERVICE_USER' created."
+    useradd --system --create-home --home-dir "$INSTALL_DIR" --shell /usr/sbin/nologin "$SERVICE_USER"
+    info "User '$SERVICE_USER' created with home $INSTALL_DIR."
 fi
 
 # ─── Step 3: Install application ─────────────────────────────────────────────
