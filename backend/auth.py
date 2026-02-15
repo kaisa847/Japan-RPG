@@ -27,7 +27,7 @@ def _verify_password(password: str, hashed: str) -> bool:
 
 # --- JWT settings ---
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 
 
 # --- Models ---

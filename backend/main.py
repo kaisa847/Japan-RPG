@@ -184,6 +184,12 @@ if FRONTEND_DIR.exists():
 
 @app.post("/api/auth/login")
 async def login(request: Request, form: OAuth2PasswordRequestForm = Depends()):
+    # CSRF protection: verify Origin/Referer matches this server
+    origin = request.headers.get("origin") or request.headers.get("referer") or ""
+    expected = _cors_origin or str(request.base_url).rstrip("/")
+    if origin and not origin.startswith(expected):
+        raise HTTPException(status_code=403, detail="Cross-origin request blocked.")
+
     um: UserManager = request.app.state.user_manager
     user = um.authenticate(form.username, form.password)
     if not user:
