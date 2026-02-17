@@ -1,7 +1,7 @@
 # Japan-RPG: Kurzanleitung Ubuntu-Setup
 
-Kompakte Einrichtung auf einem Ubuntu VPS (22.04+) im Home-Verzeichnis `/home/jrpg`.
-Ersetze `DEINE-DOMAIN.de` und `DEINE@EMAIL.de` durch deine echten Werte.
+Kompakte Einrichtung auf einem Ubuntu VPS (22.04+).
+Projektpfad: `/home/jrpg/Japan-RPG`. Ersetze `DEINE-DOMAIN.de` und `DEINE@EMAIL.de` durch deine echten Werte.
 
 ## Voraussetzungen
 
@@ -22,27 +22,27 @@ sudo useradd --system --create-home --home-dir /home/jrpg --shell /usr/sbin/nolo
 
 ```bash
 # Per git clone:
-sudo git clone https://github.com/DEIN-USER/Japan-RPG.git /home/jrpg
+sudo git clone https://github.com/DEIN-USER/Japan-RPG.git /home/jrpg/Japan-RPG
 
 # Oder per rsync vom lokalen Rechner:
 # rsync -az --exclude='.git' --exclude='.env' --exclude='data/users*' \
-#   --exclude='__pycache__' --exclude='assets/' ./ root@SERVER:/home/jrpg/
+#   --exclude='__pycache__' --exclude='assets/' ./ root@SERVER:/home/jrpg/Japan-RPG/
 ```
 
 ## 3. Python-Umgebung & Assets
 
 ```bash
-sudo python3 -m venv /home/jrpg/venv
-sudo /home/jrpg/venv/bin/pip install -r /home/jrpg/backend/requirements.txt gunicorn
-cd /home/jrpg && sudo /home/jrpg/venv/bin/python generate_placeholders.py
+sudo python3 -m venv /home/jrpg/Japan-RPG/venv
+sudo /home/jrpg/Japan-RPG/venv/bin/pip install -r /home/jrpg/Japan-RPG/backend/requirements.txt gunicorn
+cd /home/jrpg/Japan-RPG && sudo /home/jrpg/Japan-RPG/venv/bin/python generate_placeholders.py
 ```
 
 ## 4. Konfiguration
 
 ```bash
-sudo mkdir -p /home/jrpg/data/users /home/jrpg/data/saves
-sudo cp /home/jrpg/.env.example /home/jrpg/.env
-sudo nano /home/jrpg/.env
+sudo mkdir -p /home/jrpg/Japan-RPG/data/users /home/jrpg/Japan-RPG/data/saves
+sudo cp /home/jrpg/Japan-RPG/.env.example /home/jrpg/Japan-RPG/.env
+sudo nano /home/jrpg/Japan-RPG/.env
 ```
 
 Mindestinhalt der `.env`:
@@ -53,14 +53,14 @@ CORS_ORIGIN=https://DEINE-DOMAIN.de
 ```
 
 ```bash
-sudo chmod 600 /home/jrpg/.env
+sudo chmod 600 /home/jrpg/Japan-RPG/.env
 sudo chown -R jrpg:jrpg /home/jrpg
 ```
 
 ## 5. systemd-Service starten
 
 ```bash
-sudo cp /home/jrpg/deploy/japan-rpg.service /etc/systemd/system/
+sudo cp /home/jrpg/Japan-RPG/deploy/japan-rpg.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now japan-rpg
 sudo systemctl status japan-rpg
@@ -96,7 +96,7 @@ sudo certbot certonly --webroot --webroot-path=/var/www/certbot \
 
 # Finale nginx-Config mit SSL aktivieren
 sudo sed 's/DOMAIN_PLACEHOLDER/DEINE-DOMAIN.de/g' \
-    /home/jrpg/deploy/nginx/japan-rpg.conf \
+    /home/jrpg/Japan-RPG/deploy/nginx/japan-rpg.conf \
     > /etc/nginx/sites-available/japan-rpg
 sudo nginx -t && sudo systemctl reload nginx
 ```
@@ -104,7 +104,7 @@ sudo nginx -t && sudo systemctl reload nginx
 ## 7. Admin-User anlegen
 
 ```bash
-sudo -u jrpg /home/jrpg/venv/bin/python -m backend.create_user admin --admin
+sudo -u jrpg /home/jrpg/Japan-RPG/venv/bin/python -m backend.create_user admin --admin
 ```
 
 ## 8. Zertifikat-Renewal
@@ -131,4 +131,4 @@ Die App laeuft unter `https://DEINE-DOMAIN.de` — Login unter `/app/login.html`
 | Status pruefen     | `systemctl status japan-rpg`          |
 | Logs ansehen       | `journalctl -u japan-rpg -f`          |
 | Neustarten         | `systemctl restart japan-rpg`         |
-| Update einspielen  | `cd /home/jrpg && sudo -u jrpg git pull && sudo /home/jrpg/venv/bin/pip install -r backend/requirements.txt && sudo systemctl restart japan-rpg` |
+| Update einspielen  | `cd /home/jrpg/Japan-RPG && sudo -u jrpg git pull && sudo /home/jrpg/Japan-RPG/venv/bin/pip install -r backend/requirements.txt && sudo systemctl restart japan-rpg` |
