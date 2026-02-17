@@ -1,7 +1,7 @@
 # Japan-RPG: Manuelle Server-Einrichtung
 
 Schritt-für-Schritt-Anleitung für Debian/Ubuntu VPS.
-Ersetze `deine-domain.de` und `deine@email.de` überall durch deine echten Werte.
+Projektpfad: `/home/jrpg/Japan-RPG`. Ersetze `deine-domain.de` und `deine@email.de` überall durch deine echten Werte.
 
 ---
 
@@ -43,39 +43,39 @@ rsync -az --delete \
     --exclude='__pycache__' \
     --exclude='.pytest_cache' \
     --exclude='assets/' \
-    ./ root@dein-server:/home/jrpg/
+    ./ root@dein-server:/home/jrpg/Japan-RPG/
 
 # Option B: Direkt auf dem Server klonen
-sudo -u jrpg git clone https://github.com/dein-user/Japan-RPG.git /home/jrpg
+sudo -u jrpg git clone https://github.com/dein-user/Japan-RPG.git /home/jrpg/Japan-RPG
 ```
 
 ## 4. Python-Umgebung einrichten
 
 ```bash
-cd /home/jrpg
-sudo python3 -m venv /home/jrpg/venv
-sudo /home/jrpg/venv/bin/pip install --upgrade pip
-sudo /home/jrpg/venv/bin/pip install -r /home/jrpg/backend/requirements.txt gunicorn
+cd /home/jrpg/Japan-RPG
+sudo python3 -m venv /home/jrpg/Japan-RPG/venv
+sudo /home/jrpg/Japan-RPG/venv/bin/pip install --upgrade pip
+sudo /home/jrpg/Japan-RPG/venv/bin/pip install -r /home/jrpg/Japan-RPG/backend/requirements.txt gunicorn
 ```
 
 ## 5. Placeholder-Assets generieren
 
 ```bash
-cd /home/jrpg
-sudo /home/jrpg/venv/bin/python generate_placeholders.py
+cd /home/jrpg/Japan-RPG
+sudo /home/jrpg/Japan-RPG/venv/bin/python generate_placeholders.py
 ```
 
 ## 6. Daten-Verzeichnisse anlegen
 
 ```bash
-sudo mkdir -p /home/jrpg/data/users /home/jrpg/data/saves
+sudo mkdir -p /home/jrpg/Japan-RPG/data/users /home/jrpg/Japan-RPG/data/saves
 ```
 
 ## 7. .env konfigurieren
 
 ```bash
-sudo cp /home/jrpg/.env.example /home/jrpg/.env
-sudo nano /home/jrpg/.env
+sudo cp /home/jrpg/Japan-RPG/.env.example /home/jrpg/Japan-RPG/.env
+sudo nano /home/jrpg/Japan-RPG/.env
 ```
 
 Inhalt:
@@ -88,7 +88,7 @@ CORS_ORIGIN=https://deine-domain.de
 Berechtigungen setzen:
 
 ```bash
-sudo chmod 600 /home/jrpg/.env
+sudo chmod 600 /home/jrpg/Japan-RPG/.env
 ```
 
 ## 8. Dateien dem User jrpg übergeben
@@ -100,7 +100,7 @@ sudo chown -R jrpg:jrpg /home/jrpg
 ## 9. systemd-Service einrichten
 
 ```bash
-sudo cp /home/jrpg/deploy/japan-rpg.service /etc/systemd/system/japan-rpg.service
+sudo cp /home/jrpg/Japan-RPG/deploy/japan-rpg.service /etc/systemd/system/japan-rpg.service
 sudo systemctl daemon-reload
 sudo systemctl enable japan-rpg
 sudo systemctl start japan-rpg
@@ -171,7 +171,7 @@ sudo certbot certonly \
 ```bash
 # Domain-Placeholder ersetzen und als finale Config speichern
 sudo sed 's/DOMAIN_PLACEHOLDER/deine-domain.de/g' \
-    /home/jrpg/deploy/nginx/japan-rpg.conf \
+    /home/jrpg/Japan-RPG/deploy/nginx/japan-rpg.conf \
     > /etc/nginx/sites-available/japan-rpg
 
 # Auf die finale Config umschalten
@@ -188,7 +188,7 @@ https://deine-domain.de
 ## 13. Admin-User anlegen
 
 ```bash
-sudo -u jrpg /home/jrpg/venv/bin/python -m backend.create_user admin --admin
+sudo -u jrpg /home/jrpg/Japan-RPG/venv/bin/python -m backend.create_user admin --admin
 ```
 
 Du wirst nach Spielername und Passwort (min. 8 Zeichen) gefragt.
@@ -217,16 +217,16 @@ sudo certbot renew --dry-run
 
 ## Fertig
 
-| Was           | Wo                                       |
-|---------------|------------------------------------------|
-| App-URL       | `https://deine-domain.de`                |
-| Login         | `https://deine-domain.de/app/login.html` |
-| App-Dateien   | `/home/jrpg/`                            |
-| Config        | `/home/jrpg/.env`                        |
-| Spieldaten    | `/home/jrpg/data/`                       |
-| nginx-Config  | `/etc/nginx/sites-available/japan-rpg`   |
-| systemd-Unit  | `/etc/systemd/system/japan-rpg.service`  |
-| Logs          | `journalctl -u japan-rpg -f`             |
+| Was           | Wo                                              |
+|---------------|-------------------------------------------------|
+| App-URL       | `https://deine-domain.de`                       |
+| Login         | `https://deine-domain.de/app/login.html`        |
+| App-Dateien   | `/home/jrpg/Japan-RPG/`                         |
+| Config        | `/home/jrpg/Japan-RPG/.env`                     |
+| Spieldaten    | `/home/jrpg/Japan-RPG/data/`                    |
+| nginx-Config  | `/etc/nginx/sites-available/japan-rpg`           |
+| systemd-Unit  | `/etc/systemd/system/japan-rpg.service`          |
+| Logs          | `journalctl -u japan-rpg -f`                     |
 
 ## Nützliche Befehle
 
@@ -243,11 +243,11 @@ sudo certbot renew --dry-run          # Renewal testen
 
 ```bash
 # Neue Dateien kopieren (vom lokalen Rechner oder git pull)
-cd /home/jrpg
+cd /home/jrpg/Japan-RPG
 sudo -u jrpg git pull   # falls per git
 
 # Abhängigkeiten aktualisieren (falls requirements.txt geändert)
-sudo /home/jrpg/venv/bin/pip install -r /home/jrpg/backend/requirements.txt
+sudo /home/jrpg/Japan-RPG/venv/bin/pip install -r /home/jrpg/Japan-RPG/backend/requirements.txt
 
 # Neustart
 sudo systemctl restart japan-rpg
