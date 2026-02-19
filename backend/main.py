@@ -427,12 +427,10 @@ async def generate_scene(
     handler = request.app.state.claude_handler
 
     # Safety net: if a SPIELSTART prompt arrives with leftover history,
-    # force-clear it so old context never bleeds into a new game.
+    # perform a full reset so old context never bleeds into a new game.
     if body.user_input.startswith("(SPIELSTART") and sm.state.conversation_history:
-        logger.info("SPIELSTART with stale history detected — clearing conversation_history")
-        sm.state.conversation_history = []
-        sm.state.scene_history = []
-        sm.state.last_scene = None
+        logger.info("SPIELSTART with stale history detected — performing full state reset")
+        sm.reset()
 
     # Get current state info for Claude
     aoi_tone = sm.state.affection.tone
