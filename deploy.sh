@@ -142,6 +142,10 @@ systemctl daemon-reload
 systemctl enable japan-rpg
 systemctl restart japan-rpg
 
+# Allow the jrpg user to restart its own service (used by admin panel)
+install -m 0440 "$INSTALL_DIR/deploy/jrpg-sudoers" /etc/sudoers.d/jrpg
+info "sudoers rule installed for japan-rpg restart."
+
 info "Waiting for application to start..."
 sleep 3
 
