@@ -976,15 +976,19 @@ class VNEngine {
 
         try {
             const resp = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/game_state/reset`, { method: "POST" });
-            if (resp.ok) {
-                const freshState = await resp.json();
-                if (freshState.time) this.lastTime = freshState.time;
-                if (freshState.affection) this.lastAffection = freshState.affection;
-                if (freshState.learning) this.lastLearning = freshState.learning;
-                this._updateHUD(freshState.time, freshState.affection);
+            if (!resp.ok) {
+                this._showError("Spiel konnte nicht zurückgesetzt werden.");
+                return;
             }
+            const freshState = await resp.json();
+            if (freshState.time) this.lastTime = freshState.time;
+            if (freshState.affection) this.lastAffection = freshState.affection;
+            if (freshState.learning) this.lastLearning = freshState.learning;
+            this._updateHUD(freshState.time, freshState.affection);
         } catch (e) {
             console.warn("[VNEngine] Reset request failed:", e);
+            this._showError("Spiel konnte nicht zurückgesetzt werden.");
+            return;
         }
 
         this.sceneHistory = [];
@@ -998,8 +1002,12 @@ class VNEngine {
         this.translationText.textContent = "";
         this.characterName.textContent = "";
         this.characterSprite.classList.add("hidden");
+        this.characterMissingLabel.classList.add("hidden");
         this._hideErrorCorrection();
         this._hideSceneEndChoices();
+
+        // Re-fetch start prompt in case the scenario was changed
+        await this._fetchStartPrompt();
 
         await this.sendInput(this.startPrompt);
     }
