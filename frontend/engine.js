@@ -983,31 +983,40 @@ class VNEngine {
             const response = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/api/save_slots/${slotId}/load`, {
                 method: "POST",
             });
-            if (!response.ok) throw new Error(`Load failed: ${response.status}`);
+            if (!response.ok) {
+                this._showError("Spielstand konnte nicht geladen werden.");
+                return;
+            }
+            const state = await response.json();
             console.log(`[VNEngine] Loaded slot ${slotId}`);
 
-            // Reload scene history from backend
-            await this._loadSceneHistory();
-
-            // Refresh game state (HUD + last scene)
-            const stateResp = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/game_state`);
-            if (stateResp.ok) {
-                const state = await stateResp.json();
-                if (state.affection) this.lastAffection = state.affection;
-                if (state.learning) this.lastLearning = state.learning;
-                if (state.time) this.lastTime = state.time;
-                this._updateHUD(state.time, state.affection);
-
-                if (state.last_scene) {
-                    await this._renderScene(state.last_scene, { skipTypewriter: true });
-                }
-            }
-
+            // Clear stale frontend state before rendering loaded state
+            this.dialogText.innerHTML = "";
+            this.translationText.textContent = "";
+            this.characterName.textContent = "";
+            this.characterSprite.classList.add("hidden");
+            this.characterMissingLabel.classList.add("hidden");
+            this.backgroundMissingLabel.classList.add("hidden");
             this._hideErrorCorrection();
             this._hideSceneEndChoices();
             this._closeMenu();
+
+            // Reload scene history from backend
+            await this._loadSceneHistory();
+            this._updateBackButton();
+
+            // Update HUD and cached state from the load response directly
+            if (state.affection) this.lastAffection = state.affection;
+            if (state.learning) this.lastLearning = state.learning;
+            if (state.time) this.lastTime = state.time;
+            this._updateHUD(state.time, state.affection);
+
+            if (state.last_scene) {
+                await this._renderScene(state.last_scene, { skipTypewriter: true });
+            }
         } catch (e) {
             console.error("[VNEngine] Load failed:", e);
+            this._showError("Spielstand konnte nicht geladen werden.");
         }
     }
 
