@@ -3,6 +3,7 @@ class VNEngine {
         // Core elements
         this.backgroundLayer = document.getElementById("background-layer");
         this.characterSprite = document.getElementById("character-sprite");
+        this.characterMissingLabel = document.getElementById("character-missing-label");
         this.characterName = document.getElementById("character-name");
         this.dialogText = document.getElementById("dialog-text");
         this.translationText = document.getElementById("translation-text");
@@ -688,10 +689,15 @@ class VNEngine {
 
     async _transitionBackground(backgroundId) {
         const url = `${CONFIG.ASSET_PATHS.backgrounds}/${backgroundId}.png`;
-        await this._preloadImage(url);
+        const loaded = await this._preloadImage(url);
         this.backgroundLayer.classList.add("fade-out");
         await this._wait(CONFIG.FADE_TRANSITION_MS);
         this.backgroundLayer.style.backgroundImage = `url('${url}')`;
+        if (!loaded) {
+            this.backgroundLayer.dataset.missingAsset = backgroundId;
+        } else {
+            delete this.backgroundLayer.dataset.missingAsset;
+        }
         this.backgroundLayer.classList.remove("fade-out");
     }
 
@@ -700,15 +706,22 @@ class VNEngine {
     async _transitionCharacter(characterId, expression) {
         if (!characterId) {
             this.characterSprite.classList.add("hidden");
+            this.characterMissingLabel.classList.add("hidden");
             return;
         }
         const expr = this._resolveExpression(characterId, expression);
         const url = `${CONFIG.ASSET_PATHS.characters}/${characterId}/${expr}.png`;
-        await this._preloadImage(url);
+        const loaded = await this._preloadImage(url);
         this.characterSprite.classList.add("fade-out");
         await this._wait(CONFIG.FADE_TRANSITION_MS);
         this.characterSprite.src = url;
         this.characterSprite.alt = `${characterId} - ${expr}`;
+        if (!loaded) {
+            this.characterMissingLabel.textContent = `Missing: ${characterId}/${expr}`;
+            this.characterMissingLabel.classList.remove("hidden");
+        } else {
+            this.characterMissingLabel.classList.add("hidden");
+        }
         this.characterSprite.classList.remove("fade-out", "hidden");
     }
 
@@ -1251,16 +1264,16 @@ class VNEngine {
     // --- Utility ---
 
     _preloadImage(url) {
-        if (this.assetCache.has(url)) return Promise.resolve();
+        if (this.assetCache.has(url)) return Promise.resolve(true);
         return new Promise((resolve) => {
             const img = new Image();
             img.onload = () => {
                 this.assetCache.set(url, true);
-                resolve();
+                resolve(true);
             };
             img.onerror = () => {
                 console.warn("Failed to load asset:", url);
-                resolve();
+                resolve(false);
             };
             img.src = url;
         });
