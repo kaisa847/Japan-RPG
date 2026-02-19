@@ -19,9 +19,8 @@ Restart=on-failure
 RestartSec=5
 
 # Hardening
-NoNewPrivileges=true
 ProtectSystem=strict
-ReadWritePaths=/home/jrpg/Japan-RPG/data
+ReadWritePaths=/home/jrpg/Japan-RPG
 PrivateTmp=true
 
 [Install]

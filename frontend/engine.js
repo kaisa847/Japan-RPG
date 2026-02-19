@@ -60,6 +60,11 @@ class VNEngine {
         this.menuScenarioReset = document.getElementById("menu-scenario-reset");
         this.menuScenarioStatus = document.getElementById("menu-scenario-status");
 
+        // Admin elements
+        this.adminSection = document.getElementById("admin-section");
+        this.adminRestartButton = document.getElementById("admin-restart-button");
+        this.adminRestartStatus = document.getElementById("admin-restart-status");
+
         // History overlay
         this.historyOverlay = document.getElementById("history-overlay");
         this.historyCloseButton = document.getElementById("history-close-button");
@@ -91,6 +96,7 @@ class VNEngine {
         this.lastLearning = null;
         this.lastTime = null;
         this.playerName = "";
+        this.isAdmin = false;
 
         this._bindEvents();
         this._init();
@@ -117,6 +123,7 @@ class VNEngine {
             const meData = await meResp.json();
             this._setUsername(meData.username);
             this.playerName = meData.player_name || "";
+            this.isAdmin = !!meData.is_admin;
         } catch (e) {
             console.warn("[VNEngine] Auth verification failed:", e);
             return;
@@ -305,6 +312,49 @@ class VNEngine {
         }
     }
 
+    // --- Admin: Server Restart ---
+
+    async _onAdminRestart() {
+        if (!confirm("Server aktualisieren und neustarten? Alle Spieler werden kurzzeitig getrennt.")) {
+            return;
+        }
+        this.adminRestartButton.disabled = true;
+        this.adminRestartStatus.textContent = "Git pull wird ausgeführt...";
+        this.adminRestartStatus.style.color = "";
+
+        try {
+            const resp = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/api/admin/restart`, {
+                method: "POST",
+            });
+            if (!resp.ok) {
+                const data = await resp.json().catch(() => ({}));
+                this.adminRestartStatus.textContent = data.detail || "Fehler beim Neustart.";
+                this.adminRestartStatus.style.color = "#e08080";
+                this.adminRestartButton.disabled = false;
+                return;
+            }
+            const data = await resp.json();
+            if (!data.success) {
+                this.adminRestartStatus.textContent = `Fehler bei ${data.phase}: ${data.output}`;
+                this.adminRestartStatus.style.color = "#e08080";
+                this.adminRestartButton.disabled = false;
+                return;
+            }
+            this.adminRestartStatus.textContent = `Update erfolgreich. Server wird neugestartet...\n${data.output}`;
+            this.adminRestartStatus.style.color = "#80c080";
+
+            // Wait for restart then reload page
+            setTimeout(() => {
+                this.adminRestartStatus.textContent += "\nSeite wird neu geladen...";
+                setTimeout(() => { window.location.reload(); }, 3000);
+            }, 3000);
+        } catch (e) {
+            this.adminRestartStatus.textContent = "Verbindungsfehler.";
+            this.adminRestartStatus.style.color = "#e08080";
+            this.adminRestartButton.disabled = false;
+        }
+    }
+
     async _tryRestoreLastScene() {
         try {
             const response = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/game_state`);
@@ -391,6 +441,9 @@ class VNEngine {
         this.menuPlayerNameSave.addEventListener("click", () => this._onMenuPlayerNameSave());
         this.menuScenarioSave.addEventListener("click", () => this._onScenarioSave());
         this.menuScenarioReset.addEventListener("click", () => this._onScenarioReset());
+
+        // Admin restart
+        this.adminRestartButton.addEventListener("click", () => this._onAdminRestart());
 
         // Logout
         const logoutBtn = document.getElementById("logout-button");
@@ -810,6 +863,8 @@ class VNEngine {
         this.menuPlayerNameInput.value = this.playerName;
         this.menuPlayerNameStatus.textContent = "";
         this.menuScenarioStatus.textContent = "";
+        this.adminRestartStatus.textContent = "";
+        this.adminSection.classList.toggle("hidden", !this.isAdmin);
         this._refreshSaveSlots();
         this._loadScenario();
     }

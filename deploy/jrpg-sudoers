@@ -1,0 +1,3 @@
+# Allow the jrpg service user to restart its own service without a password.
+# Install to /etc/sudoers.d/jrpg
+jrpg ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart japan-rpg
