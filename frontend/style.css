@@ -59,19 +59,23 @@ html, body {
     opacity: 0;
 }
 
-#background-layer[data-missing-asset]::after {
-    content: "Missing: " attr(data-missing-asset);
+#background-missing-label {
     position: absolute;
-    top: 50%;
+    top: 10%;
     left: 50%;
-    transform: translate(-50%, -50%);
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 1.2rem;
+    transform: translateX(-50%);
+    z-index: 5;
+    color: #fff;
+    font-size: 1rem;
     font-family: monospace;
-    background: rgba(0, 0, 0, 0.5);
-    padding: 0.5em 1em;
+    background: rgba(180, 40, 40, 0.75);
+    padding: 0.4em 0.8em;
     border-radius: 6px;
     pointer-events: none;
+}
+
+#background-missing-label.hidden {
+    display: none;
 }
 
 /* --- Character Layer (z-index: 2) --- */

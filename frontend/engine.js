@@ -2,6 +2,7 @@ class VNEngine {
     constructor() {
         // Core elements
         this.backgroundLayer = document.getElementById("background-layer");
+        this.backgroundMissingLabel = document.getElementById("background-missing-label");
         this.characterSprite = document.getElementById("character-sprite");
         this.characterMissingLabel = document.getElementById("character-missing-label");
         this.characterName = document.getElementById("character-name");
@@ -694,9 +695,10 @@ class VNEngine {
         await this._wait(CONFIG.FADE_TRANSITION_MS);
         this.backgroundLayer.style.backgroundImage = `url('${url}')`;
         if (!loaded) {
-            this.backgroundLayer.dataset.missingAsset = backgroundId;
+            this.backgroundMissingLabel.textContent = `Missing: ${backgroundId}`;
+            this.backgroundMissingLabel.classList.remove("hidden");
         } else {
-            delete this.backgroundLayer.dataset.missingAsset;
+            this.backgroundMissingLabel.classList.add("hidden");
         }
         this.backgroundLayer.classList.remove("fade-out");
     }
@@ -1058,6 +1060,7 @@ class VNEngine {
         this.characterName.textContent = "";
         this.characterSprite.classList.add("hidden");
         this.characterMissingLabel.classList.add("hidden");
+        this.backgroundMissingLabel.classList.add("hidden");
         this._hideErrorCorrection();
         this._hideSceneEndChoices();
 
