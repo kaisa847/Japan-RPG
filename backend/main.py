@@ -583,10 +583,32 @@ async def load_from_slot(
 ):
     sm = get_user_state_manager(user, request.app.state)
     try:
-        sm.load_from_slot(slot_id)
-        return {"success": True}
+        loaded = sm.load_from_slot(slot_id)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Save slot not found")
+
+    last_scene = None
+    if loaded.last_scene:
+        last_scene = {
+            "character": loaded.last_scene.get("character"),
+            "expression": loaded.last_scene.get("expression", "neutral"),
+            "background": loaded.last_scene.get("background"),
+            "dialog_jp": loaded.last_scene.get("dialog_jp", ""),
+            "dialog_jp_furigana": loaded.last_scene.get("dialog_jp_furigana", ""),
+            "dialog_de": loaded.last_scene.get("dialog_de", ""),
+        }
+    return GameStateResponse(
+        day_number=loaded.time.day,
+        time=loaded.time.model_dump(),
+        current_location=loaded.current_location,
+        current_background=loaded.current_background,
+        current_character=loaded.current_character,
+        has_history=len(loaded.conversation_history) > 0,
+        last_scene=last_scene,
+        affection=loaded.affection.to_display_dict(),
+        learning=loaded.learning.model_dump(),
+        player_name=user.player_name,
+    )
 
 
 @app.delete("/api/save_slots/{slot_id}")
