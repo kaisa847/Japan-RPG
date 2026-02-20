@@ -904,6 +904,16 @@ class VNEngine {
         // Stop any previous audio
         this._stopAudio();
 
+        // Truncate to first ~100 chars at a sentence boundary for faster CPU synthesis.
+        if (text.length > 100) {
+            const cut = text.substring(0, 100);
+            const sepIdx = Math.max(
+                cut.lastIndexOf("。"), cut.lastIndexOf("！"),
+                cut.lastIndexOf("？"), cut.lastIndexOf("、"),
+            );
+            text = sepIdx > 0 ? cut.substring(0, sepIdx + 1) : cut;
+        }
+
         try {
             const resp = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/api/tts/generate`, {
                 method: "POST",
@@ -912,7 +922,11 @@ class VNEngine {
             });
 
             if (!resp.ok) {
-                console.warn("[VNEngine] TTS generation failed:", resp.status);
+                if (resp.status === 429) {
+                    console.log("[VNEngine] TTS busy, skipping.");
+                } else {
+                    console.warn("[VNEngine] TTS generation failed:", resp.status);
+                }
                 return;
             }
 

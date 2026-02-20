@@ -3,17 +3,22 @@
 Uses the JVNV F1 (female Japanese) pretrained model with 7 emotion styles:
 Neutral, Angry, Disgust, Fear, Happy, Sad, Surprise.
 
-Designed for CPU-only VPS deployment.
+Designed for CPU-only VPS deployment with aggressive resource limits.
 """
 
 import io
 import logging
-import struct
+import os
 import wave
 from pathlib import Path
 from typing import Optional
 
 import numpy as np
+
+# Limit CPU usage BEFORE importing torch - critical for VPS stability.
+# OMP and MKL threads control low-level parallelism in numpy/torch.
+os.environ.setdefault("OMP_NUM_THREADS", "2")
+os.environ.setdefault("MKL_NUM_THREADS", "2")
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +48,10 @@ EXPRESSION_VOICE_MAP: dict[str, tuple[str, float, float, float]] = {
 }
 
 DEFAULT_VOICE_PARAMS = ("Neutral", 0.5, 0.2, 1.0)
+
+# CPU performance limits
+MAX_TORCH_THREADS = 2
+MAX_TTS_TEXT_LENGTH = 100  # Characters - keep short for CPU inference
 
 # HuggingFace model identifiers
 HF_REPO_BERT = "ku-nlp/deberta-v2-large-japanese-char-wwm"
@@ -117,22 +126,31 @@ class TTSService:
             from style_bert_vits2.nlp import bert_models
             from style_bert_vits2.tts_model import TTSModel
 
-            # 1. Load BERT tokenizer and model (cached by HuggingFace)
+            # 1. Limit PyTorch CPU threads to avoid saturating the VPS
             import torch
+            torch.set_num_threads(MAX_TORCH_THREADS)
+            torch.set_num_interop_threads(MAX_TORCH_THREADS)
+            logger.info(
+                "PyTorch threads limited to %d (inter-op: %d)",
+                torch.get_num_threads(), torch.get_num_interop_threads(),
+            )
+
+            # 2. Load BERT tokenizer and model (cached by HuggingFace)
             logger.info("Loading BERT tokenizer for Japanese TTS...")
             bert_models.load_tokenizer(Languages.JP, HF_REPO_BERT)
             logger.info("Loading BERT model for Japanese TTS...")
             bert_model = bert_models.load_model(Languages.JP, HF_REPO_BERT)
             if isinstance(bert_model, torch.nn.Module):
                 bert_model.float()
-                logger.info("Converted BERT model to float32.")
+                bert_model.eval()
+                logger.info("Converted BERT model to float32 + eval mode.")
 
-            # 2. Ensure TTS model files are present
+            # 3. Ensure TTS model files are present
             if not self.models_downloaded():
                 logger.info("TTS model files not found, downloading...")
                 self.download_models()
 
-            # 3. Load the TTS model
+            # 4. Load the TTS model
             model_file = self.model_dir / JVNV_MODEL_FILES[1]  # safetensors
             config_file = self.model_dir / JVNV_MODEL_FILES[0]  # config.json
             style_file = self.model_dir / JVNV_MODEL_FILES[2]   # style_vectors.npy
@@ -171,7 +189,7 @@ class TTSService:
         """Generate speech audio for the given Japanese text and expression.
 
         Args:
-            text: Japanese text to speak.
+            text: Japanese text to speak (truncated to MAX_TTS_TEXT_LENGTH).
             expression: One of Aoi's 16 expression names.
 
         Returns:
@@ -180,20 +198,34 @@ class TTSService:
         if not self._ready or self._model is None:
             raise RuntimeError("TTS service is not initialized. Call load() first.")
 
+        # Truncate long text to keep inference fast on CPU.
+        # Try to cut at a sentence boundary (。！？) for natural output.
+        if len(text) > MAX_TTS_TEXT_LENGTH:
+            truncated = text[:MAX_TTS_TEXT_LENGTH]
+            for sep in ("。", "！", "？", "!", "?", "、", ","):
+                idx = truncated.rfind(sep)
+                if idx > 0:
+                    truncated = truncated[: idx + 1]
+                    break
+            text = truncated
+            logger.debug("TTS text truncated to %d chars", len(text))
+
         style, style_weight, sdp_ratio, length_scale = EXPRESSION_VOICE_MAP.get(
             expression, DEFAULT_VOICE_PARAMS,
         )
 
+        import torch
         from style_bert_vits2.constants import Languages
 
-        sr, audio = self._model.infer(
-            text=text,
-            language=Languages.JP,
-            style=style,
-            style_weight=style_weight,
-            sdp_ratio=sdp_ratio,
-            length=length_scale,
-        )
+        with torch.inference_mode():
+            sr, audio = self._model.infer(
+                text=text,
+                language=Languages.JP,
+                style=style,
+                style_weight=style_weight,
+                sdp_ratio=sdp_ratio,
+                length=length_scale,
+            )
 
         return _audio_to_wav(audio, sr)
 

@@ -11,9 +11,14 @@ This will:
   3. Run a test synthesis to verify everything works
 """
 
+import os
 import sys
 import time
 from pathlib import Path
+
+# Limit CPU threads before any torch/numpy imports
+os.environ["OMP_NUM_THREADS"] = "2"
+os.environ["MKL_NUM_THREADS"] = "2"
 
 # Ensure project root is on the path
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -64,12 +69,12 @@ def main():
     elapsed = time.time() - t0
     print(f"  OK - Models loaded in {elapsed:.1f}s.")
 
-    # Step 4: Test synthesis
+    # Step 4: Test synthesis (short text to avoid overloading CPU)
     print()
     print("[4/4] Running test synthesis...")
     t0 = time.time()
     wav_data = tts.synthesize(
-        text="こんにちは！今日もいい天気だね！",
+        text="こんにちは！",
         expression="happy",
     )
     elapsed = time.time() - t0
