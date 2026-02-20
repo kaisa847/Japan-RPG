@@ -118,10 +118,14 @@ class TTSService:
             from style_bert_vits2.tts_model import TTSModel
 
             # 1. Load BERT tokenizer and model (cached by HuggingFace)
+            import torch
             logger.info("Loading BERT tokenizer for Japanese TTS...")
             bert_models.load_tokenizer(Languages.JP, HF_REPO_BERT)
             logger.info("Loading BERT model for Japanese TTS...")
-            bert_models.load_model(Languages.JP, HF_REPO_BERT)
+            bert_model = bert_models.load_model(Languages.JP, HF_REPO_BERT)
+            if isinstance(bert_model, torch.nn.Module):
+                bert_model.float()
+                logger.info("Converted BERT model to float32.")
 
             # 2. Ensure TTS model files are present
             if not self.models_downloaded():
@@ -144,7 +148,6 @@ class TTSService:
             # Force all weights to float32 for CPU inference.
             # The safetensors file may contain float16 weights which cause
             # dtype mismatches on CPU (c10::Half vs float).
-            import torch
             net_g = getattr(self._model, "net_g", None)
             if net_g is not None and isinstance(net_g, torch.nn.Module):
                 net_g.float()
