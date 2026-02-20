@@ -140,6 +140,16 @@ class TTSService:
                 style_vec_path=style_file,
                 device="cpu",
             )
+
+            # Force all weights to float32 for CPU inference.
+            # The safetensors file may contain float16 weights which cause
+            # dtype mismatches on CPU (c10::Half vs float).
+            import torch
+            net_g = getattr(self._model, "net_g", None)
+            if net_g is not None and isinstance(net_g, torch.nn.Module):
+                net_g.float()
+                logger.info("Converted TTS model weights to float32.")
+
             self._ready = True
             logger.info("TTS service ready (CPU mode).")
 
