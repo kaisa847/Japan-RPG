@@ -1,9 +1,5 @@
-# TTS dependencies for Aoi voice synthesis (Style-BERT-VITS2)
+# TTS dependencies for Aoi voice synthesis (edge-tts)
 # Install with: pip install -r backend/requirements-tts.txt
 #
-# Also requires PyTorch (CPU):
-#   pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
-#
 # After installing, run: python scripts/setup_tts.py
-style-bert-vits2>=2.5.0
-huggingface-hub>=0.20.0
+edge-tts>=6.1.0

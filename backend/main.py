@@ -5,7 +5,6 @@ import json
 import logging
 import os
 import secrets
-from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
@@ -140,37 +139,21 @@ async def lifespan(app: FastAPI):
         logger.warning("Claude handler not available: %s", e)
         app.state.claude_handler = None
 
-    # TTS service (loads in background to not block startup)
-    # Dedicated single-thread pool prevents TTS from saturating all CPU cores.
-    tts_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="tts")
-    app.state.tts_executor = tts_executor
-    # Semaphore ensures only 1 TTS request runs at a time.
+    # TTS service (edge-tts, cloud-based - no heavy model loading)
+    # Semaphore limits concurrent synthesis requests.
     app.state.tts_semaphore = asyncio.Semaphore(1)
 
-    tts_model_dir = DATA_DIR / "tts_models"
     try:
         from backend.tts_service import TTSService
-        tts = TTSService(model_dir=str(tts_model_dir))
+        tts = TTSService()
+        await tts.load()
         app.state.tts_service = tts
-
-        if tts.models_downloaded():
-            # Load models in a background thread
-            async def _load_tts():
-                loop = asyncio.get_event_loop()
-                try:
-                    await loop.run_in_executor(tts_executor, tts.load)
-                except Exception as exc:
-                    logger.warning("TTS background load failed: %s", exc)
-
-            asyncio.create_task(_load_tts())
-            logger.info("TTS model loading started in background")
-        else:
-            logger.info(
-                "TTS models not downloaded yet. "
-                "Run 'python scripts/setup_tts.py' to set up voice synthesis."
-            )
+        logger.info("TTS service initialized (edge-tts)")
     except ImportError:
-        logger.info("TTS dependencies not installed (style-bert-vits2). Voice disabled.")
+        logger.info("TTS dependencies not installed (edge-tts). Voice disabled.")
+        app.state.tts_service = None
+    except Exception as e:
+        logger.warning("TTS initialization failed: %s", e)
         app.state.tts_service = None
 
     yield
@@ -742,7 +725,6 @@ async def tts_generate(
         raise HTTPException(status_code=400, detail="Text zu lang (max 200 Zeichen).")
 
     semaphore: asyncio.Semaphore = request.app.state.tts_semaphore
-    executor: ThreadPoolExecutor = request.app.state.tts_executor
 
     # Only allow one synthesis at a time; reject others immediately.
     if semaphore.locked():
@@ -752,22 +734,21 @@ async def tts_generate(
         )
 
     async with semaphore:
-        loop = asyncio.get_event_loop()
         try:
-            wav_bytes = await asyncio.wait_for(
-                loop.run_in_executor(executor, tts.synthesize, text, body.expression),
-                timeout=30.0,
+            audio_bytes = await asyncio.wait_for(
+                tts.synthesize(text, body.expression),
+                timeout=15.0,
             )
         except asyncio.TimeoutError:
-            logger.error("TTS synthesis timed out after 30s for text: %.50s…", text)
+            logger.error("TTS synthesis timed out for text: %.50s…", text)
             raise HTTPException(status_code=504, detail="Sprachsynthese Timeout.")
         except Exception as e:
             logger.error("TTS synthesis failed: %s", e)
             raise HTTPException(status_code=500, detail="Sprachsynthese fehlgeschlagen.")
 
     return Response(
-        content=wav_bytes,
-        media_type="audio/wav",
+        content=audio_bytes,
+        media_type="audio/mpeg",
         headers={"Cache-Control": "no-store"},
     )
 
