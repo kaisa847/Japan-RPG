@@ -15,7 +15,7 @@ load_dotenv()
 
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -138,6 +138,33 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("Claude handler not available: %s", e)
         app.state.claude_handler = None
+
+    # TTS service (loads in background to not block startup)
+    tts_model_dir = DATA_DIR / "tts_models"
+    try:
+        from backend.tts_service import TTSService
+        tts = TTSService(model_dir=str(tts_model_dir))
+        app.state.tts_service = tts
+
+        if tts.models_downloaded():
+            # Load models in a background thread
+            async def _load_tts():
+                loop = asyncio.get_event_loop()
+                try:
+                    await loop.run_in_executor(None, tts.load)
+                except Exception as exc:
+                    logger.warning("TTS background load failed: %s", exc)
+
+            asyncio.create_task(_load_tts())
+            logger.info("TTS model loading started in background")
+        else:
+            logger.info(
+                "TTS models not downloaded yet. "
+                "Run 'python scripts/setup_tts.py' to set up voice synthesis."
+            )
+    except ImportError:
+        logger.info("TTS dependencies not installed (style-bert-vits2). Voice disabled.")
+        app.state.tts_service = None
 
     yield
 
@@ -674,6 +701,53 @@ async def get_scene_history(
 ):
     sm = get_user_state_manager(user, request.app.state)
     return {"scenes": sm.state.scene_history}
+
+
+# --- TTS ---
+
+class TTSInput(BaseModel):
+    text: str
+    expression: str = "neutral"
+
+
+@app.get("/api/tts/status")
+async def tts_status(request: Request):
+    tts = getattr(request.app.state, "tts_service", None)
+    if tts is None:
+        return {"status": "unavailable", "detail": "TTS dependencies not installed."}
+    return tts.status
+
+
+@app.post("/api/tts/generate")
+async def tts_generate(
+    body: TTSInput,
+    request: Request,
+    user: UserRecord = Depends(get_current_user),
+):
+    tts = getattr(request.app.state, "tts_service", None)
+    if tts is None or not tts.is_ready:
+        raise HTTPException(status_code=503, detail="TTS service not available.")
+
+    text = body.text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Text darf nicht leer sein.")
+    if len(text) > 500:
+        raise HTTPException(status_code=400, detail="Text zu lang (max 500 Zeichen).")
+
+    loop = asyncio.get_event_loop()
+    try:
+        wav_bytes = await loop.run_in_executor(
+            None, tts.synthesize, text, body.expression,
+        )
+    except Exception as e:
+        logger.error("TTS synthesis failed: %s", e)
+        raise HTTPException(status_code=500, detail="Sprachsynthese fehlgeschlagen.")
+
+    return Response(
+        content=wav_bytes,
+        media_type="audio/wav",
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 # --- Cache-busting middleware ---

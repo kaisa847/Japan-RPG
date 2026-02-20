@@ -78,6 +78,10 @@ class VNEngine {
         this.statsAffectionSection = document.getElementById("stats-affection-section");
         this.statsLearningSection = document.getElementById("stats-learning-section");
 
+        // Voice toggle buttons
+        this.voiceToggle = document.getElementById("voice-toggle");
+        this.toolbarVoiceToggle = document.getElementById("toolbar-voice-toggle");
+
         // State
         this.currentScene = null;
         this.isLoading = false;
@@ -99,6 +103,11 @@ class VNEngine {
         this.lastTime = null;
         this.playerName = "";
         this.isAdmin = false;
+
+        // TTS state
+        this.ttsAvailable = false;
+        this.ttsEnabled = this._loadTTSPreference();
+        this._currentAudio = null;
 
         this._bindEvents();
         this._init();
@@ -142,8 +151,11 @@ class VNEngine {
 
     async _startGame() {
         try {
-            await this._fetchAvailableAssets();
-            await this._fetchStartPrompt();
+            await Promise.all([
+                this._fetchAvailableAssets(),
+                this._fetchStartPrompt(),
+                this._checkTTSAvailability(),
+            ]);
 
             const restored = await this._tryRestoreLastScene();
             if (restored) {
@@ -428,6 +440,10 @@ class VNEngine {
         this.toolbarTranslationToggle.addEventListener("click", () => this._toggleTranslation());
         this.toolbarHintToggle.addEventListener("click", () => this._toggleHints());
 
+        // Voice toggle
+        this.voiceToggle.addEventListener("click", () => this._toggleVoice());
+        this.toolbarVoiceToggle.addEventListener("click", () => this._toggleVoice());
+
         // Keyboard detection via visualViewport API
         this._initKeyboardDetection();
 
@@ -484,6 +500,7 @@ class VNEngine {
         this.hintToggle.classList.add("active");
         this.toolbarFuriganaToggle.classList.add("active");
         this.toolbarHintToggle.classList.add("active");
+        this._syncVoiceToggleUI();
         this._updateBackButton();
     }
 
@@ -684,6 +701,11 @@ class VNEngine {
             sceneData.dialog_de,
             skipTypewriter,
         );
+
+        // Play TTS in parallel (non-blocking)
+        if (sceneData.dialog_jp && !skipTypewriter) {
+            this._playTTS(sceneData.dialog_jp, sceneData.expression);
+        }
     }
 
     // --- Background ---
@@ -822,6 +844,103 @@ class VNEngine {
         if (this.errorCorrectionHint) {
             const hasContent = this.errorCorrectionHint.textContent.trim() !== "";
             this.errorCorrectionHint.classList.toggle("hidden", !this.showHints || !hasContent);
+        }
+    }
+
+    // --- Voice / TTS ---
+
+    _loadTTSPreference() {
+        const stored = localStorage.getItem(CONFIG.TTS.LOCAL_STORAGE_KEY);
+        if (stored !== null) return stored === "true";
+        return CONFIG.TTS.ENABLED_BY_DEFAULT;
+    }
+
+    _saveTTSPreference() {
+        localStorage.setItem(CONFIG.TTS.LOCAL_STORAGE_KEY, String(this.ttsEnabled));
+    }
+
+    _syncVoiceToggleUI() {
+        const active = this.ttsEnabled && this.ttsAvailable;
+        this.voiceToggle.classList.toggle("active", active);
+        this.toolbarVoiceToggle.classList.toggle("active", active);
+        // Use different speaker icons: on vs off
+        const icon = active ? "\u{1F50A}" : "\u{1F507}";
+        this.voiceToggle.innerHTML = icon;
+        this.toolbarVoiceToggle.innerHTML = icon;
+    }
+
+    _toggleVoice() {
+        this.ttsEnabled = !this.ttsEnabled;
+        this._saveTTSPreference();
+        this._syncVoiceToggleUI();
+        // Stop any currently playing audio when turning off
+        if (!this.ttsEnabled) {
+            this._stopAudio();
+        }
+    }
+
+    async _checkTTSAvailability() {
+        try {
+            const resp = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/api/tts/status`);
+            if (resp.ok) {
+                const data = await resp.json();
+                this.ttsAvailable = data.status === "ready";
+                if (data.status === "loading") {
+                    // Re-check after a delay
+                    setTimeout(() => this._checkTTSAvailability(), 5000);
+                }
+                console.log(`[VNEngine] TTS status: ${data.status}`);
+            }
+        } catch (e) {
+            console.warn("[VNEngine] TTS status check failed:", e);
+            this.ttsAvailable = false;
+        }
+        this._syncVoiceToggleUI();
+    }
+
+    async _playTTS(text, expression) {
+        if (!this.ttsEnabled || !this.ttsAvailable || !text) return;
+
+        // Stop any previous audio
+        this._stopAudio();
+
+        try {
+            const resp = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/api/tts/generate`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text, expression: expression || "neutral" }),
+            });
+
+            if (!resp.ok) {
+                console.warn("[VNEngine] TTS generation failed:", resp.status);
+                return;
+            }
+
+            const blob = await resp.blob();
+            const url = URL.createObjectURL(blob);
+            const audio = new Audio(url);
+
+            audio.addEventListener("ended", () => {
+                URL.revokeObjectURL(url);
+                if (this._currentAudio === audio) this._currentAudio = null;
+            });
+            audio.addEventListener("error", () => {
+                URL.revokeObjectURL(url);
+                if (this._currentAudio === audio) this._currentAudio = null;
+            });
+
+            this._currentAudio = audio;
+            await audio.play();
+        } catch (e) {
+            console.warn("[VNEngine] TTS playback failed:", e);
+        }
+    }
+
+    _stopAudio() {
+        if (this._currentAudio) {
+            this._currentAudio.pause();
+            this._currentAudio.currentTime = 0;
+            this._currentAudio = null;
         }
     }
 

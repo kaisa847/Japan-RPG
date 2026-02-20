@@ -10,3 +10,7 @@ python-multipart>=0.0.18
 pytest>=8.0.0
 httpx>=0.28.0
 pytest-asyncio>=0.25.0
+
+# TTS (optional – install for voice synthesis)
+# style-bert-vits2>=2.5.0
+# huggingface-hub>=0.20.0
