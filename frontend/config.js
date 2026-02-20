@@ -22,4 +22,8 @@ const CONFIG = {
         warm:     { label: "Warmherzig",  color: "#ffaa44" },
         intimate: { label: "Vertraut",    color: "#ff6666" },
     },
+    TTS: {
+        ENABLED_BY_DEFAULT: true,
+        LOCAL_STORAGE_KEY: "tts_enabled",
+    },
 };

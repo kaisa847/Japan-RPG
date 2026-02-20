@@ -227,7 +227,8 @@ html, body {
 /* Duplicate toggle buttons: hidden on desktop (header toggles are visible) */
 #toolbar-furigana-toggle,
 #toolbar-translation-toggle,
-#toolbar-hint-toggle {
+#toolbar-hint-toggle,
+#toolbar-voice-toggle {
     display: none;
 }
 
@@ -276,7 +277,8 @@ html, body {
 
 #translation-toggle,
 #furigana-toggle,
-#hint-toggle {
+#hint-toggle,
+#voice-toggle {
     background: rgba(80, 80, 100, 0.6);
     color: #c0c0d0;
     border: 1px solid rgba(255, 255, 255, 0.15);
@@ -291,14 +293,16 @@ html, body {
 
 #translation-toggle:hover,
 #furigana-toggle:hover,
-#hint-toggle:hover {
+#hint-toggle:hover,
+#voice-toggle:hover {
     background: rgba(100, 100, 130, 0.8);
     color: #e0e0f0;
 }
 
 #translation-toggle.active,
 #furigana-toggle.active,
-#hint-toggle.active {
+#hint-toggle.active,
+#voice-toggle.active {
     background: rgba(120, 120, 180, 0.7);
     color: #f0f0ff;
     border-color: rgba(160, 160, 220, 0.5);
@@ -1141,7 +1145,8 @@ rt {
     /* Show the duplicate toggles in toolbar on mobile */
     #toolbar-furigana-toggle,
     #toolbar-translation-toggle,
-    #toolbar-hint-toggle {
+    #toolbar-hint-toggle,
+    #toolbar-voice-toggle {
         display: flex;
     }
 
