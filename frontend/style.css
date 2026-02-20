@@ -228,7 +228,8 @@ html, body {
 #toolbar-furigana-toggle,
 #toolbar-translation-toggle,
 #toolbar-hint-toggle,
-#toolbar-voice-toggle {
+#toolbar-voice-toggle,
+#toolbar-voice-replay {
     display: none;
 }
 
@@ -278,7 +279,8 @@ html, body {
 #translation-toggle,
 #furigana-toggle,
 #hint-toggle,
-#voice-toggle {
+#voice-toggle,
+#voice-replay {
     background: rgba(80, 80, 100, 0.6);
     color: #c0c0d0;
     border: 1px solid rgba(255, 255, 255, 0.15);
@@ -294,7 +296,8 @@ html, body {
 #translation-toggle:hover,
 #furigana-toggle:hover,
 #hint-toggle:hover,
-#voice-toggle:hover {
+#voice-toggle:hover,
+#voice-replay:hover {
     background: rgba(100, 100, 130, 0.8);
     color: #e0e0f0;
 }
@@ -302,10 +305,17 @@ html, body {
 #translation-toggle.active,
 #furigana-toggle.active,
 #hint-toggle.active,
-#voice-toggle.active {
+#voice-toggle.active,
+#voice-replay.active,
+#toolbar-voice-replay.active {
     background: rgba(120, 120, 180, 0.7);
     color: #f0f0ff;
     border-color: rgba(160, 160, 220, 0.5);
+}
+
+#voice-replay.hidden,
+#toolbar-voice-replay.hidden {
+    display: none;
 }
 
 /* --- Furigana (Ruby) --- */
@@ -1146,7 +1156,8 @@ rt {
     #toolbar-furigana-toggle,
     #toolbar-translation-toggle,
     #toolbar-hint-toggle,
-    #toolbar-voice-toggle {
+    #toolbar-voice-toggle,
+    #toolbar-voice-replay {
         display: flex;
     }
 

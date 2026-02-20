@@ -108,6 +108,12 @@ class VNEngine {
         this.ttsAvailable = false;
         this.ttsEnabled = this._loadTTSPreference();
         this._currentAudio = null;
+        this._lastTTSText = null;
+        this._lastTTSExpression = null;
+
+        // Voice replay buttons
+        this.voiceReplay = document.getElementById("voice-replay");
+        this.toolbarVoiceReplay = document.getElementById("toolbar-voice-replay");
 
         this._bindEvents();
         this._init();
@@ -440,9 +446,11 @@ class VNEngine {
         this.toolbarTranslationToggle.addEventListener("click", () => this._toggleTranslation());
         this.toolbarHintToggle.addEventListener("click", () => this._toggleHints());
 
-        // Voice toggle
+        // Voice toggle & replay
         this.voiceToggle.addEventListener("click", () => this._toggleVoice());
         this.toolbarVoiceToggle.addEventListener("click", () => this._toggleVoice());
+        this.voiceReplay.addEventListener("click", () => this._replayTTS());
+        this.toolbarVoiceReplay.addEventListener("click", () => this._replayTTS());
 
         // Keyboard detection via visualViewport API
         this._initKeyboardDetection();
@@ -867,6 +875,10 @@ class VNEngine {
         const icon = active ? "\u{1F50A}" : "\u{1F507}";
         this.voiceToggle.innerHTML = icon;
         this.toolbarVoiceToggle.innerHTML = icon;
+        // Show/hide replay button
+        const showReplay = active && this._lastTTSText;
+        this.voiceReplay.classList.toggle("hidden", !showReplay);
+        this.toolbarVoiceReplay.classList.toggle("hidden", !showReplay);
     }
 
     _toggleVoice() {
@@ -901,12 +913,17 @@ class VNEngine {
     async _playTTS(text, expression) {
         if (!this.ttsEnabled || !this.ttsAvailable || !text) return;
 
+        // Store for replay
+        this._lastTTSText = text;
+        this._lastTTSExpression = expression || "neutral";
+        this._syncVoiceToggleUI();
+
         // Stop any previous audio
         this._stopAudio();
 
-        // Truncate to first ~100 chars at a sentence boundary for faster CPU synthesis.
-        if (text.length > 100) {
-            const cut = text.substring(0, 100);
+        // Truncate to first ~200 chars at a sentence boundary.
+        if (text.length > 200) {
+            const cut = text.substring(0, 200);
             const sepIdx = Math.max(
                 cut.lastIndexOf("。"), cut.lastIndexOf("！"),
                 cut.lastIndexOf("？"), cut.lastIndexOf("、"),
@@ -931,6 +948,11 @@ class VNEngine {
             }
 
             const blob = await resp.blob();
+            if (blob.size === 0) {
+                console.warn("[VNEngine] TTS returned empty audio.");
+                return;
+            }
+
             const url = URL.createObjectURL(blob);
             const audio = new Audio(url);
 
@@ -938,7 +960,8 @@ class VNEngine {
                 URL.revokeObjectURL(url);
                 if (this._currentAudio === audio) this._currentAudio = null;
             });
-            audio.addEventListener("error", () => {
+            audio.addEventListener("error", (e) => {
+                console.warn("[VNEngine] Audio playback error:", audio.error);
                 URL.revokeObjectURL(url);
                 if (this._currentAudio === audio) this._currentAudio = null;
             });
@@ -947,6 +970,12 @@ class VNEngine {
             await audio.play();
         } catch (e) {
             console.warn("[VNEngine] TTS playback failed:", e);
+        }
+    }
+
+    _replayTTS() {
+        if (this._lastTTSText) {
+            this._playTTS(this._lastTTSText, this._lastTTSExpression);
         }
     }
 
