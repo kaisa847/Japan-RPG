@@ -107,7 +107,8 @@ class VNEngine {
         // TTS state
         this.ttsAvailable = false;
         this.ttsEnabled = this._loadTTSPreference();
-        this._currentAudio = null;
+        this._audioContext = null;
+        this._currentSource = null;
         this._lastTTSText = null;
         this._lastTTSExpression = null;
 
@@ -947,27 +948,31 @@ class VNEngine {
                 return;
             }
 
-            const blob = await resp.blob();
-            if (blob.size === 0) {
+            const arrayBuffer = await resp.arrayBuffer();
+            if (arrayBuffer.byteLength === 0) {
                 console.warn("[VNEngine] TTS returned empty audio.");
                 return;
             }
 
-            const url = URL.createObjectURL(blob);
-            const audio = new Audio(url);
+            // Use Web Audio API — avoids CSP media-src restrictions on blob: URLs
+            if (!this._audioContext) {
+                this._audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (this._audioContext.state === "suspended") {
+                await this._audioContext.resume();
+            }
 
-            audio.addEventListener("ended", () => {
-                URL.revokeObjectURL(url);
-                if (this._currentAudio === audio) this._currentAudio = null;
-            });
-            audio.addEventListener("error", (e) => {
-                console.warn("[VNEngine] Audio playback error:", audio.error);
-                URL.revokeObjectURL(url);
-                if (this._currentAudio === audio) this._currentAudio = null;
+            const audioBuffer = await this._audioContext.decodeAudioData(arrayBuffer);
+            const source = this._audioContext.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(this._audioContext.destination);
+
+            source.addEventListener("ended", () => {
+                if (this._currentSource === source) this._currentSource = null;
             });
 
-            this._currentAudio = audio;
-            await audio.play();
+            this._currentSource = source;
+            source.start();
         } catch (e) {
             console.warn("[VNEngine] TTS playback failed:", e);
         }
@@ -980,10 +985,13 @@ class VNEngine {
     }
 
     _stopAudio() {
-        if (this._currentAudio) {
-            this._currentAudio.pause();
-            this._currentAudio.currentTime = 0;
-            this._currentAudio = null;
+        if (this._currentSource) {
+            try {
+                this._currentSource.stop();
+            } catch (_) {
+                // Already stopped — ignore
+            }
+            this._currentSource = null;
         }
     }
 
