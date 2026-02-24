@@ -922,6 +922,10 @@ class VNEngine {
         // Stop any previous audio
         this._stopAudio();
 
+        // Strip furigana bracket annotations (e.g. 漢字[かんじ] → 漢字)
+        // to prevent TTS from reading both the kanji and the reading.
+        text = text.replace(/[\[\uff3b][^\]\uff3d]+[\]\uff3d]/g, "");
+
         // Truncate to first ~200 chars at a sentence boundary.
         if (text.length > 200) {
             const cut = text.substring(0, 200);

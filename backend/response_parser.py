@@ -19,6 +19,9 @@ _ANY_BRACKET_RE = re.compile(
     r'([^\[\]]+)\[([^\[\]]+)\]'
 )
 
+# Strip furigana bracket annotations from plain text: 漢字[かんじ] → 漢字
+_FURIGANA_BRACKET_RE = re.compile(r'[\[\uff3b]([^\]\uff3d]+)[\]\uff3d]')
+
 
 def _is_hiragana(s: str) -> bool:
     return bool(s) and all('\u3040' <= c <= '\u309F' for c in s)
@@ -162,6 +165,15 @@ class ResponseParser:
         dialog_jp = html.unescape(data.get("dialog_jp", "").strip())
         dialog_jp_furigana = html.unescape(data.get("dialog_jp_furigana", "").strip())
         dialog_de = html.unescape(data.get("dialog_de", "").strip())
+
+        # Strip furigana bracket annotations from dialog_jp (should be plain text).
+        # Claude sometimes leaks notation like 漢字[かんじ] into dialog_jp,
+        # causing TTS to read both the kanji and the reading.
+        if dialog_jp and re.search(r'[\[\uff3b]', dialog_jp):
+            cleaned = _FURIGANA_BRACKET_RE.sub('', dialog_jp)
+            if cleaned != dialog_jp:
+                errors.append("Stripped furigana brackets from dialog_jp")
+                dialog_jp = cleaned
 
         # Normalize fullwidth brackets ［ ］ to halfwidth [ ]
         if dialog_jp_furigana:
