@@ -8,6 +8,9 @@ const CONFIG = {
     DEFAULT_BACKGROUND: "apartment",
     MAX_SAVE_SLOTS: 9,
     MAX_SCENE_HISTORY: 100,
+    // Treat the on-screen keyboard as open when the visual viewport shrinks
+    // by more than this many pixels.
+    KEYBOARD_OPEN_THRESHOLD_PX: 150,
     ASSET_PATHS: {
         characters: "/assets/characters",
         backgrounds: "/assets/backgrounds",
@@ -25,5 +28,7 @@ const CONFIG = {
     TTS: {
         ENABLED_BY_DEFAULT: true,
         LOCAL_STORAGE_KEY: "tts_enabled",
+        MAX_TEXT_LENGTH: 200,
+        STATUS_RECHECK_MS: 5000,
     },
 };

@@ -905,7 +905,7 @@ class VNEngine {
                 this.ttsAvailable = data.status === "ready";
                 if (data.status === "loading") {
                     // Re-check after a delay
-                    setTimeout(() => this._checkTTSAvailability(), 5000);
+                    setTimeout(() => this._checkTTSAvailability(), CONFIG.TTS.STATUS_RECHECK_MS);
                 }
                 console.log(`[VNEngine] TTS status: ${data.status}`);
             }
@@ -936,9 +936,9 @@ class VNEngine {
         // to prevent TTS from reading both the kanji and the reading.
         text = text.replace(/[\[\uff3b][^\]\uff3d]+[\]\uff3d]/g, "");
 
-        // Truncate to first ~200 chars at a sentence boundary.
-        if (text.length > 200) {
-            const cut = text.substring(0, 200);
+        // Truncate to the first chunk at a sentence boundary.
+        if (text.length > CONFIG.TTS.MAX_TEXT_LENGTH) {
+            const cut = text.substring(0, CONFIG.TTS.MAX_TEXT_LENGTH);
             const sepIdx = Math.max(
                 cut.lastIndexOf("。"), cut.lastIndexOf("！"),
                 cut.lastIndexOf("？"), cut.lastIndexOf("、"),
@@ -1032,9 +1032,9 @@ class VNEngine {
         let initialHeight = vv.height;
 
         const onResize = () => {
-            // Keyboard is considered open when viewport shrinks by >150px
+            // Keyboard is considered open when the viewport shrinks past the threshold.
             const heightDiff = initialHeight - vv.height;
-            const keyboardOpen = heightDiff > 150;
+            const keyboardOpen = heightDiff > CONFIG.KEYBOARD_OPEN_THRESHOLD_PX;
 
             gameContainer.classList.toggle("keyboard-open", keyboardOpen);
 
@@ -1295,26 +1295,20 @@ class VNEngine {
         }
 
         for (const scene of this.sceneHistory) {
-            const entry = document.createElement("div");
-            entry.className = "history-entry";
+            const entry = createEl("div", "history-entry");
 
             const isNarrator = !scene.character;
             if (isNarrator) entry.classList.add("narrator");
 
             // Character name
-            const charName = document.createElement("div");
-            charName.className = "history-char-name";
-            if (isNarrator) {
-                charName.textContent = "Erzähler";
-            } else {
-                charName.textContent = CONFIG.CHARACTER_NAMES[scene.character] || scene.character;
-            }
-            entry.appendChild(charName);
+            const charLabel = isNarrator
+                ? "Erzähler"
+                : CONFIG.CHARACTER_NAMES[scene.character] || scene.character;
+            entry.appendChild(createEl("div", "history-char-name", charLabel));
 
             // Japanese dialog (with furigana)
             if (scene.dialog_jp) {
-                const jp = document.createElement("div");
-                jp.className = "history-dialog-jp";
+                const jp = createEl("div", "history-dialog-jp");
                 const furiganaText = scene.dialog_jp_furigana || scene.dialog_jp;
                 jp.innerHTML = this._furiganaToRuby(furiganaText);
                 entry.appendChild(jp);
@@ -1322,10 +1316,7 @@ class VNEngine {
 
             // German translation
             if (scene.dialog_de) {
-                const de = document.createElement("div");
-                de.className = "history-dialog-de";
-                de.textContent = scene.dialog_de;
-                entry.appendChild(de);
+                entry.appendChild(createEl("div", "history-dialog-de", scene.dialog_de));
             }
 
             this.historyEntries.appendChild(entry);
