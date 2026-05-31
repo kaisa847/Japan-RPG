@@ -169,3 +169,84 @@ class TestSceneHistoryAPI:
 
         resp = await client.get("/api/scene_history")
         assert resp.status_code == 200
+
+
+@pytest_asyncio.fixture
+async def admin_client(monkeypatch, tmp_path):
+    """Client authenticated as an admin user, plus a plain-user token."""
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+    from backend.main import app
+
+    data_dir = str(tmp_path / "data")
+    jwt_secret = "test-secret-key-for-admin"
+
+    um = UserManager(data_dir=data_dir)
+    um.create_user("adminuser", "adminpass1", is_admin=True)
+    um.create_user("plainuser", "plainpass1")
+
+    app.state.jwt_secret = jwt_secret
+    app.state.user_manager = um
+    app.state.user_state_managers = {}
+    app.state.data_dir = data_dir
+    app.state.claude_handler = None
+
+    admin_token = create_access_token("adminuser", jwt_secret)
+    plain_token = create_access_token("plainuser", jwt_secret)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        c.headers["Authorization"] = f"Bearer {admin_token}"
+        c.plain_headers = {"Authorization": f"Bearer {plain_token}"}
+        yield c
+
+
+@pytest.mark.asyncio
+class TestAdminAndValidation:
+    async def test_create_user_requires_admin(self, admin_client):
+        resp = await admin_client.post(
+            "/api/admin/users",
+            json={"username": "newbie", "password": "secret123"},
+            headers=admin_client.plain_headers,
+        )
+        assert resp.status_code == 403
+
+    async def test_list_users_requires_admin(self, admin_client):
+        resp = await admin_client.get("/api/admin/users", headers=admin_client.plain_headers)
+        assert resp.status_code == 403
+
+    async def test_create_user_weak_password_rejected(self, admin_client):
+        resp = await admin_client.post(
+            "/api/admin/users",
+            json={"username": "newbie", "password": "short"},
+        )
+        assert resp.status_code == 400
+
+    async def test_create_user_success(self, admin_client):
+        resp = await admin_client.post(
+            "/api/admin/users",
+            json={"username": "newbie", "password": "strong123", "player_name": "Neu"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["username"] == "newbie"
+
+    async def test_player_name_empty_rejected(self, admin_client):
+        resp = await admin_client.put("/api/player_name", json={"player_name": "  "})
+        assert resp.status_code == 400
+
+    async def test_player_name_too_long_rejected(self, admin_client):
+        resp = await admin_client.put("/api/player_name", json={"player_name": "x" * 31})
+        assert resp.status_code == 400
+
+    async def test_scenario_empty_rejected(self, admin_client):
+        resp = await admin_client.put("/api/scenario", json={"scenario": ""})
+        assert resp.status_code == 400
+
+    async def test_scenario_too_long_rejected(self, admin_client):
+        resp = await admin_client.put("/api/scenario", json={"scenario": "x" * 5001})
+        assert resp.status_code == 400
+
+    async def test_tts_generate_unavailable(self, admin_client):
+        # No TTS service configured on app.state → 503.
+        resp = await admin_client.post("/api/tts/generate", json={"text": "こんにちは"})
+        assert resp.status_code == 503
