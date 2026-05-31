@@ -100,7 +100,9 @@ API-Key in `.env` setzen:
 ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-Optional ein anderes Claude-Modell waehlen (Standard: `claude-sonnet-4-5-20250929`):
+Optional ein anderes Claude-Modell waehlen. Diese Variable ist **nicht
+erforderlich** -- ohne sie wird das Standardmodell (`FALLBACK_MODEL` in
+`backend/claude_handler.py`) verwendet:
 
 ```
 CLAUDE_MODEL=claude-sonnet-4-5-20250929
@@ -154,7 +156,7 @@ python -m backend.create_user <benutzername> [--admin]
 | `benutzername` | Pflicht. 3-20 Zeichen, nur Buchstaben, Ziffern und Unterstriche. Wird als Kleinbuchstaben gespeichert. |
 | `--admin` | Optional. Gibt dem Benutzer Admin-Rechte (kann ueber die API weitere Benutzer erstellen und auflisten). |
 
-**Passwort-Regeln:** Mindestens 4 Zeichen, muss zweimal identisch eingegeben werden.
+**Passwort-Regeln:** Mindestens 8 Zeichen, mindestens ein Buchstabe und eine Ziffer, muss zweimal identisch eingegeben werden.
 
 **Beispiele:**
 
@@ -198,18 +200,37 @@ pytest backend/tests/test_integration.py    # Nur API-Integrationstests
 pytest backend/tests/ -v -k "time"          # Nur Tests mit "time" im Namen
 ```
 
-Testet: Authentifizierung (JWT, bcrypt, User-CRUD), Spielzustandsverwaltung (Laden, Speichern, Reset), XML-Parsing (Szenen, Analyse, Scene-Status), Furigana-Korrektur (vertauschte Notation), Zeitsystem (Stunden, Tage, Perioden, periodischer Fallback), Zuneigungssystem (Gewichtung, Clamping, Daempfung, Tonstufen), Speicherplaetze (CRUD, Snapshot-Integritaet) und alle API-Endpunkte.
+Testet: Authentifizierung (JWT, bcrypt, User-CRUD), Spielzustandsverwaltung (Laden, Speichern, Reset), XML-Parsing (Szenen, Analyse, Scene-Status), Furigana-Korrektur (vertauschte Notation), Zeitsystem (Stunden, Tage, Perioden, periodischer Fallback), Zuneigungssystem (Gewichtung, Clamping, Daempfung, Tonstufen), Speicherplaetze (CRUD, Snapshot-Integritaet), die Claude- und TTS-Wrapper (gemockt), Prompt-Sanitization sowie alle API-Endpunkte.
+
+### `ruff` -- Linting & Formatierung
+
+Konfiguriert in `pyproject.toml`. Wird auch in der CI (`.github/workflows/ci.yml`) ausgefuehrt.
+
+```bash
+ruff check backend/          # Lint
+ruff format backend/         # Formatieren
+ruff format --check backend/ # Nur pruefen (wie in der CI)
+```
 
 ## Projektstruktur
 
 ```
 Japan-RPG/
 ├── backend/
-│   ├── main.py                # FastAPI-Server, alle API-Endpunkte
+│   ├── main.py                # ASGI-Entrypoint (re-exportiert backend.app:app)
+│   ├── app/                   # FastAPI-App-Paket
+│   │   ├── __init__.py        # create_app()-Factory
+│   │   ├── config.py          # Pfade, Defaults, CORS_ORIGIN
+│   │   ├── models.py          # Request/Response-Modelle
+│   │   ├── lifespan.py        # Startup-Validierung, JWT-Secret, Claude/TTS-Init
+│   │   ├── middleware.py      # CORS + Cache-Header
+│   │   └── routers/           # auth, admin, player, content, game, saves, tts
 │   ├── claude_handler.py      # Anthropic-API-Integration, System-Prompt-Aufbau
 │   ├── response_parser.py     # XML-Szenen-Parser, Furigana-Korrektur
 │   ├── state_manager.py       # Spielzustand: Zeit, Zuneigung, Lernen, Speicherplaetze
 │   ├── auth.py                # JWT-Authentifizierung, Benutzerverwaltung
+│   ├── sanitize.py            # Prompt-Injection-Sanitization
+│   ├── validation.py          # Passwort-Policy
 │   ├── create_user.py         # CLI-Tool zur Benutzererstellung
 │   └── tests/
 │       ├── test_auth.py              # Auth + JWT Tests

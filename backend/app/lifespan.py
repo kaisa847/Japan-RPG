@@ -4,6 +4,7 @@ import asyncio
 import logging
 import os
 import secrets
+import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -13,6 +14,40 @@ from backend.auth import UserManager
 from backend.state_manager import StateManager
 
 logger = logging.getLogger(__name__)
+
+
+def _load_or_create_jwt_secret() -> str:
+    """Return the JWT secret, creating it on first run.
+
+    Robust to multiple worker processes (gunicorn ``--workers``) racing on the
+    very first boot: the file is created exclusively with mode 0o600 (so the
+    secret is never briefly world-readable), and a worker that loses the race
+    falls back to reading the secret the winner just wrote.
+    """
+    jwt_secret_path = DATA_DIR / ".jwt_secret"
+    if jwt_secret_path.exists():
+        return jwt_secret_path.read_text(encoding="utf-8").strip()
+
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    secret = secrets.token_urlsafe(32)
+    try:
+        fd = os.open(
+            jwt_secret_path,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_TRUNC,
+            0o600,
+        )
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(secret)
+        return secret
+    except FileExistsError:
+        # Another worker created it first — read its value (retry briefly in
+        # case we caught it mid-write).
+        for _ in range(50):
+            existing = jwt_secret_path.read_text(encoding="utf-8").strip()
+            if existing:
+                return existing
+            time.sleep(0.01)
+        return jwt_secret_path.read_text(encoding="utf-8").strip()
 
 
 @asynccontextmanager
@@ -33,21 +68,7 @@ async def lifespan(app: FastAPI):
         )
 
     # JWT secret
-    jwt_secret_path = DATA_DIR / ".jwt_secret"
-    if jwt_secret_path.exists():
-        app.state.jwt_secret = jwt_secret_path.read_text(encoding="utf-8").strip()
-    else:
-        app.state.jwt_secret = secrets.token_urlsafe(32)
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
-        # Create with 0o600 from the start so the secret is never briefly
-        # world-readable between write and chmod.
-        fd = os.open(
-            jwt_secret_path,
-            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_TRUNC,
-            0o600,
-        )
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(app.state.jwt_secret)
+    app.state.jwt_secret = _load_or_create_jwt_secret()
 
     # User manager
     app.state.user_manager = UserManager(data_dir=data_dir)

@@ -1,6 +1,9 @@
 [Unit]
 Description=Japan-RPG Visual Novel Server
 After=network.target
+# Avoid rapid restart loops: at most 3 starts within 60s.
+StartLimitIntervalSec=60
+StartLimitBurst=3
 
 [Service]
 Type=exec
