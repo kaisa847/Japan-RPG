@@ -15,7 +15,7 @@
         <div id="background-missing-label" class="hidden"></div>
 
         <!-- Character Layer -->
-        <img id="character-sprite" class="hidden" src="" alt="" />
+        <img id="character-sprite" class="hidden" src="" alt="Charakter" />
         <div id="character-missing-label" class="hidden"></div>
 
         <!-- HUD Bar -->
@@ -35,11 +35,11 @@
             <div id="textbox-header">
                 <div id="character-name"></div>
                 <div id="toggle-buttons">
-                    <button id="furigana-toggle" title="Furigana-Lesehilfe anzeigen">&#12405;&#12426;</button>
-                    <button id="translation-toggle" title="Deutsche &Uuml;bersetzung anzeigen">DE</button>
-                    <button id="hint-toggle" class="active" title="Korrekturtipps anzeigen">&#128161;</button>
-                    <button id="voice-toggle" title="Stimme an/aus">&#128264;</button>
-                    <button id="voice-replay" class="hidden" title="Nochmal vorlesen">&#128257;</button>
+                    <button id="furigana-toggle" title="Furigana-Lesehilfe anzeigen" aria-label="Furigana-Lesehilfe anzeigen">&#12405;&#12426;</button>
+                    <button id="translation-toggle" title="Deutsche &Uuml;bersetzung anzeigen" aria-label="Deutsche Übersetzung anzeigen">DE</button>
+                    <button id="hint-toggle" class="active" title="Korrekturtipps anzeigen" aria-label="Korrekturtipps anzeigen">&#128161;</button>
+                    <button id="voice-toggle" title="Stimme an/aus" aria-label="Stimme an oder aus">&#128264;</button>
+                    <button id="voice-replay" class="hidden" title="Nochmal vorlesen" aria-label="Nochmal vorlesen">&#128257;</button>
                 </div>
             </div>
             <div id="dialog-text"></div>
@@ -49,27 +49,30 @@
             <div id="input-section">
                 <!-- Toolbar: inline on desktop, collapsible strip on mobile -->
                 <div id="mobile-toolbar" class="mobile-toolbar collapsed">
-                    <button id="back-button" title="Zur&uuml;ck">&#10226;</button>
-                    <button id="history-button" title="Verlauf">&#9776;</button>
-                    <button id="menu-button" title="Spielmen&uuml;">&#9881;</button>
-                    <button id="stats-button" title="Lernstatistik">&#128202;</button>
+                    <button id="back-button" title="Zur&uuml;ck" aria-label="Zurück">&#10226;</button>
+                    <button id="history-button" title="Verlauf" aria-label="Verlauf">&#9776;</button>
+                    <button id="menu-button" title="Spielmen&uuml;" aria-label="Spielmenü">&#9881;</button>
+                    <button id="stats-button" title="Lernstatistik" aria-label="Lernstatistik">&#128202;</button>
                     <span class="toolbar-separator"></span>
-                    <button id="toolbar-furigana-toggle" title="Furigana">&#12405;&#12426;</button>
-                    <button id="toolbar-translation-toggle" title="&Uuml;bersetzung">DE</button>
-                    <button id="toolbar-hint-toggle" title="Tipps">&#128161;</button>
-                    <button id="toolbar-voice-toggle" title="Stimme">&#128264;</button>
-                    <button id="toolbar-voice-replay" class="hidden" title="Nochmal">&#128257;</button>
+                    <button id="toolbar-furigana-toggle" title="Furigana" aria-label="Furigana-Lesehilfe anzeigen">&#12405;&#12426;</button>
+                    <button id="toolbar-translation-toggle" title="&Uuml;bersetzung" aria-label="Deutsche Übersetzung anzeigen">DE</button>
+                    <button id="toolbar-hint-toggle" title="Tipps" aria-label="Korrekturtipps anzeigen">&#128161;</button>
+                    <button id="toolbar-voice-toggle" title="Stimme" aria-label="Stimme an oder aus">&#128264;</button>
+                    <button id="toolbar-voice-replay" class="hidden" title="Nochmal" aria-label="Nochmal vorlesen">&#128257;</button>
                 </div>
                 <div id="input-area">
-                    <button id="toolbar-toggle" title="Toolbar">&#8942;</button>
+                    <button id="toolbar-toggle" title="Toolbar" aria-label="Toolbar ein- oder ausblenden">&#8942;</button>
                     <input type="text" id="user-input"
                            placeholder="Was m&ouml;chtest du tun oder sagen?"
-                           autocomplete="off" />
+                           autocomplete="off" aria-label="Eingabe: Was möchtest du tun oder sagen?" />
                     <button id="send-button">Senden</button>
-                    <button id="continue-button" title="Geschichte fortsetzen">&#9654;</button>
+                    <button id="continue-button" title="Geschichte fortsetzen" aria-label="Geschichte fortsetzen">&#9654;</button>
                 </div>
             </div>
         </div>
+
+        <!-- Transient notification banner -->
+        <div id="notification" class="notification hidden" role="status" aria-live="polite"></div>
 
         <!-- Loading Overlay -->
         <div id="loading-overlay" class="hidden">
@@ -168,6 +171,7 @@
 
     <script src="auth.js"></script>
     <script src="config.js"></script>
+    <script src="utils.js"></script>
     <script src="engine.js"></script>
 </body>
 </html>

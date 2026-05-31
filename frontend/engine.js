@@ -415,9 +415,12 @@ class VNEngine {
                 this.sceneHistory = data.scenes || [];
                 this.sceneHistoryIndex = this.sceneHistory.length - 1;
                 console.log(`[VNEngine] Loaded ${this.sceneHistory.length} scene history entries.`);
+            } else {
+                notify("Verlauf konnte nicht geladen werden.", "warning");
             }
         } catch (e) {
             console.warn("[VNEngine] Could not load scene history:", e);
+            notify("Verlauf konnte nicht geladen werden.", "warning");
         }
     }
 
@@ -562,8 +565,11 @@ class VNEngine {
 
             const sceneData = await response.json();
 
-            // Push to local scene history
+            // Push to local scene history, capped to match the backend limit.
             this.sceneHistory.push(sceneData);
+            if (this.sceneHistory.length > CONFIG.MAX_SCENE_HISTORY) {
+                this.sceneHistory.shift();
+            }
             this.sceneHistoryIndex = this.sceneHistory.length - 1;
             this._updateBackButton();
 
@@ -616,9 +622,12 @@ class VNEngine {
             const response = await fetch(`${CONFIG.API_BASE_URL}/api/assets/available`);
             if (response.ok) {
                 this.availableAssets = await response.json();
+            } else {
+                notify("Bilddaten konnten nicht geladen werden.", "warning");
             }
         } catch (e) {
             console.warn("Could not fetch available assets:", e);
+            notify("Bilddaten konnten nicht geladen werden.", "warning");
         }
     }
 
@@ -816,13 +825,9 @@ class VNEngine {
      * hiragana particles (の, で, が, etc.) into the ruby group.
      */
     _furiganaToRuby(text) {
-        if (!text) return "";
-        // Normalize fullwidth brackets ［ ］ to halfwidth [ ]
-        text = text.replace(/\uff3b/g, "[").replace(/\uff3d/g, "]");
-        return text.replace(
-            /([\u3005-\u3007\u3400-\u4DBF\u4E00-\u9FFF\u30F5\u30F6][\u3040-\u309F\u3005-\u3007\u3400-\u4DBF\u4E00-\u9FFF\u30F5\u30F6]*)\[([^\]]+)\]/g,
-            '<ruby>$1<rt>$2</rt></ruby>'
-        );
+        // Delegates to the shared, XSS-safe helper in utils.js, which escapes
+        // the AI-generated text before building ruby tags.
+        return furiganaToRuby(text);
     }
 
     _applyFuriganaVisibility() {
@@ -919,6 +924,11 @@ class VNEngine {
         this._lastTTSExpression = expression || "neutral";
         this._syncVoiceToggleUI();
 
+        // Sequence token: a newer _playTTS call invalidates older in-flight ones
+        // so a slow fetch can't start audio after a newer request superseded it.
+        const seq = (this._ttsSeq || 0) + 1;
+        this._ttsSeq = seq;
+
         // Stop any previous audio
         this._stopAudio();
 
@@ -952,6 +962,9 @@ class VNEngine {
                 return;
             }
 
+            // A newer request superseded this one while we were fetching.
+            if (seq !== this._ttsSeq) return;
+
             const arrayBuffer = await resp.arrayBuffer();
             if (arrayBuffer.byteLength === 0) {
                 console.warn("[VNEngine] TTS returned empty audio.");
@@ -967,6 +980,10 @@ class VNEngine {
             }
 
             const audioBuffer = await this._audioContext.decodeAudioData(arrayBuffer);
+
+            // Decoding is async too; re-check we are still the latest request.
+            if (seq !== this._ttsSeq) return;
+
             const source = this._audioContext.createBufferSource();
             source.buffer = audioBuffer;
             source.connect(this._audioContext.destination);
@@ -1350,7 +1367,7 @@ class VNEngine {
         // Tone display
         const tone = affection.tone || "neutral";
         const toneConfig = CONFIG.AFFECTION_TONES[tone] || CONFIG.AFFECTION_TONES.neutral;
-        const score = affection.weighted_score != null ? affection.weighted_score : 20;
+        const score = Number.isFinite(affection.weighted_score) ? affection.weighted_score : 20;
 
         const toneDisplay = document.createElement("div");
         toneDisplay.className = "stats-tone-display";
@@ -1373,7 +1390,7 @@ class VNEngine {
         ];
 
         for (const factor of factors) {
-            const value = affection[factor.key] != null ? affection[factor.key] : 20;
+            const value = Number.isFinite(affection[factor.key]) ? affection[factor.key] : 20;
             const pct = Math.min(100, Math.max(0, value));
 
             const row = document.createElement("div");
@@ -1489,6 +1506,8 @@ class VNEngine {
         this.dialogText.textContent = `[Fehler: ${message}]`;
         this.translationText.textContent = "";
         this.characterName.textContent = "";
+        // Surface a visually distinct, transient error banner as well.
+        notify(`Fehler: ${message}`, "error");
     }
 }
 
