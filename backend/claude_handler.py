@@ -6,9 +6,9 @@ import os
 import re
 from pathlib import Path
 
-from anthropic import AsyncAnthropic, APIError, APITimeoutError, RateLimitError
+from anthropic import APIError, APITimeoutError, AsyncAnthropic, RateLimitError
 
-from backend.response_parser import ResponseParser, SceneData, CHARACTER_EXPRESSIONS
+from backend.response_parser import CHARACTER_EXPRESSIONS, ResponseParser, SceneData
 from backend.sanitize import neutralize_prompt_text
 
 logger = logging.getLogger(__name__)
@@ -213,7 +213,9 @@ class ClaudeHandler:
 
         backgrounds = ", ".join(self.get_background_ids())
 
-        premise = custom_premise if custom_premise else DEFAULT_PREMISE.format(player_name=player_name)
+        premise = (
+            custom_premise if custom_premise else DEFAULT_PREMISE.format(player_name=player_name)
+        )
 
         return SYSTEM_PROMPT_TEMPLATE.format(
             premise=premise,
@@ -238,13 +240,15 @@ class ClaudeHandler:
         only the <scene> dialog content.
         """
         # Remove <analysis>...</analysis>
-        content = re.sub(r'\s*<analysis>.*?</analysis>', '', content, flags=re.DOTALL)
+        content = re.sub(r"\s*<analysis>.*?</analysis>", "", content, flags=re.DOTALL)
         # Remove <scene_status>...</scene_status>
-        content = re.sub(r'\s*<scene_status>.*?</scene_status>', '', content, flags=re.DOTALL)
+        content = re.sub(r"\s*<scene_status>.*?</scene_status>", "", content, flags=re.DOTALL)
         # Remove non-essential visual-only fields inside <scene>
-        content = re.sub(r'\s*<expression>.*?</expression>', '', content, flags=re.DOTALL)
-        content = re.sub(r'\s*<background>.*?</background>', '', content, flags=re.DOTALL)
-        content = re.sub(r'\s*<dialog_jp_furigana>.*?</dialog_jp_furigana>', '', content, flags=re.DOTALL)
+        content = re.sub(r"\s*<expression>.*?</expression>", "", content, flags=re.DOTALL)
+        content = re.sub(r"\s*<background>.*?</background>", "", content, flags=re.DOTALL)
+        content = re.sub(
+            r"\s*<dialog_jp_furigana>.*?</dialog_jp_furigana>", "", content, flags=re.DOTALL
+        )
         return content.strip()
 
     async def generate_scene(
@@ -258,8 +262,11 @@ class ClaudeHandler:
         custom_premise: str | None = None,
     ) -> SceneData:
         system_prompt = self._build_system_prompt(
-            game_state_summary, aoi_tone, weak_points,
-            player_name=player_name, custom_premise=custom_premise,
+            game_state_summary,
+            aoi_tone,
+            weak_points,
+            player_name=player_name,
+            custom_premise=custom_premise,
         )
 
         messages = []
@@ -268,10 +275,12 @@ class ClaudeHandler:
             # Clean old-format assistant entries that still contain full XML
             if turn["role"] == "assistant":
                 content = self._clean_history_content(content)
-            messages.append({
-                "role": turn["role"],
-                "content": content,
-            })
+            messages.append(
+                {
+                    "role": turn["role"],
+                    "content": content,
+                }
+            )
         messages.append({"role": "user", "content": user_input})
 
         response = await self.client.messages.create(
@@ -296,8 +305,12 @@ class ClaudeHandler:
     ) -> SceneData:
         try:
             return await self.generate_scene(
-                user_input, game_state_summary, conversation_history,
-                aoi_tone, weak_points, player_name=player_name,
+                user_input,
+                game_state_summary,
+                conversation_history,
+                aoi_tone,
+                weak_points,
+                player_name=player_name,
                 custom_premise=custom_premise,
             )
         except APITimeoutError:

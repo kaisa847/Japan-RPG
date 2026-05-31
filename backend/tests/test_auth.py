@@ -1,6 +1,6 @@
 """Tests for the authentication module."""
 
-import time
+from datetime import UTC
 
 import pytest
 import pytest_asyncio
@@ -135,13 +135,14 @@ class TestJWT:
         assert data is None
 
     def test_expired_token(self):
+        from datetime import datetime, timedelta
+
         import jwt as pyjwt
-        from datetime import datetime, timezone, timedelta
 
         secret = "test-secret"
         payload = {
             "sub": "testuser",
-            "exp": datetime.now(timezone.utc) - timedelta(hours=1),
+            "exp": datetime.now(UTC) - timedelta(hours=1),
         }
         token = pyjwt.encode(payload, secret, algorithm="HS256")
         data = decode_access_token(token, secret)

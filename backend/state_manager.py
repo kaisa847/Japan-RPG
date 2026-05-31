@@ -2,9 +2,8 @@
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 
 from pydantic import BaseModel, Field, ValidationError
 
@@ -113,12 +112,12 @@ class GameState(BaseModel):
     time: TimeState = TimeState()
     current_location: str = "apartment"
     current_background: str = "apartment"
-    current_character: Optional[str] = "aoi"
+    current_character: str | None = "aoi"
     learning: PlayerLearningProfile = PlayerLearningProfile()
     affection: AoiAffection = AoiAffection()
     conversation_history: list[dict] = []
     scene_history: list[dict] = []
-    last_scene: Optional[dict] = None
+    last_scene: dict | None = None
     flags: dict[str, bool] = {}
     last_updated: str = ""
     turns_since_time_advance: int = 0
@@ -128,7 +127,7 @@ class SaveSlotMeta(BaseModel):
     slot_id: int
     name: str = ""
     day_number: int = 1
-    current_character: Optional[str] = None
+    current_character: str | None = None
     current_background: str = "apartment"
     saved_at: str = ""
     turn_count: int = 0
@@ -163,7 +162,7 @@ class StateManager:
         return GameState()
 
     def save(self) -> None:
-        self.state.last_updated = datetime.now(timezone.utc).isoformat()
+        self.state.last_updated = datetime.now(UTC).isoformat()
         state_path = self.data_dir / self.STATE_FILE
         tmp_path = state_path.with_suffix(".tmp")
         try:
@@ -188,15 +187,14 @@ class StateManager:
             return
         log_path = self.data_dir / self.SESSION_LOG_FILE
         try:
-            if log_path.exists():
-                sessions = json.loads(log_path.read_text(encoding="utf-8"))
-            else:
-                sessions = []
-            sessions.append({
-                "archived_at": datetime.now(timezone.utc).isoformat(),
-                "day_number": self.state.time.day,
-                "turns": len(self.state.conversation_history),
-            })
+            sessions = json.loads(log_path.read_text(encoding="utf-8")) if log_path.exists() else []
+            sessions.append(
+                {
+                    "archived_at": datetime.now(UTC).isoformat(),
+                    "day_number": self.state.time.day,
+                    "turns": len(self.state.conversation_history),
+                }
+            )
             log_path.write_text(
                 json.dumps(sessions, indent=2, ensure_ascii=False),
                 encoding="utf-8",
@@ -211,13 +209,15 @@ class StateManager:
             self.state.current_character = scene_data["character"]
 
     def add_conversation_turn(self, role: str, content: str) -> None:
-        self.state.conversation_history.append({
-            "role": role,
-            "content": content,
-        })
+        self.state.conversation_history.append(
+            {
+                "role": role,
+                "content": content,
+            }
+        )
         if len(self.state.conversation_history) > self.MAX_CONVERSATION_HISTORY:
             self.state.conversation_history = self.state.conversation_history[
-                -self.MAX_CONVERSATION_HISTORY:
+                -self.MAX_CONVERSATION_HISTORY :
             ]
 
     def add_scene_to_history(self, scene: dict) -> None:
@@ -229,7 +229,7 @@ class StateManager:
             "dialog_jp": scene.get("dialog_jp", ""),
             "dialog_jp_furigana": scene.get("dialog_jp_furigana", ""),
             "dialog_de": scene.get("dialog_de", ""),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
         self.state.scene_history.append(entry)
         if len(self.state.scene_history) > MAX_SCENE_HISTORY:
@@ -258,19 +258,23 @@ class StateManager:
             tm = self.state.learning.topics[topic]
             tm.mastery = max(0.0, min(1.0, tm.mastery + delta))
             tm.attempts += 1
-            tm.last_seen = datetime.now(timezone.utc).isoformat()
+            tm.last_seen = datetime.now(UTC).isoformat()
 
         # Update affection factors (clamped & damped)
         affection_fields = [
-            "language_effort", "cultural_interest",
-            "personal_bond", "humor", "reliability",
+            "language_effort",
+            "cultural_interest",
+            "personal_bond",
+            "humor",
+            "reliability",
         ]
         affection_deltas = analysis_data.get("affection_deltas", {})
         for field in affection_fields:
             raw_delta = affection_deltas.get(field, 0.0)
             if raw_delta != 0:
-                clamped = max(-self.AFFECTION_DELTA_CLAMP,
-                              min(self.AFFECTION_DELTA_CLAMP, raw_delta))
+                clamped = max(
+                    -self.AFFECTION_DELTA_CLAMP, min(self.AFFECTION_DELTA_CLAMP, raw_delta)
+                )
                 delta = clamped * self.AFFECTION_DAMPING
                 current = getattr(self.state.affection, field)
                 new_val = max(0.0, min(100.0, current + delta))
@@ -322,9 +326,7 @@ class StateManager:
             self.state.learning.topics.values(),
             key=lambda t: t.mastery,
         )
-        self.state.learning.weak_points = [
-            t.topic for t in sorted_topics[:5]
-        ]
+        self.state.learning.weak_points = [t.topic for t in sorted_topics[:5]]
 
     def get_context_summary(self, player_name: str = "Spieler") -> str:
         s = self.state
@@ -360,7 +362,7 @@ class StateManager:
         if not 1 <= slot_id <= self.MAX_SAVE_SLOTS:
             raise ValueError(f"Slot ID must be between 1 and {self.MAX_SAVE_SLOTS}")
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         auto_name = name or f"Tag {self.state.time.day} - {self.state.current_background}"
 
         meta = SaveSlotMeta(

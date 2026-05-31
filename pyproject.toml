@@ -1,0 +1,27 @@
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+# E/F: pyflakes + pycodestyle, I: import sorting, UP: pyupgrade,
+# B: bugbear, SIM: simplify.
+select = ["E", "F", "I", "UP", "B", "SIM"]
+# E501 (line length) is handled by the formatter; allow module-level imports
+# after load_dotenv() in backend/main.py (E402) where ordering is intentional.
+ignore = ["E501", "E402"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's dependency-injection idiom puts Depends()/Query() in defaults.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Body",
+    "fastapi.Path",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
+asyncio_mode = "strict"

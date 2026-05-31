@@ -7,7 +7,6 @@ import os
 import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Optional
 
 from dotenv import load_dotenv
 
@@ -15,13 +14,16 @@ load_dotenv()
 
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
+from fastapi.responses import RedirectResponse, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from backend.auth import (
-    UserManager, UserRecord, create_access_token, get_current_user,
+    UserManager,
+    UserRecord,
+    create_access_token,
+    get_current_user,
 )
 from backend.response_parser import SceneData
 from backend.state_manager import StateManager
@@ -63,7 +65,7 @@ def _parse_scenario(scenario_text: str, player_name: str) -> tuple[str, str]:
     idx = text.find(marker)
     if idx >= 0:
         premise = text[:idx].strip()
-        start = text[idx + len(marker):].strip()
+        start = text[idx + len(marker) :].strip()
         start_prompt = f"(SPIELSTART – Regieanweisung, NICHT als Dialog anzeigen:\n{start})"
     else:
         premise = text.strip()
@@ -73,18 +75,19 @@ def _parse_scenario(scenario_text: str, player_name: str) -> tuple[str, str]:
 
 # --- Response Models ---
 
+
 class GenerateSceneResponse(BaseModel):
-    character: Optional[str] = None
+    character: str | None = None
     expression: str = "neutral"
-    background: Optional[str] = None
+    background: str | None = None
     dialog_jp: str = ""
     dialog_jp_furigana: str = ""
     dialog_de: str = ""
     parse_errors: list[str] = []
-    analysis: Optional[dict] = None
-    scene_status: Optional[dict] = None
-    aoi_affection: Optional[dict] = None
-    time: Optional[dict] = None
+    analysis: dict | None = None
+    scene_status: dict | None = None
+    aoi_affection: dict | None = None
+    time: dict | None = None
 
 
 class GameStateResponse(BaseModel):
@@ -92,11 +95,11 @@ class GameStateResponse(BaseModel):
     time: dict = {}
     current_location: str = ""
     current_background: str = ""
-    current_character: Optional[str] = None
+    current_character: str | None = None
     has_history: bool = False
-    last_scene: Optional[dict] = None
-    affection: Optional[dict] = None
-    learning: Optional[dict] = None
+    last_scene: dict | None = None
+    affection: dict | None = None
+    learning: dict | None = None
     player_name: str = ""
 
 
@@ -104,13 +107,14 @@ class SaveSlotResponse(BaseModel):
     slot_id: int
     name: str = ""
     day_number: int = 1
-    current_character: Optional[str] = None
+    current_character: str | None = None
     current_background: str = ""
     saved_at: str = ""
     turn_count: int = 0
 
 
 # --- Lifespan ---
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -153,6 +157,7 @@ async def lifespan(app: FastAPI):
     # Claude handler (may fail without API key)
     try:
         from backend.claude_handler import ClaudeHandler
+
         app.state.claude_handler = ClaudeHandler(data_dir=data_dir)
         logger.info("Claude handler initialized")
     except Exception as e:
@@ -165,6 +170,7 @@ async def lifespan(app: FastAPI):
 
     try:
         from backend.tts_service import TTSService
+
         tts = TTSService()
         await tts.load()
         app.state.tts_service = tts
@@ -201,6 +207,7 @@ app.add_middleware(
 
 # --- Helpers ---
 
+
 def get_user_state_manager(user: UserRecord, app_state) -> StateManager:
     cache = app_state.user_state_managers
     if user.username not in cache:
@@ -219,6 +226,7 @@ if FRONTEND_DIR.exists():
 
 
 # --- Auth routes ---
+
 
 @app.post("/api/auth/login")
 async def login(request: Request, form: OAuth2PasswordRequestForm = Depends()):
@@ -260,11 +268,13 @@ async def create_user_api(
     try:
         validate_password(password)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     um: UserManager = request.app.state.user_manager
     try:
         new_user = um.create_user(
-            body["username"], password, body.get("is_admin", False),
+            body["username"],
+            password,
+            body.get("is_admin", False),
             player_name=body.get("player_name", ""),
         )
         return {
@@ -273,7 +283,7 @@ async def create_user_api(
             "player_name": new_user.player_name,
         }
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @app.get("/api/admin/users")
@@ -312,7 +322,9 @@ async def admin_restart(
 
     # Step 1: git pull
     rc, stdout, stderr = await _run_command(
-        "git", "pull", cwd=str(DEPLOY_DIR),
+        "git",
+        "pull",
+        cwd=str(DEPLOY_DIR),
     )
     git_output = (stdout + stderr).strip()
     if rc != 0:
@@ -330,6 +342,7 @@ async def admin_restart(
 
 # --- Player name ---
 
+
 @app.get("/api/player_name")
 async def get_player_name(user: UserRecord = Depends(get_current_user)):
     return {"player_name": user.player_name}
@@ -345,13 +358,16 @@ async def update_player_name(
     if not name:
         raise HTTPException(status_code=400, detail="Spielername darf nicht leer sein.")
     if len(name) > 30:
-        raise HTTPException(status_code=400, detail="Spielername darf maximal 30 Zeichen lang sein.")
+        raise HTTPException(
+            status_code=400, detail="Spielername darf maximal 30 Zeichen lang sein."
+        )
     um: UserManager = request.app.state.user_manager
     um.update_player_name(user.username, name)
     return {"player_name": name}
 
 
 # --- Scenario ---
+
 
 @app.get("/api/scenario")
 async def get_scenario(user: UserRecord = Depends(get_current_user)):
@@ -389,12 +405,14 @@ async def reset_scenario(
 
 # --- Root redirect ---
 
+
 @app.get("/")
 async def root():
     return RedirectResponse(url="/app/login.html")
 
 
 # --- Start prompt ---
+
 
 @app.get("/api/start_prompt")
 async def get_start_prompt(user: UserRecord = Depends(get_current_user)):
@@ -406,6 +424,7 @@ async def get_start_prompt(user: UserRecord = Depends(get_current_user)):
 
 # --- Asset availability ---
 
+
 @app.get("/api/assets/available")
 async def get_available_assets():
     characters: dict[str, list[str]] = {}
@@ -416,7 +435,8 @@ async def get_available_assets():
         for char_folder in char_dir.iterdir():
             if char_folder.is_dir():
                 expressions = [
-                    f.stem for f in char_folder.iterdir()
+                    f.stem
+                    for f in char_folder.iterdir()
                     if f.suffix.lower() in (".png", ".jpg", ".webp")
                 ]
                 if expressions:
@@ -424,10 +444,9 @@ async def get_available_assets():
 
     bg_dir = ASSETS_DIR / "backgrounds"
     if bg_dir.exists():
-        backgrounds = sorted([
-            f.stem for f in bg_dir.iterdir()
-            if f.suffix.lower() in (".png", ".jpg", ".webp")
-        ])
+        backgrounds = sorted(
+            [f.stem for f in bg_dir.iterdir() if f.suffix.lower() in (".png", ".jpg", ".webp")]
+        )
 
     return {"characters": characters, "backgrounds": backgrounds}
 
@@ -442,6 +461,7 @@ async def get_locations():
 
 
 # --- Game state ---
+
 
 @app.get("/game_state")
 async def get_game_state(
@@ -497,6 +517,7 @@ async def reset_game_state(
 
 # --- Scene generation ---
 
+
 class SceneInput(BaseModel):
     user_input: str
 
@@ -545,10 +566,12 @@ async def generate_scene(
         )
 
     # Update game state from scene
-    sm.update_from_scene({
-        "background": scene.background,
-        "character": scene.character,
-    })
+    sm.update_from_scene(
+        {
+            "background": scene.background,
+            "character": scene.character,
+        }
+    )
 
     # Process analysis data (learning + affection updates)
     if scene.analysis:
@@ -613,6 +636,7 @@ async def generate_scene(
 
 # --- Save slots ---
 
+
 @app.get("/api/save_slots")
 async def list_save_slots(
     request: Request,
@@ -668,8 +692,8 @@ async def load_from_slot(
     sm = get_user_state_manager(user, request.app.state)
     try:
         loaded = sm.load_from_slot(slot_id)
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Save slot not found")
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail="Save slot not found") from e
 
     last_scene = None
     if loaded.last_scene:
@@ -709,6 +733,7 @@ async def delete_save_slot(
 
 # --- Scene history ---
 
+
 @app.get("/api/scene_history")
 async def get_scene_history(
     request: Request,
@@ -719,6 +744,7 @@ async def get_scene_history(
 
 
 # --- TTS ---
+
 
 class TTSInput(BaseModel):
     text: str
@@ -764,12 +790,12 @@ async def tts_generate(
                 tts.synthesize(text, body.expression),
                 timeout=15.0,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError as e:
             logger.error("TTS synthesis timed out for text: %.50s…", text)
-            raise HTTPException(status_code=504, detail="Sprachsynthese Timeout.")
+            raise HTTPException(status_code=504, detail="Sprachsynthese Timeout.") from e
         except Exception as e:
             logger.error("TTS synthesis failed: %s", e)
-            raise HTTPException(status_code=500, detail="Sprachsynthese fehlgeschlagen.")
+            raise HTTPException(status_code=500, detail="Sprachsynthese fehlgeschlagen.") from e
 
     return Response(
         content=audio_bytes,
@@ -779,6 +805,7 @@ async def tts_generate(
 
 
 # --- Cache-busting middleware ---
+
 
 @app.middleware("http")
 async def add_cache_headers(request: Request, call_next):

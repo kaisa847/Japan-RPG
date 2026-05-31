@@ -5,8 +5,6 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
 from backend.auth import UserManager, create_access_token
-from backend.state_manager import StateManager
-from backend.response_parser import SceneData
 
 
 @pytest_asyncio.fixture
@@ -87,9 +85,7 @@ class TestAPI:
         assert "time" in data
 
     async def test_unauthenticated_returns_401(self, client):
-        resp = await client.get(
-            "/game_state", headers={"Authorization": ""}
-        )
+        resp = await client.get("/game_state", headers={"Authorization": ""})
         assert resp.status_code == 401
 
 

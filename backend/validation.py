@@ -12,9 +12,7 @@ def validate_password(password: str) -> None:
     special-character rules.
     """
     if len(password) < MIN_PASSWORD_LENGTH:
-        raise ValueError(
-            f"Passwort muss mindestens {MIN_PASSWORD_LENGTH} Zeichen lang sein."
-        )
+        raise ValueError(f"Passwort muss mindestens {MIN_PASSWORD_LENGTH} Zeichen lang sein.")
     if not any(c.isalpha() for c in password):
         raise ValueError("Passwort muss mindestens einen Buchstaben enthalten.")
     if not any(c.isdigit() for c in password):

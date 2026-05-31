@@ -2,16 +2,14 @@
 
 import json
 import logging
-import secrets
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 import bcrypt
 import jwt
-from pydantic import BaseModel, ValidationError
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
+from pydantic import BaseModel, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -25,12 +23,14 @@ def _verify_password(password: str, hashed: str) -> bool:
     """Verify a password against a bcrypt hash."""
     return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("ascii"))
 
+
 # --- JWT settings ---
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 
 
 # --- Models ---
+
 
 class UserRecord(BaseModel):
     username: str
@@ -63,6 +63,7 @@ class UserInfo(BaseModel):
 
 
 # --- User Store (JSON file) ---
+
 
 class UserManager:
     USERS_FILE = "users.json"
@@ -97,7 +98,10 @@ class UserManager:
                 tmp.unlink()
 
     def create_user(
-        self, username: str, password: str, is_admin: bool = False,
+        self,
+        username: str,
+        password: str,
+        is_admin: bool = False,
         player_name: str = "",
     ) -> UserRecord:
         username = username.lower().strip()
@@ -112,7 +116,7 @@ class UserManager:
             username=username,
             hashed_password=_hash_password(password),
             is_admin=is_admin,
-            created_at=datetime.now(timezone.utc).isoformat(),
+            created_at=datetime.now(UTC).isoformat(),
             player_name=player_name.strip(),
         )
         self.store.users[record.username] = record
@@ -124,9 +128,7 @@ class UserManager:
 
         return record
 
-    def authenticate(
-        self, username: str, password: str
-    ) -> Optional[UserRecord]:
+    def authenticate(self, username: str, password: str) -> UserRecord | None:
         user = self.store.users.get(username.lower().strip())
         if not user:
             return None
@@ -134,7 +136,7 @@ class UserManager:
             return None
         return user
 
-    def get_user(self, username: str) -> Optional[UserRecord]:
+    def get_user(self, username: str) -> UserRecord | None:
         return self.store.users.get(username.lower().strip())
 
     def list_users(self) -> list[UserInfo]:
@@ -182,17 +184,14 @@ class UserManager:
 
 # --- JWT Token helpers ---
 
+
 def create_access_token(username: str, secret_key: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(
-        minutes=ACCESS_TOKEN_EXPIRE_MINUTES
-    )
+    expire = datetime.now(UTC) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     payload = {"sub": username, "exp": expire}
     return jwt.encode(payload, secret_key, algorithm=ALGORITHM)
 
 
-def decode_access_token(
-    token: str, secret_key: str
-) -> Optional[TokenData]:
+def decode_access_token(token: str, secret_key: str) -> TokenData | None:
     try:
         payload = jwt.decode(token, secret_key, algorithms=[ALGORITHM])
         username = payload.get("sub")

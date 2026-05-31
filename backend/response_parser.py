@@ -1,37 +1,36 @@
 """Parse Claude's XML scene responses into structured data."""
 
+import contextlib
 import html
 import logging
 import re
 import xml.etree.ElementTree as ET
-from typing import Optional
 
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
 # Regex: detect reversed furigana like ひらがな[漢字] and fix to 漢字[ひらがな]
-_HIRAGANA_CHAR = r'[\u3040-\u309F]'
-_KANJI_CHAR = r'[\u3005-\u3007\u3400-\u4DBF\u4E00-\u9FFF\u30F5\u30F6]'
+_HIRAGANA_CHAR = r"[\u3040-\u309F]"
+_KANJI_CHAR = r"[\u3005-\u3007\u3400-\u4DBF\u4E00-\u9FFF\u30F5\u30F6]"
 
 # Any bracket-annotation pattern: (some chars)[some chars]
-_ANY_BRACKET_RE = re.compile(
-    r'([^\[\]]+)\[([^\[\]]+)\]'
-)
+_ANY_BRACKET_RE = re.compile(r"([^\[\]]+)\[([^\[\]]+)\]")
 
 # Strip furigana bracket annotations from plain text: 漢字[かんじ] → 漢字
-_FURIGANA_BRACKET_RE = re.compile(r'[\[\uff3b]([^\]\uff3d]+)[\]\uff3d]')
+_FURIGANA_BRACKET_RE = re.compile(r"[\[\uff3b]([^\]\uff3d]+)[\]\uff3d]")
 
 
 def _is_hiragana(s: str) -> bool:
-    return bool(s) and all('\u3040' <= c <= '\u309F' for c in s)
+    return bool(s) and all("\u3040" <= c <= "\u309f" for c in s)
 
 
 def _is_kanji(s: str) -> bool:
     return bool(s) and all(
-        '\u4E00' <= c <= '\u9FFF' or '\u3400' <= c <= '\u4DBF'
-        or '\u3005' <= c <= '\u3007'
-        or c in ('\u30F5', '\u30F6')
+        "\u4e00" <= c <= "\u9fff"
+        or "\u3400" <= c <= "\u4dbf"
+        or "\u3005" <= c <= "\u3007"
+        or c in ("\u30f5", "\u30f6")
         for c in s
     )
 
@@ -39,9 +38,10 @@ def _is_kanji(s: str) -> bool:
 def _has_kanji(s: str) -> bool:
     """Check if a string contains at least one kanji character."""
     return any(
-        '\u4E00' <= c <= '\u9FFF' or '\u3400' <= c <= '\u4DBF'
-        or '\u3005' <= c <= '\u3007'
-        or c in ('\u30F5', '\u30F6')
+        "\u4e00" <= c <= "\u9fff"
+        or "\u3400" <= c <= "\u4dbf"
+        or "\u3005" <= c <= "\u3007"
+        or c in ("\u30f5", "\u30f6")
         for c in s
     )
 
@@ -70,13 +70,13 @@ def _fix_reversed_furigana(text: str) -> str:
             # Find how many trailing chars in 'before' are hiragana
             trailing_kana = []
             for c in reversed(before):
-                if '\u3040' <= c <= '\u309F':
+                if "\u3040" <= c <= "\u309f":
                     trailing_kana.append(c)
                 else:
                     break
             if trailing_kana:
-                kana = ''.join(reversed(trailing_kana))
-                prefix = before[:-len(kana)]
+                kana = "".join(reversed(trailing_kana))
+                prefix = before[: -len(kana)]
                 return f"{prefix}{inside}[{kana}]"
 
         # Unknown pattern, leave as-is
@@ -88,10 +88,22 @@ def _fix_reversed_furigana(text: str) -> str:
 # Aoi-only valid expressions
 CHARACTER_EXPRESSIONS: dict[str, list[str]] = {
     "aoi": [
-        "neutral", "happy", "excited", "curious", "talking",
-        "laughing", "surprised", "thinking", "embarrassed",
-        "determined", "worried", "sleepy", "angry",
-        "disgusted", "shocked", "ahegao",
+        "neutral",
+        "happy",
+        "excited",
+        "curious",
+        "talking",
+        "laughing",
+        "surprised",
+        "thinking",
+        "embarrassed",
+        "determined",
+        "worried",
+        "sleepy",
+        "angry",
+        "disgusted",
+        "shocked",
+        "ahegao",
     ],
 }
 
@@ -104,33 +116,32 @@ for exprs in CHARACTER_EXPRESSIONS.values():
 
 
 class AnalysisData(BaseModel):
-    grammar_topic: Optional[str] = None
+    grammar_topic: str | None = None
     mastery_delta: float = 0.0
-    error_correction: Optional[str] = None
+    error_correction: str | None = None
     affection_deltas: dict[str, float] = {}
 
 
 class SceneStatus(BaseModel):
-    time_update: Optional[str] = None
+    time_update: str | None = None
     scene_end: bool = False
     suggested_next: list[str] = []
 
 
 class SceneData(BaseModel):
-    character: Optional[str] = None
+    character: str | None = None
     expression: str = "neutral"
-    background: Optional[str] = None
+    background: str | None = None
     dialog_jp: str = ""
     dialog_jp_furigana: str = ""
     dialog_de: str = ""
     raw_response: str = ""
     parse_errors: list[str] = []
-    analysis: Optional[AnalysisData] = None
-    scene_status: Optional[SceneStatus] = None
+    analysis: AnalysisData | None = None
+    scene_status: SceneStatus | None = None
 
 
 class ResponseParser:
-
     @staticmethod
     def parse_scene(raw_response: str) -> SceneData:
         if not raw_response or not raw_response.strip():
@@ -169,15 +180,15 @@ class ResponseParser:
         # Strip furigana bracket annotations from dialog_jp (should be plain text).
         # Claude sometimes leaks notation like 漢字[かんじ] into dialog_jp,
         # causing TTS to read both the kanji and the reading.
-        if dialog_jp and re.search(r'[\[\uff3b]', dialog_jp):
-            cleaned = _FURIGANA_BRACKET_RE.sub('', dialog_jp)
+        if dialog_jp and re.search(r"[\[\uff3b]", dialog_jp):
+            cleaned = _FURIGANA_BRACKET_RE.sub("", dialog_jp)
             if cleaned != dialog_jp:
                 errors.append("Stripped furigana brackets from dialog_jp")
                 dialog_jp = cleaned
 
         # Normalize fullwidth brackets ［ ］ to halfwidth [ ]
         if dialog_jp_furigana:
-            dialog_jp_furigana = dialog_jp_furigana.replace('\uff3b', '[').replace('\uff3d', ']')
+            dialog_jp_furigana = dialog_jp_furigana.replace("\uff3b", "[").replace("\uff3d", "]")
 
         # Fix reversed furigana notation (e.g. のど[喉] → 喉[のど])
         if dialog_jp_furigana:
@@ -213,7 +224,7 @@ class ResponseParser:
     # --- XML Extraction ---
 
     @staticmethod
-    def _extract_xml_block(text: str, tag: str) -> Optional[str]:
+    def _extract_xml_block(text: str, tag: str) -> str | None:
         pattern = rf"<{tag}>(.*?)</{tag}>"
         match = re.search(pattern, text, re.DOTALL)
         if match:
@@ -221,12 +232,18 @@ class ResponseParser:
         return None
 
     @staticmethod
-    def _parse_xml(scene_xml: str) -> Optional[dict]:
+    def _parse_xml(scene_xml: str) -> dict | None:
         try:
             root = ET.fromstring(scene_xml)
             result = {}
-            for tag in ("character", "expression", "background",
-                        "dialog_jp", "dialog_jp_furigana", "dialog_de"):
+            for tag in (
+                "character",
+                "expression",
+                "background",
+                "dialog_jp",
+                "dialog_jp_furigana",
+                "dialog_de",
+            ):
                 elem = root.find(tag)
                 if elem is not None and elem.text:
                     result[tag] = elem.text
@@ -237,8 +254,14 @@ class ResponseParser:
     @staticmethod
     def _parse_regex_fallback(scene_xml: str) -> dict:
         result = {}
-        for tag in ("character", "expression", "background",
-                     "dialog_jp", "dialog_jp_furigana", "dialog_de"):
+        for tag in (
+            "character",
+            "expression",
+            "background",
+            "dialog_jp",
+            "dialog_jp_furigana",
+            "dialog_de",
+        ):
             match = re.search(rf"<{tag}>(.*?)</{tag}>", scene_xml, re.DOTALL)
             if match:
                 result[tag] = match.group(1)
@@ -247,16 +270,24 @@ class ResponseParser:
     # --- Analysis Parsing ---
 
     @staticmethod
-    def _parse_analysis(raw_response: str) -> Optional[AnalysisData]:
+    def _parse_analysis(raw_response: str) -> AnalysisData | None:
         analysis_xml = ResponseParser._extract_xml_block(raw_response, "analysis")
         if not analysis_xml:
             return None
 
-        data = ResponseParser._parse_xml_tags(analysis_xml, [
-            "grammar_topic", "mastery_delta", "error_correction",
-            "affection_language_effort", "affection_cultural_interest",
-            "affection_personal_bond", "affection_humor", "affection_reliability",
-        ])
+        data = ResponseParser._parse_xml_tags(
+            analysis_xml,
+            [
+                "grammar_topic",
+                "mastery_delta",
+                "error_correction",
+                "affection_language_effort",
+                "affection_cultural_interest",
+                "affection_personal_bond",
+                "affection_humor",
+                "affection_reliability",
+            ],
+        )
 
         affection_deltas = {}
         affection_keys = {
@@ -276,10 +307,8 @@ class ResponseParser:
                 pass
 
         mastery_delta = 0.0
-        try:
+        with contextlib.suppress(ValueError, TypeError):
             mastery_delta = float(data.get("mastery_delta", "0"))
-        except (ValueError, TypeError):
-            pass
 
         return AnalysisData(
             grammar_topic=data.get("grammar_topic") or None,
@@ -291,14 +320,19 @@ class ResponseParser:
     # --- Scene Status Parsing ---
 
     @staticmethod
-    def _parse_scene_status(raw_response: str) -> Optional[SceneStatus]:
+    def _parse_scene_status(raw_response: str) -> SceneStatus | None:
         status_xml = ResponseParser._extract_xml_block(raw_response, "scene_status")
         if not status_xml:
             return None
 
-        data = ResponseParser._parse_xml_tags(status_xml, [
-            "time_update", "scene_end", "suggested_next",
-        ])
+        data = ResponseParser._parse_xml_tags(
+            status_xml,
+            [
+                "time_update",
+                "scene_end",
+                "suggested_next",
+            ],
+        )
 
         time_update = data.get("time_update") or None
         scene_end = data.get("scene_end", "").strip().lower() == "true"
@@ -329,7 +363,7 @@ class ResponseParser:
     @staticmethod
     def _validate_expression(
         expression: str,
-        character: Optional[str],
+        character: str | None,
         errors: list[str],
     ) -> str:
         if character and character in CHARACTER_EXPRESSIONS:

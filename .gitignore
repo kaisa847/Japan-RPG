@@ -8,6 +8,9 @@ data/.jwt_secret
 data/users.json
 data/saves/
 .pytest_cache/
+.ruff_cache/
+.venv/
+venv/
 assets/
 .claude/
 *- Kopie*

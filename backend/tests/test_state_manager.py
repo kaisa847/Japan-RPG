@@ -5,8 +5,10 @@ import json
 import pytest
 
 from backend.state_manager import (
-    StateManager, GameState, AoiAffection, TimeState,
-    TopicMastery, PlayerLearningProfile, MAX_SCENE_HISTORY,
+    MAX_SCENE_HISTORY,
+    AoiAffection,
+    StateManager,
+    TimeState,
     _period_from_hour,
 )
 
@@ -64,10 +66,12 @@ class TestStateManager:
 
     def test_update_from_scene(self, tmp_data_dir):
         sm = StateManager(data_dir=str(tmp_data_dir))
-        sm.update_from_scene({
-            "background": "cafe_shimokitazawa",
-            "character": "aoi",
-        })
+        sm.update_from_scene(
+            {
+                "background": "cafe_shimokitazawa",
+                "character": "aoi",
+            }
+        )
         assert sm.state.current_background == "cafe_shimokitazawa"
         assert sm.state.current_character == "aoi"
 
@@ -144,36 +148,51 @@ class TestAoiAffection:
 
     def test_tone_distant(self):
         a = AoiAffection(
-            language_effort=5, cultural_interest=5,
-            personal_bond=5, humor=5, reliability=5,
+            language_effort=5,
+            cultural_interest=5,
+            personal_bond=5,
+            humor=5,
+            reliability=5,
         )
         assert a.tone == "distant"
 
     def test_tone_friendly(self):
         a = AoiAffection(
-            language_effort=50, cultural_interest=50,
-            personal_bond=50, humor=50, reliability=50,
+            language_effort=50,
+            cultural_interest=50,
+            personal_bond=50,
+            humor=50,
+            reliability=50,
         )
         assert a.tone == "friendly"
 
     def test_tone_warm(self):
         a = AoiAffection(
-            language_effort=70, cultural_interest=70,
-            personal_bond=70, humor=70, reliability=70,
+            language_effort=70,
+            cultural_interest=70,
+            personal_bond=70,
+            humor=70,
+            reliability=70,
         )
         assert a.tone == "warm"
 
     def test_tone_intimate(self):
         a = AoiAffection(
-            language_effort=90, cultural_interest=90,
-            personal_bond=90, humor=90, reliability=90,
+            language_effort=90,
+            cultural_interest=90,
+            personal_bond=90,
+            humor=90,
+            reliability=90,
         )
         assert a.tone == "intimate"
 
     def test_weighted_score_asymmetric(self):
         a = AoiAffection(
-            language_effort=100, cultural_interest=0,
-            personal_bond=0, humor=0, reliability=0,
+            language_effort=100,
+            cultural_interest=0,
+            personal_bond=0,
+            humor=0,
+            reliability=0,
         )
         assert a.weighted_score == pytest.approx(35.0)
 
@@ -249,10 +268,12 @@ class TestProcessAnalysis:
 
     def test_creates_new_topic(self, tmp_data_dir):
         sm = StateManager(data_dir=str(tmp_data_dir))
-        sm.process_analysis({
-            "grammar_topic": "te_form",
-            "mastery_delta": 0.15,
-        })
+        sm.process_analysis(
+            {
+                "grammar_topic": "te_form",
+                "mastery_delta": 0.15,
+            }
+        )
         assert "te_form" in sm.state.learning.topics
         tm = sm.state.learning.topics["te_form"]
         assert tm.mastery == pytest.approx(0.15)
@@ -281,12 +302,14 @@ class TestProcessAnalysis:
     def test_updates_affection(self, tmp_data_dir):
         """Deltas are clamped to ±1 and damped by 0.5, so +5 → +0.5, -2 → -0.5."""
         sm = StateManager(data_dir=str(tmp_data_dir))
-        sm.process_analysis({
-            "affection_deltas": {
-                "language_effort": 5.0,
-                "humor": -2.0,
-            },
-        })
+        sm.process_analysis(
+            {
+                "affection_deltas": {
+                    "language_effort": 5.0,
+                    "humor": -2.0,
+                },
+            }
+        )
         # +5 clamped to +1, * 0.5 = +0.5 → 20.5
         assert sm.state.affection.language_effort == 20.5
         # -2 clamped to -1, * 0.5 = -0.5 → 19.5
@@ -295,18 +318,22 @@ class TestProcessAnalysis:
     def test_affection_clamped_to_100(self, tmp_data_dir):
         sm = StateManager(data_dir=str(tmp_data_dir))
         sm.state.affection.language_effort = 99.8
-        sm.process_analysis({
-            "affection_deltas": {"language_effort": 10.0},
-        })
+        sm.process_analysis(
+            {
+                "affection_deltas": {"language_effort": 10.0},
+            }
+        )
         # +10 clamped to +1, * 0.5 = +0.5 → 100.0 (capped)
         assert sm.state.affection.language_effort == 100.0
 
     def test_affection_clamped_to_0(self, tmp_data_dir):
         sm = StateManager(data_dir=str(tmp_data_dir))
         sm.state.affection.humor = 0.3
-        sm.process_analysis({
-            "affection_deltas": {"humor": -10.0},
-        })
+        sm.process_analysis(
+            {
+                "affection_deltas": {"humor": -10.0},
+            }
+        )
         # -10 clamped to -1, * 0.5 = -0.5 → 0.0 (capped)
         assert sm.state.affection.humor == 0.0
 
@@ -418,14 +445,16 @@ class TestSceneHistory:
 
     def test_add_scene_to_history(self, tmp_data_dir):
         sm = StateManager(data_dir=str(tmp_data_dir))
-        sm.add_scene_to_history({
-            "character": "aoi",
-            "expression": "happy",
-            "background": "apartment_room",
-            "dialog_jp": "こんにちは",
-            "dialog_jp_furigana": "",
-            "dialog_de": "Hallo",
-        })
+        sm.add_scene_to_history(
+            {
+                "character": "aoi",
+                "expression": "happy",
+                "background": "apartment_room",
+                "dialog_jp": "こんにちは",
+                "dialog_jp_furigana": "",
+                "dialog_de": "Hallo",
+            }
+        )
         assert len(sm.state.scene_history) == 1
         entry = sm.state.scene_history[0]
         assert entry["character"] == "aoi"
@@ -436,21 +465,25 @@ class TestSceneHistory:
     def test_scene_history_capping(self, tmp_data_dir):
         sm = StateManager(data_dir=str(tmp_data_dir))
         for i in range(MAX_SCENE_HISTORY + 20):
-            sm.add_scene_to_history({
-                "character": "aoi",
-                "dialog_jp": f"msg {i}",
-                "dialog_de": f"msg {i}",
-            })
+            sm.add_scene_to_history(
+                {
+                    "character": "aoi",
+                    "dialog_jp": f"msg {i}",
+                    "dialog_de": f"msg {i}",
+                }
+            )
         assert len(sm.state.scene_history) == MAX_SCENE_HISTORY
         assert sm.state.scene_history[0]["dialog_jp"] == "msg 20"
 
     def test_scene_history_persisted(self, tmp_data_dir):
         sm = StateManager(data_dir=str(tmp_data_dir))
-        sm.add_scene_to_history({
-            "character": "aoi",
-            "dialog_jp": "テスト",
-            "dialog_de": "Test",
-        })
+        sm.add_scene_to_history(
+            {
+                "character": "aoi",
+                "dialog_jp": "テスト",
+                "dialog_de": "Test",
+            }
+        )
         sm.save()
 
         sm2 = StateManager(data_dir=str(tmp_data_dir))

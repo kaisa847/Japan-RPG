@@ -6,7 +6,6 @@ per expression. Cloud-based - zero CPU/RAM usage on the VPS.
 
 import io
 import logging
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -16,22 +15,22 @@ VOICE = "ja-JP-NanamiNeural"
 # Mapping from Aoi's 16 sprite expressions to voice adjustments.
 # Each entry is (pitch_adjustment, rate_adjustment).
 EXPRESSION_VOICE_MAP: dict[str, tuple[str, str]] = {
-    "neutral":      ("+0Hz",  "+0%"),
-    "happy":        ("+3Hz",  "+8%"),
-    "excited":      ("+5Hz",  "+12%"),
-    "curious":      ("+2Hz",  "+0%"),
-    "talking":      ("+0Hz",  "+0%"),
-    "laughing":     ("+5Hz",  "+10%"),
-    "surprised":    ("+6Hz",  "+5%"),
-    "thinking":     ("-1Hz",  "-5%"),
-    "embarrassed":  ("+1Hz",  "-3%"),
-    "determined":   ("-2Hz",  "+5%"),
-    "worried":      ("-1Hz",  "-5%"),
-    "sleepy":       ("-3Hz",  "-10%"),
-    "angry":        ("-2Hz",  "+8%"),
-    "disgusted":    ("-2Hz",  "-3%"),
-    "shocked":      ("+8Hz",  "+5%"),
-    "ahegao":       ("+3Hz",  "+5%"),
+    "neutral": ("+0Hz", "+0%"),
+    "happy": ("+3Hz", "+8%"),
+    "excited": ("+5Hz", "+12%"),
+    "curious": ("+2Hz", "+0%"),
+    "talking": ("+0Hz", "+0%"),
+    "laughing": ("+5Hz", "+10%"),
+    "surprised": ("+6Hz", "+5%"),
+    "thinking": ("-1Hz", "-5%"),
+    "embarrassed": ("+1Hz", "-3%"),
+    "determined": ("-2Hz", "+5%"),
+    "worried": ("-1Hz", "-5%"),
+    "sleepy": ("-3Hz", "-10%"),
+    "angry": ("-2Hz", "+8%"),
+    "disgusted": ("-2Hz", "-3%"),
+    "shocked": ("+8Hz", "+5%"),
+    "ahegao": ("+3Hz", "+5%"),
 }
 
 DEFAULT_VOICE_PARAMS = ("+0Hz", "+0%")
@@ -44,7 +43,7 @@ class TTSService:
 
     def __init__(self):
         self._ready = False
-        self._error: Optional[str] = None
+        self._error: str | None = None
 
     @property
     def is_ready(self) -> bool:
@@ -62,6 +61,7 @@ class TTSService:
         """Verify edge-tts is available."""
         try:
             import edge_tts  # noqa: F401
+
             self._ready = True
             logger.info("TTS service ready (edge-tts, cloud-based).")
         except ImportError:

@@ -2,4 +2,4 @@
 # Install with: pip install -r backend/requirements-tts.txt
 #
 # After installing, run: python scripts/setup_tts.py
-edge-tts>=6.1.0
+edge-tts>=6.1.0,<8.0

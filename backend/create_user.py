@@ -16,16 +16,12 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Create a user for Japan RPG"
-    )
+    parser = argparse.ArgumentParser(description="Create a user for Japan RPG")
     parser.add_argument(
         "username",
         help="Username (3-20 chars, alphanumeric + underscore)",
     )
-    parser.add_argument(
-        "--admin", action="store_true", help="Grant admin privileges"
-    )
+    parser.add_argument("--admin", action="store_true", help="Grant admin privileges")
     parser.add_argument(
         "--player-name",
         help="In-game player name (required, or will be prompted)",
@@ -60,7 +56,9 @@ def main():
 
     try:
         user = um.create_user(
-            args.username, password, is_admin=args.admin,
+            args.username,
+            password,
+            is_admin=args.admin,
             player_name=player_name,
         )
         role = " (admin)" if user.is_admin else ""
