@@ -129,8 +129,12 @@ class TestSaveSlotAPI:
 
         resp = await client.post("/api/save_slots/1/load")
         assert resp.status_code == 200
+        # The load endpoint returns the restored game state (GameStateResponse),
+        # which the frontend consumes directly; it has no "success" flag.
         data = resp.json()
-        assert data["success"] is True
+        assert data["day_number"] == 1
+        assert "time" in data
+        assert "affection" in data
 
     async def test_load_nonexistent_slot(self, client):
         resp = await client.post("/api/save_slots/5/load")

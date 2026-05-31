@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 from backend.auth import UserManager
+from backend.validation import validate_password
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -48,8 +49,10 @@ def main():
         print("Error: Passwords do not match")
         sys.exit(1)
 
-    if len(password) < 8:
-        print("Error: Password must be at least 8 characters")
+    try:
+        validate_password(password)
+    except ValueError as e:
+        print(f"Error: {e}")
         sys.exit(1)
 
     data_dir = str(PROJECT_ROOT / "data")

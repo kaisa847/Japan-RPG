@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -158,7 +158,7 @@ class StateManager:
                 raw = state_path.read_text(encoding="utf-8")
                 data = json.loads(raw)
                 return GameState.model_validate(data)
-            except (json.JSONDecodeError, Exception) as e:
+            except (json.JSONDecodeError, ValidationError) as e:
                 logger.warning("Corrupt game state file, creating default: %s", e)
         return GameState()
 
@@ -382,6 +382,13 @@ class StateManager:
                 slot_data.model_dump_json(indent=2),
                 encoding="utf-8",
             )
+            # Best-effort backup of the previous save so a slot is recoverable
+            # if a later write is interrupted or the new data turns out bad.
+            if slot_path.exists():
+                try:
+                    slot_path.replace(slot_path.with_name(f"slot_{slot_id}.bak.json"))
+                except OSError as e:
+                    logger.warning("Could not back up slot %d: %s", slot_id, e)
             tmp_path.replace(slot_path)
         except OSError as e:
             logger.error("Failed to save slot %d: %s", slot_id, e)
@@ -416,7 +423,7 @@ class StateManager:
                     data = json.loads(raw)
                     slot_data = SaveSlotData.model_validate(data)
                     slots.append(slot_data.meta)
-                except (json.JSONDecodeError, Exception) as e:
+                except (json.JSONDecodeError, ValidationError) as e:
                     logger.warning("Corrupt save slot %d: %s", i, e)
         return slots
 

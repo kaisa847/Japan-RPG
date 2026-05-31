@@ -9,7 +9,7 @@ from typing import Optional
 
 import bcrypt
 import jwt
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 
@@ -79,7 +79,7 @@ class UserManager:
                 raw = self._users_path.read_text(encoding="utf-8")
                 data = json.loads(raw)
                 return UserStore.model_validate(data)
-            except (json.JSONDecodeError, Exception) as e:
+            except (json.JSONDecodeError, ValidationError) as e:
                 logger.warning("Corrupt users file: %s", e)
         return UserStore()
 

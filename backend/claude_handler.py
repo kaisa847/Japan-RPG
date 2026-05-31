@@ -9,6 +9,7 @@ from pathlib import Path
 from anthropic import AsyncAnthropic, APIError, APITimeoutError, RateLimitError
 
 from backend.response_parser import ResponseParser, SceneData, CHARACTER_EXPRESSIONS
+from backend.sanitize import neutralize_prompt_text
 
 logger = logging.getLogger(__name__)
 
@@ -193,6 +194,14 @@ class ClaudeHandler:
         player_name: str = "Spieler",
         custom_premise: str | None = None,
     ) -> str:
+        # Neutralize player-controlled text before it enters the system prompt.
+        # The player name is a short display field (no schema markers allowed);
+        # the custom premise legitimately uses markers like SPIELSTART:, so its
+        # markers are preserved while tags/control chars are still defused.
+        player_name = neutralize_prompt_text(player_name, max_length=30)
+        if custom_premise:
+            custom_premise = neutralize_prompt_text(custom_premise, neutralize_markers=False)
+
         aoi_expressions = ", ".join(CHARACTER_EXPRESSIONS.get("aoi", ["neutral"]))
         tone_desc = TONE_DESCRIPTIONS.get(aoi_tone, TONE_DESCRIPTIONS["neutral"])
         tone_desc = tone_desc.format(player_name=player_name)
@@ -306,16 +315,18 @@ class ClaudeHandler:
                 parse_errors=["Rate limit exceeded"],
             )
         except APIError as e:
+            # Log the full error server-side, but never leak provider details
+            # (request structure, internal messages) to the client.
             logger.error("Claude API error: %s", e)
             return SceneData(
-                dialog_de=f"[API-Fehler: {e.message}]",
-                dialog_jp="[APIエラー]",
-                parse_errors=[f"API error: {e.message}"],
+                dialog_de="[Ein API-Fehler ist aufgetreten. Bitte versuche es später erneut.]",
+                dialog_jp="[APIエラーが発生しました。]",
+                parse_errors=["API error"],
             )
         except Exception as e:
             logger.error("Unexpected error in scene generation: %s", e)
             return SceneData(
                 dialog_de="[Ein unerwarteter Fehler ist aufgetreten.]",
                 dialog_jp="[予期しないエラーが発生しました。]",
-                parse_errors=[f"Unexpected error: {str(e)}"],
+                parse_errors=["Unexpected error"],
             )

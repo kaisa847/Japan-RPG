@@ -25,6 +25,7 @@ from backend.auth import (
 )
 from backend.response_parser import SceneData
 from backend.state_manager import StateManager
+from backend.validation import validate_password
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +117,18 @@ async def lifespan(app: FastAPI):
     data_dir = str(DATA_DIR)
     app.state.data_dir = data_dir
 
+    # Startup config validation (warn, don't crash — keep dev-friendly)
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        logger.warning(
+            "ANTHROPIC_API_KEY is not set — scene generation will use the "
+            "fallback error message until a key is configured."
+        )
+    if not os.environ.get("CORS_ORIGIN"):
+        logger.warning(
+            "CORS_ORIGIN is not set — cross-origin requests are blocked. "
+            "Set it to your public origin in production deployments."
+        )
+
     # JWT secret
     jwt_secret_path = DATA_DIR / ".jwt_secret"
     if jwt_secret_path.exists():
@@ -123,8 +136,15 @@ async def lifespan(app: FastAPI):
     else:
         app.state.jwt_secret = secrets.token_urlsafe(32)
         DATA_DIR.mkdir(parents=True, exist_ok=True)
-        jwt_secret_path.write_text(app.state.jwt_secret, encoding="utf-8")
-        jwt_secret_path.chmod(0o600)
+        # Create with 0o600 from the start so the secret is never briefly
+        # world-readable between write and chmod.
+        fd = os.open(
+            jwt_secret_path,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_TRUNC,
+            0o600,
+        )
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(app.state.jwt_secret)
 
     # User manager
     app.state.user_manager = UserManager(data_dir=data_dir)
@@ -210,8 +230,11 @@ async def login(request: Request, form: OAuth2PasswordRequestForm = Depends()):
 
     um: UserManager = request.app.state.user_manager
     user = um.authenticate(form.username, form.password)
+    client_ip = request.client.host if request.client else "unknown"
     if not user:
+        logger.warning("Failed login for '%s' from %s", form.username, client_ip)
         raise HTTPException(status_code=401, detail="Falsche Zugangsdaten.")
+    logger.info("User '%s' logged in from %s", user.username, client_ip)
     token = create_access_token(user.username, request.app.state.jwt_secret)
     return {"access_token": token, "token_type": "bearer", "username": user.username}
 
@@ -234,8 +257,10 @@ async def create_user_api(
         raise HTTPException(status_code=403, detail="Admin only.")
     body = await request.json()
     password = body.get("password", "")
-    if len(password) < 8:
-        raise HTTPException(status_code=400, detail="Passwort muss mindestens 8 Zeichen lang sein.")
+    try:
+        validate_password(password)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     um: UserManager = request.app.state.user_manager
     try:
         new_user = um.create_user(
