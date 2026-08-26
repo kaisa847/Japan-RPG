@@ -7,6 +7,7 @@ from httpx import ASGITransport, AsyncClient
 from backend.auth import UserManager, create_access_token
 from backend.state_manager import StateManager
 from backend.response_parser import SceneData
+from backend.story_engine import StoryEngine
 
 
 @pytest_asyncio.fixture
@@ -27,6 +28,7 @@ async def client(monkeypatch, tmp_path):
     app.state.user_state_managers = {}
     app.state.data_dir = data_dir
     app.state.claude_handler = None
+    app.state.story_engine = StoryEngine(data_dir=data_dir)
 
     token = create_access_token("testuser", jwt_secret)
 
@@ -130,7 +132,10 @@ class TestSaveSlotAPI:
         resp = await client.post("/api/save_slots/1/load")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["success"] is True
+        # Endpoint returns the restored game state for the frontend
+        assert data["day_number"] == 1
+        assert "affection" in data
+        assert "learning" in data
 
     async def test_load_nonexistent_slot(self, client):
         resp = await client.post("/api/save_slots/5/load")

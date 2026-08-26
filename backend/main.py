@@ -25,6 +25,7 @@ from backend.auth import (
 )
 from backend.response_parser import SceneData
 from backend.state_manager import StateManager
+from backend.story_engine import StoryEngine
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +85,8 @@ class GenerateSceneResponse(BaseModel):
     scene_status: Optional[dict] = None
     aoi_affection: Optional[dict] = None
     time: Optional[dict] = None
+    learning: Optional[dict] = None
+    story_beat: Optional[str] = None
 
 
 class GameStateResponse(BaseModel):
@@ -129,6 +132,9 @@ async def lifespan(app: FastAPI):
     # User manager
     app.state.user_manager = UserManager(data_dir=data_dir)
     app.state.user_state_managers: dict[str, StateManager] = {}
+
+    # Story engine (shared, stateless — per-user progress lives in game state)
+    app.state.story_engine = StoryEngine(data_dir=data_dir)
 
     # Claude handler (may fail without API key)
     try:
@@ -502,6 +508,26 @@ async def generate_scene(
     scenario_text = user.custom_scenario or DEFAULT_SCENARIO
     custom_premise, _start = _parse_scenario(scenario_text, player_name)
 
+    # Long-term memory, due vocabulary, active story beat
+    memories = [
+        {"day": m.day, "text": m.text} for m in sm.state.memories
+    ]
+    due_vocab = [
+        {"word": v.word, "reading": v.reading, "meaning_de": v.meaning_de}
+        for v in sm.get_due_vocab()
+    ]
+    story_engine: StoryEngine = request.app.state.story_engine
+    active_beat = story_engine.select_beat(
+        day=sm.state.time.day,
+        score=sm.state.affection.weighted_score,
+        flags=sm.state.flags,
+        completed_beats=sm.state.story.completed_beats,
+    )
+    story_beat_block = (
+        story_engine.build_prompt_block(active_beat, player_name)
+        if active_beat else None
+    )
+
     if handler:
         scene = await handler.generate_scene_safe(
             user_input=body.user_input,
@@ -511,6 +537,10 @@ async def generate_scene(
             weak_points=weak_points,
             player_name=player_name,
             custom_premise=custom_premise,
+            jlpt_level=sm.state.learning.overall_level,
+            memories=memories,
+            due_vocab=due_vocab,
+            story_beat_block=story_beat_block,
         )
     else:
         scene = SceneData(
@@ -545,6 +575,21 @@ async def generate_scene(
     if not time_advanced:
         # No explicit time advancement — use periodic fallback
         sm.maybe_advance_time_periodic()
+
+    # Process episodic memory, vocab, story flag, promises
+    if scene.scene_status:
+        st = scene.scene_status
+        if st.memory:
+            sm.add_memory(st.memory)
+        if st.new_vocab:
+            sm.process_vocab(st.new_vocab)
+        if st.story_flag and active_beat and st.story_flag == active_beat.sets_flag:
+            sm.complete_story_beat(active_beat.id, active_beat.sets_flag)
+            logger.info("Story beat completed: %s", active_beat.id)
+        if st.promise:
+            sm.add_promise(st.promise)
+        if st.promise_resolved:
+            sm.resolve_promise(st.promise_resolved)
 
     # Update conversation history (dialog-only, no analysis/scene_status noise)
     sm.add_conversation_turn("user", body.user_input)
@@ -583,6 +628,8 @@ async def generate_scene(
         scene_status=scene.scene_status.model_dump() if scene.scene_status else None,
         aoi_affection=sm.state.affection.to_display_dict(),
         time=sm.state.time.model_dump(),
+        learning=sm.state.learning.model_dump(),
+        story_beat=active_beat.title if active_beat else None,
     )
 
 

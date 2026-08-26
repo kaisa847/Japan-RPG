@@ -368,3 +368,88 @@ class TestKatakanaKanjiCompounds:
         """Already correct: 〆切[しめきり] stays as-is"""
         text = "〆切[しめきり]"
         assert _fix_reversed_furigana(text) == text
+
+
+class TestSceneStatusExtensions:
+    """New scene_status tags: memory, new_vocab, story_flag, promises."""
+
+    RESPONSE = """
+<scene>
+  <character>aoi</character>
+  <expression>happy</expression>
+  <background>shrine</background>
+  <dialog_jp>また明日ね！</dialog_jp>
+  <dialog_jp_furigana>また明日[あした]ね！</dialog_jp_furigana>
+  <dialog_de>Bis morgen!</dialog_de>
+</scene>
+<scene_status>
+  <time_update>+2h</time_update>
+  <scene_end>true</scene_end>
+  <suggested_next>cafe|park</suggested_next>
+  <memory>Aoi hat Kai von Hayashiya erzählt.</memory>
+  <new_vocab>駅[えき]=Bahnhof|喉[のど]=Hals|水=Wasser</new_vocab>
+  <story_flag>family_story_told</story_flag>
+  <promise>Morgen um 10 am Schrein treffen</promise>
+</scene_status>
+"""
+
+    def test_memory_parsed(self):
+        result = ResponseParser.parse_scene(self.RESPONSE)
+        assert result.scene_status.memory == "Aoi hat Kai von Hayashiya erzählt."
+
+    def test_new_vocab_parsed(self):
+        result = ResponseParser.parse_scene(self.RESPONSE)
+        vocab = result.scene_status.new_vocab
+        assert len(vocab) == 3
+        assert vocab[0] == {"word": "駅", "reading": "えき", "meaning_de": "Bahnhof"}
+        # Reading is optional
+        assert vocab[2] == {"word": "水", "reading": "", "meaning_de": "Wasser"}
+
+    def test_story_flag_parsed(self):
+        result = ResponseParser.parse_scene(self.RESPONSE)
+        assert result.scene_status.story_flag == "family_story_told"
+
+    def test_promise_parsed(self):
+        result = ResponseParser.parse_scene(self.RESPONSE)
+        assert result.scene_status.promise == "Morgen um 10 am Schrein treffen"
+        assert result.scene_status.promise_resolved is None
+
+    def test_promise_resolved_parsed(self):
+        response = self.RESPONSE.replace(
+            "<promise>Morgen um 10 am Schrein treffen</promise>",
+            "<promise_resolved>Morgen um 10 am Schrein treffen</promise_resolved>",
+        )
+        result = ResponseParser.parse_scene(response)
+        assert result.scene_status.promise is None
+        assert result.scene_status.promise_resolved == "Morgen um 10 am Schrein treffen"
+
+    def test_missing_new_tags_default_empty(self):
+        response = """
+<scene>
+  <character>aoi</character>
+  <dialog_jp>こんにちは</dialog_jp>
+  <dialog_jp_furigana>こんにちは</dialog_jp_furigana>
+  <dialog_de>Hallo</dialog_de>
+</scene>
+<scene_status>
+  <time_update>+1h</time_update>
+  <scene_end>false</scene_end>
+</scene_status>
+"""
+        result = ResponseParser.parse_scene(response)
+        st = result.scene_status
+        assert st.memory is None
+        assert st.new_vocab == []
+        assert st.story_flag is None
+        assert st.promise is None
+        assert st.promise_resolved is None
+
+    def test_malformed_vocab_items_skipped(self):
+        response = self.RESPONSE.replace(
+            "<new_vocab>駅[えき]=Bahnhof|喉[のど]=Hals|水=Wasser</new_vocab>",
+            "<new_vocab>kaputt ohne gleichzeichen|駅[えき]=Bahnhof|=leer</new_vocab>",
+        )
+        result = ResponseParser.parse_scene(response)
+        vocab = result.scene_status.new_vocab
+        assert len(vocab) == 1
+        assert vocab[0]["word"] == "駅"

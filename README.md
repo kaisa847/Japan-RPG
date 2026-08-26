@@ -20,9 +20,26 @@ Der Spieler tippt frei, was Kai sagen oder tun soll (auf Deutsch oder Japanisch)
 - **Furigana-Anzeige:** Jedes Kanji hat eine Lesung in Klammern, dargestellt als Ruby-Text (ein/ausschaltbar)
 - **Deutsche Uebersetzung:** Jeder japanische Dialog wird uebersetzt (ein/ausschaltbar)
 - **Fehlerkorrektur:** Wenn der Spieler Japanisch versucht, korrigiert Aoi sanft und erklaerend
+- **Kanonische Grammatik-Taxonomie:** Grammatikthemen kommen aus einer festen N5/N4-Liste (`backend/grammar_taxonomy.py`); Freitext-Varianten werden normalisiert, unbekannte Themen verworfen — das Tracking fragmentiert nicht
 - **Grammatik-Tracking:** Erkannte Grammatikthemen werden mit Mastery-Wert (0-100%) getrackt
 - **Schwachstellen-System:** Die 5 schwaechsten Themen werden erkannt und gezielt in zukuenftige Dialoge eingebaut
-- **JLPT-Schaetzung:** Aktuelles Sprachniveau wird geschaetzt (N5-N1)
+- **JLPT-Ableitung:** Das Level (N5 → N4 → N3) wird aus der tatsaechlichen Mastery der kanonischen Themen berechnet, nicht geschaetzt
+- **Niveau-Steuerung:** Aois Sprachregister haengt am Level: Bei N5 spricht sie bewusst einfach und erklaert Casual-Ausdruecke; Slang und Saitama-Dialekt kommen erst mit steigendem Niveau dazu
+- **Vokabelheft:** Neue Woerter aus den Dialogen werden gesammelt (max. 300); schwache, laenger nicht gesehene Woerter werden Claude als "faellig" mitgegeben und natuerlich im Gespraech wiederholt (verdecktes Spaced Repetition). Einsehbar im Stats-Panel
+
+### Story-System
+- **Story-Arc "Hayashiya":** 10 geskriptete Story-Beats rund um Aois Konflikt mit dem Familienrestaurant in Kawagoe (Draft: `data/story/story_arc.md`, Beats: `data/story/beats.json`)
+- **Trigger:** Beats aktivieren sich ueber Tag, Zuneigungs-Score und Story-Flags; es ist immer hoechstens ein Beat aktiv, nur dessen kurze Regieanweisung wandert in den Prompt
+- **Organisch statt erzwungen:** Die KI webt den Beat ein, wenn es passt; wechselt der Spieler das Thema, bleibt der Beat aktiv und wird spaeter erneut versucht
+- **Abschluss-Meldung:** Die KI meldet `<story_flag>` erst, wenn der Beat im Dialog tatsaechlich stattgefunden hat; das Backend akzeptiert nur das Flag des aktiven Beats
+
+### Episodisches Gedaechtnis
+- Bei jedem Szenenende fasst die KI die Szene in 1-2 Saetzen zusammen (`<memory>`)
+- Die letzten 12 Zusammenfassungen (je max. 240 Zeichen) werden als Langzeitgedaechtnis in den System-Prompt injiziert — Aoi erinnert sich damit ueber Tage hinweg an Ereignisse, bei fest gedeckelten Token-Kosten
+
+### Versprechen-System
+- Konkrete Verabredungen ("morgen um 10 am Schrein") werden als offene Versprechen gespeichert (max. 3) und der KI im Spielstand mitgegeben
+- Eingeloeste Versprechen belohnen den Zuverlaessigkeits-Faktor, gebrochene senken ihn — damit ist `reliability` erstmals bespielbar und das Zeitsystem bekommt Spielbedeutung
 
 ### Zuneigungssystem (Affection)
 Aois Verhalten aendert sich basierend auf 5 gewichteten Faktoren:
@@ -198,7 +215,7 @@ pytest backend/tests/test_integration.py    # Nur API-Integrationstests
 pytest backend/tests/ -v -k "time"          # Nur Tests mit "time" im Namen
 ```
 
-Testet: Authentifizierung (JWT, bcrypt, User-CRUD), Spielzustandsverwaltung (Laden, Speichern, Reset), XML-Parsing (Szenen, Analyse, Scene-Status), Furigana-Korrektur (vertauschte Notation), Zeitsystem (Stunden, Tage, Perioden, periodischer Fallback), Zuneigungssystem (Gewichtung, Clamping, Daempfung, Tonstufen), Speicherplaetze (CRUD, Snapshot-Integritaet) und alle API-Endpunkte.
+Testet: Authentifizierung (JWT, bcrypt, User-CRUD), Spielzustandsverwaltung (Laden, Speichern, Reset), XML-Parsing (Szenen, Analyse, Scene-Status inkl. Memory/Vokabeln/Story-Flags/Versprechen), Furigana-Korrektur (vertauschte Notation), Zeitsystem (Stunden, Tage, Perioden, periodischer Fallback), Zuneigungssystem (Gewichtung, Clamping, Daempfung, Tonstufen), Grammatik-Taxonomie (Normalisierung, JLPT-Ableitung), Story-Engine (Beat-Trigger, Abschluss), episodisches Gedaechtnis, Vokabelheft, Versprechen, Speicherplaetze (CRUD, Snapshot-Integritaet) und alle API-Endpunkte.
 
 ## Projektstruktur
 
@@ -209,13 +226,18 @@ Japan-RPG/
 │   ├── claude_handler.py      # Anthropic-API-Integration, System-Prompt-Aufbau
 │   ├── response_parser.py     # XML-Szenen-Parser, Furigana-Korrektur
 │   ├── state_manager.py       # Spielzustand: Zeit, Zuneigung, Lernen, Speicherplaetze
+│   ├── grammar_taxonomy.py    # Kanonische N5/N4-Themen, JLPT-Ableitung
+│   ├── story_engine.py        # Story-Beat-Auswahl und Prompt-Block
 │   ├── auth.py                # JWT-Authentifizierung, Benutzerverwaltung
 │   ├── create_user.py         # CLI-Tool zur Benutzererstellung
 │   └── tests/
 │       ├── test_auth.py              # Auth + JWT Tests
 │       ├── test_integration.py       # API-Endpunkt-Tests
 │       ├── test_response_parser.py   # XML-Parsing + Furigana Tests
-│       └── test_state_manager.py     # State, Zeit, Affection, Save/Load Tests
+│       ├── test_state_manager.py     # State, Zeit, Affection, Save/Load Tests
+│       ├── test_grammar_taxonomy.py  # Taxonomie + JLPT Tests
+│       ├── test_story_engine.py      # Story-Beat-Trigger Tests
+│       └── test_memory_vocab.py      # Memory, Vokabeln, Versprechen Tests
 ├── frontend/
 │   ├── index.html             # Spiel-UI (Dialog, HUD, Menues)
 │   ├── login.html             # Login-Seite
@@ -225,6 +247,9 @@ Japan-RPG/
 │   └── style.css              # Vollstaendiges Styling
 ├── data/
 │   ├── start_prompt.txt       # Startszene-Regieanweisung
+│   ├── story/
+│   │   ├── story_arc.md       # Story-Draft: Arc 1 "Hayashiya" (3 Akte, 10 Beats)
+│   │   └── beats.json         # Maschinenlesbare Story-Beats mit Triggern
 │   └── characters/
 │       ├── aoi.md             # Aoi Charakter-Sheet (Persoenlichkeit, Verhalten)
 │       ├── aoi.visual.md      # Visuelle Referenz fuer Asset-Erstellung
@@ -311,6 +336,11 @@ Jede KI-generierte Szene folgt diesem XML-Schema:
   <time_update>+1h</time_update>             <!-- +Nh oder next_day, Pflichtfeld -->
   <scene_end>false</scene_end>               <!-- true bei natuerlichem Szenenende -->
   <suggested_next>park|ramen_shop</suggested_next>  <!-- nur bei scene_end=true -->
+  <memory>Kurze Szenen-Zusammenfassung</memory>     <!-- Pflicht bei scene_end=true -->
+  <new_vocab>駅[えき]=Bahnhof|喉[のど]=Hals</new_vocab>  <!-- 0-3 Vokabeln, optional -->
+  <story_flag>family_story_told</story_flag>  <!-- nur wenn der aktive Story-Beat stattfand -->
+  <promise>Morgen um 10 am Schrein</promise>  <!-- neue Verabredung, optional -->
+  <promise_resolved>Morgen um 10 am Schrein</promise_resolved>  <!-- eingeloest/gebrochen -->
 </scene_status>
 ```
 
@@ -372,8 +402,19 @@ Jeder `game_state.json` enthaelt:
 - **time:** Tag, Stunde, Tageszeit, Rundenzaehler seit letzter Zeitaenderung
 - **current_location / current_background:** Aktueller Ort und Hintergrund-ID
 - **affection:** 5 Zuneigungsfaktoren (je 0.0-100.0) mit gewichtetem Score und Ton
-- **learning:** JLPT-Level, Themen-Mastery-Map, Top-5-Schwachstellen, Interaktionszaehler
-- **conversation_history:** Letzte 20 Gespraechsrunden (werden als Kontext an Claude uebergeben)
+- **learning:** JLPT-Level (abgeleitet), Themen-Mastery-Map (kanonisch), Top-5-Schwachstellen, Interaktionszaehler, Vokabelheft
+- **conversation_history:** Letzte 16 Gespraechsrunden (Kurzzeitkontext fuer Claude; Langzeitkontinuitaet kommt aus den Memories)
+- **memories:** Letzte 12 Szenen-Zusammenfassungen (Langzeitgedaechtnis, je max. 240 Zeichen)
+- **story:** Abgeschlossene Story-Beats
+- **open_promises:** Offene Verabredungen/Versprechen (max. 3, speisen den Zuverlaessigkeits-Faktor)
 - **scene_history:** Letzte 100 gerenderte Szenen (fuer Zurueckblaettern im Frontend)
 - **last_scene:** Zuletzt angezeigte Szene (fuer UI-Wiederherstellung nach Page-Reload)
-- **flags:** Story-Flags fuer zukuenftige Verzweigungen (vorbereitet)
+- **flags:** Story-Flags (werden von der Story-Engine gesetzt und von Beat-Triggern gelesen)
+
+### Token-Budget
+
+Die Erweiterungen sind so gebaut, dass die API-Kosten pro Request gedeckelt bleiben:
+- Alle neuen Prompt-Bloecke (Memories, faellige Vokabeln, Story-Beat) sind **konditional** — leere Bloecke kosten nichts
+- Harte Caps: 12 Memories x 240 Zeichen, max. 5 faellige Vokabeln, genau 1 aktiver Story-Beat (2-4 Saetze), max. 3 offene Versprechen
+- Die Grammatik-Taxonomie im Prompt waechst mit dem Level (N5-Spieler sehen nur die N5-Liste)
+- Gegenfinanzierung: Conversation-History von 20 auf 16 Runden reduziert (die Memories ersetzen die verlorene Kontinuitaet guenstiger)

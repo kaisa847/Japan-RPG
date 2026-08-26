@@ -114,6 +114,11 @@ class SceneStatus(BaseModel):
     time_update: Optional[str] = None
     scene_end: bool = False
     suggested_next: list[str] = []
+    memory: Optional[str] = None
+    new_vocab: list[dict] = []
+    story_flag: Optional[str] = None
+    promise: Optional[str] = None
+    promise_resolved: Optional[str] = None
 
 
 class SceneData(BaseModel):
@@ -298,6 +303,8 @@ class ResponseParser:
 
         data = ResponseParser._parse_xml_tags(status_xml, [
             "time_update", "scene_end", "suggested_next",
+            "memory", "new_vocab", "story_flag",
+            "promise", "promise_resolved",
         ])
 
         time_update = data.get("time_update") or None
@@ -308,11 +315,46 @@ class ResponseParser:
         if raw_next:
             suggested_next = [s.strip() for s in raw_next.split("|") if s.strip()]
 
+        new_vocab = ResponseParser._parse_vocab(data.get("new_vocab", ""))
+
         return SceneStatus(
             time_update=time_update,
             scene_end=scene_end,
             suggested_next=suggested_next,
+            memory=html.unescape(data.get("memory", "").strip()) or None,
+            new_vocab=new_vocab,
+            story_flag=data.get("story_flag", "").strip() or None,
+            promise=html.unescape(data.get("promise", "").strip()) or None,
+            promise_resolved=html.unescape(
+                data.get("promise_resolved", "").strip()
+            ) or None,
         )
+
+    # Vocab item: 言葉[ことば]=Bedeutung  (reading optional)
+    _VOCAB_ITEM_RE = re.compile(
+        r'^\s*(?P<word>[^\[\]=]+?)\s*(?:\[(?P<reading>[^\]]*)\])?\s*=\s*(?P<meaning>.+?)\s*$'
+    )
+
+    @staticmethod
+    def _parse_vocab(raw: str) -> list[dict]:
+        """Parse pipe-separated vocab items: 言葉[ことば]=Wort|駅[えき]=Bahnhof."""
+        items: list[dict] = []
+        raw = html.unescape((raw or "").strip())
+        if not raw:
+            return items
+        for chunk in raw.split("|"):
+            m = ResponseParser._VOCAB_ITEM_RE.match(chunk)
+            if not m:
+                continue
+            word = m.group("word").strip()
+            if not word:
+                continue
+            items.append({
+                "word": word,
+                "reading": (m.group("reading") or "").strip(),
+                "meaning_de": m.group("meaning").strip(),
+            })
+        return items
 
     # --- Helper ---
 
