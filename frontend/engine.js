@@ -399,6 +399,7 @@ class VNEngine {
                 // Load scene history from backend
                 await this._loadSceneHistory();
                 await this._renderScene(state.last_scene, { skipTypewriter: true });
+                if (!state.last_scene.character) this._showNarratorContinue();
                 return true;
             }
         } catch (e) {
@@ -586,6 +587,10 @@ class VNEngine {
             // Handle scene-end choices
             if (sceneData.scene_status && sceneData.scene_status.scene_end) {
                 this._showSceneEndChoices(sceneData.scene_status.suggested_next || []);
+            } else if (!sceneData.character) {
+                // Narrator/transition scene: offer a simple continue button
+                // instead of expecting free text input
+                this._showNarratorContinue();
             }
 
         } catch (error) {
@@ -694,10 +699,33 @@ class VNEngine {
         this.continueButton.style.display = "";
     }
 
+    _showNarratorContinue() {
+        if (!this.sceneEndChoices) return;
+
+        this.sceneEndChoices.innerHTML = "";
+
+        const btn = document.createElement("button");
+        btn.className = "scene-choice-button";
+        btn.textContent = "Weiter ▸";
+        btn.addEventListener("click", () => {
+            this._hideSceneEndChoices();
+            this.sendInput("(Weiter)");
+        });
+        this.sceneEndChoices.appendChild(btn);
+
+        // Unlike scene-end choices, keep the text input available —
+        // the player may still want to type something instead.
+        this.sceneEndChoices.classList.remove("hidden");
+    }
+
     // --- Scene Rendering ---
 
     async _renderScene(sceneData, { skipTypewriter = false } = {}) {
         this.currentScene = sceneData;
+
+        // Translation defaults to hidden for every new text — revealing it
+        // is a per-scene decision, not a sticky setting (learning aid).
+        this._resetTranslation();
 
         if (sceneData.background) {
             await this._transitionBackground(sceneData.background);
@@ -837,6 +865,13 @@ class VNEngine {
         this.translationText.classList.toggle("hidden", !this.showTranslation);
         this.translationToggle.classList.toggle("active", this.showTranslation);
         this.toolbarTranslationToggle.classList.toggle("active", this.showTranslation);
+    }
+
+    _resetTranslation() {
+        this.showTranslation = false;
+        this.translationText.classList.add("hidden");
+        this.translationToggle.classList.remove("active");
+        this.toolbarTranslationToggle.classList.remove("active");
     }
 
     _toggleFurigana() {
@@ -1188,6 +1223,7 @@ class VNEngine {
 
             if (state.last_scene) {
                 await this._renderScene(state.last_scene, { skipTypewriter: true });
+                if (!state.last_scene.character) this._showNarratorContinue();
             }
         } catch (e) {
             console.error("[VNEngine] Load failed:", e);
