@@ -1,7 +1,7 @@
 /* ============================================================
    Japanese Life: Tokyo Stories — UI
-   Design language: "Ink & Vermilion"
-   Deep ink panels, one warm vermilion accent, quiet controls.
+   Design language: "Ink & Sakura"
+   Deep ink panels, one soft sakura accent, quiet controls.
    ============================================================ */
 
 :root {
@@ -16,10 +16,10 @@
     --text-soft: #b9b6ac;
     --text-dim: #7e7d88;
 
-    --accent: #e2634a;          /* vermilion (朱) */
-    --accent-strong: #ef7258;
-    --accent-tint: rgba(226, 99, 74, 0.16);
-    --accent-border: rgba(226, 99, 74, 0.45);
+    --accent: #d97a8e;          /* sakura (桜) */
+    --accent-strong: #e893a5;
+    --accent-tint: rgba(217, 122, 142, 0.15);
+    --accent-border: rgba(217, 122, 142, 0.45);
 
     --gold: #d9b36a;            /* hints & narrator */
     --gold-tint: rgba(217, 179, 106, 0.12);
@@ -298,7 +298,7 @@ button {
     padding: 4px 16px;
     border-radius: 999px;
     letter-spacing: 0.8px;
-    box-shadow: 0 3px 12px rgba(226, 99, 74, 0.35);
+    box-shadow: 0 3px 12px rgba(217, 122, 142, 0.35);
 }
 
 #character-name:empty {
@@ -473,7 +473,7 @@ rt {
     background: var(--accent);
     border: none;
     color: #fff;
-    box-shadow: 0 4px 14px rgba(226, 99, 74, 0.35);
+    box-shadow: 0 4px 14px rgba(217, 122, 142, 0.35);
 }
 
 #send-button svg {
@@ -1204,7 +1204,7 @@ rt {
     align-items: center;
     justify-content: center;
     background:
-        radial-gradient(ellipse at 20% 0%, rgba(226, 99, 74, 0.13), transparent 55%),
+        radial-gradient(ellipse at 20% 0%, rgba(217, 122, 142, 0.13), transparent 55%),
         radial-gradient(ellipse at 90% 100%, rgba(106, 130, 217, 0.10), transparent 55%),
         var(--ink-page);
 }
@@ -1283,7 +1283,7 @@ rt {
     transition: background 150ms;
     margin-top: 8px;
     letter-spacing: 0.5px;
-    box-shadow: 0 4px 16px rgba(226, 99, 74, 0.3);
+    box-shadow: 0 4px 16px rgba(217, 122, 142, 0.3);
 }
 
 .login-button:hover {
