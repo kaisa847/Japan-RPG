@@ -8,9 +8,21 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from backend.grammar_taxonomy import estimate_jlpt, normalize_topic
+
 logger = logging.getLogger(__name__)
 
 MAX_SCENE_HISTORY = 100
+# Long-term memory: rolling list of short scene summaries
+MAX_MEMORIES = 12
+MAX_MEMORY_CHARS = 240
+# Vocabulary notebook limits
+MAX_VOCAB_ENTRIES = 300
+VOCAB_STRENGTH_INITIAL = 0.1
+VOCAB_STRENGTH_INCREMENT = 0.15
+VOCAB_DUE_THRESHOLD = 0.8
+# Open promises (appointments etc.) tracked for the reliability factor
+MAX_OPEN_PROMISES = 3
 
 # --- Time helpers ---
 
@@ -42,11 +54,36 @@ class TopicMastery(BaseModel):
     last_seen: str = ""
 
 
+class VocabEntry(BaseModel):
+    word: str = ""
+    reading: str = ""
+    meaning_de: str = ""
+    strength: float = Field(default=VOCAB_STRENGTH_INITIAL, ge=0.0, le=1.0)
+    times_seen: int = 1
+    first_seen_day: int = 1
+    last_seen_day: int = 1
+
+
 class PlayerLearningProfile(BaseModel):
     overall_level: str = "N5"
     topics: dict[str, TopicMastery] = {}
     weak_points: list[str] = []
     total_interactions: int = 0
+    vocab: dict[str, VocabEntry] = {}
+
+
+class MemoryEntry(BaseModel):
+    day: int = 1
+    text: str = ""
+
+
+class StoryState(BaseModel):
+    completed_beats: list[str] = []
+
+
+class Promise(BaseModel):
+    text: str = ""
+    created_day: int = 1
 
 
 class AoiAffection(BaseModel):
@@ -120,6 +157,9 @@ class GameState(BaseModel):
     scene_history: list[dict] = []
     last_scene: Optional[dict] = None
     flags: dict[str, bool] = {}
+    memories: list[MemoryEntry] = []
+    story: StoryState = Field(default_factory=StoryState)
+    open_promises: list[Promise] = []
     last_updated: str = ""
     turns_since_time_advance: int = 0
 
@@ -143,7 +183,9 @@ class StateManager:
     STATE_FILE = "game_state.json"
     SESSION_LOG_FILE = "session_log.json"
     SAVES_DIR = "saves"
-    MAX_CONVERSATION_HISTORY = 20
+    # 8 exchanges of short-term context; long-term continuity comes from
+    # the episodic memory summaries (cheaper in tokens than raw history).
+    MAX_CONVERSATION_HISTORY = 16
     MAX_SAVE_SLOTS = 9
 
     def __init__(self, data_dir: str = "data"):
@@ -249,8 +291,10 @@ class StateManager:
 
         self.state.learning.total_interactions += 1
 
-        # Update topic mastery
-        topic = analysis_data.get("grammar_topic")
+        # Update topic mastery (canonical taxonomy only — free-form
+        # topic names that don't match are dropped to avoid fragmenting
+        # the mastery map)
+        topic = normalize_topic(analysis_data.get("grammar_topic"))
         if topic:
             delta = analysis_data.get("mastery_delta", 0.0)
             if topic not in self.state.learning.topics:
@@ -259,6 +303,10 @@ class StateManager:
             tm.mastery = max(0.0, min(1.0, tm.mastery + delta))
             tm.attempts += 1
             tm.last_seen = datetime.now(timezone.utc).isoformat()
+            # Re-derive the JLPT estimate from canonical mastery
+            self.state.learning.overall_level = estimate_jlpt(
+                self.state.learning.topics
+            )
 
         # Update affection factors (clamped & damped)
         affection_fields = [
@@ -313,6 +361,104 @@ class StateManager:
             self.state.time.advance_hours(1)
             self.state.turns_since_time_advance = 0
 
+    # --- Episodic Memory ---
+
+    def add_memory(self, text: str) -> None:
+        """Store a short scene summary as long-term memory (rolling cap)."""
+        text = (text or "").strip()
+        if not text:
+            return
+        if len(text) > MAX_MEMORY_CHARS:
+            text = text[: MAX_MEMORY_CHARS - 1].rstrip() + "…"
+        self.state.memories.append(
+            MemoryEntry(day=self.state.time.day, text=text)
+        )
+        if len(self.state.memories) > MAX_MEMORIES:
+            self.state.memories = self.state.memories[-MAX_MEMORIES:]
+
+    # --- Vocabulary Notebook ---
+
+    def process_vocab(self, entries: list[dict]) -> None:
+        """Register new/repeated vocabulary from a scene.
+
+        Re-encountering a known word strengthens it — recycling due
+        words through the dialog acts as hidden spaced repetition.
+        """
+        vocab = self.state.learning.vocab
+        day = self.state.time.day
+        for entry in entries:
+            word = (entry.get("word") or "").strip()
+            if not word:
+                continue
+            if word in vocab:
+                v = vocab[word]
+                v.strength = min(1.0, v.strength + VOCAB_STRENGTH_INCREMENT)
+                v.times_seen += 1
+                v.last_seen_day = day
+                if entry.get("reading") and not v.reading:
+                    v.reading = entry["reading"].strip()
+                if entry.get("meaning_de") and not v.meaning_de:
+                    v.meaning_de = entry["meaning_de"].strip()
+                continue
+            if len(vocab) >= MAX_VOCAB_ENTRIES:
+                # Evict the strongest (= best learned) entry to make room
+                strongest = max(vocab.values(), key=lambda v: v.strength)
+                if strongest.strength < 0.9:
+                    continue  # notebook full of unlearned words: skip new
+                del vocab[strongest.word]
+            vocab[word] = VocabEntry(
+                word=word,
+                reading=(entry.get("reading") or "").strip(),
+                meaning_de=(entry.get("meaning_de") or "").strip(),
+                first_seen_day=day,
+                last_seen_day=day,
+            )
+
+    def get_due_vocab(self, limit: int = 5) -> list[VocabEntry]:
+        """Weakest, longest-unseen words that should be recycled soon."""
+        due = [
+            v for v in self.state.learning.vocab.values()
+            if v.strength < VOCAB_DUE_THRESHOLD
+            and v.last_seen_day < self.state.time.day
+        ]
+        due.sort(key=lambda v: (v.strength, v.last_seen_day))
+        return due[:limit]
+
+    # --- Promises (reliability system) ---
+
+    def add_promise(self, text: str) -> None:
+        text = (text or "").strip()
+        if not text:
+            return
+        # Avoid duplicates of the same promise text
+        if any(p.text == text for p in self.state.open_promises):
+            return
+        self.state.open_promises.append(
+            Promise(text=text, created_day=self.state.time.day)
+        )
+        if len(self.state.open_promises) > MAX_OPEN_PROMISES:
+            self.state.open_promises = self.state.open_promises[-MAX_OPEN_PROMISES:]
+
+    def resolve_promise(self, text: str) -> bool:
+        """Remove a promise by (fuzzy) text match. Returns True if removed."""
+        text = (text or "").strip().lower()
+        if not text:
+            return False
+        for i, p in enumerate(self.state.open_promises):
+            pt = p.text.lower()
+            if text == pt or text in pt or pt in text:
+                del self.state.open_promises[i]
+                return True
+        return False
+
+    # --- Story ---
+
+    def complete_story_beat(self, beat_id: str, sets_flag: str) -> None:
+        if beat_id not in self.state.story.completed_beats:
+            self.state.story.completed_beats.append(beat_id)
+        if sets_flag:
+            self.state.flags[sets_flag] = True
+
     def _update_weak_points(self) -> None:
         """Recalculate the top-5 weakest topics."""
         if not self.state.learning.topics:
@@ -340,6 +486,11 @@ class StateManager:
             lines.append(f"Schwächen: {', '.join(s.learning.weak_points)}")
         lines.append(f"JLPT-Schätzung: {s.learning.overall_level}")
         lines.append(f"Interaktionen: {s.learning.total_interactions}")
+        if s.open_promises:
+            promises = "; ".join(
+                f"{p.text} (Tag {p.created_day})" for p in s.open_promises
+            )
+            lines.append(f"Offene Versprechen/Verabredungen: {promises}")
         return "\n".join(lines)
 
     def get_state_dict(self) -> dict:

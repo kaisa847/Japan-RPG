@@ -59,8 +59,8 @@ class TestStateManager:
         sm = StateManager(data_dir=str(tmp_data_dir))
         for i in range(30):
             sm.add_conversation_turn("user", f"message {i}")
-        assert len(sm.state.conversation_history) == 20
-        assert sm.state.conversation_history[0]["content"] == "message 10"
+        assert len(sm.state.conversation_history) == 16
+        assert sm.state.conversation_history[0]["content"] == "message 14"
 
     def test_update_from_scene(self, tmp_data_dir):
         sm = StateManager(data_dir=str(tmp_data_dir))
@@ -250,33 +250,46 @@ class TestProcessAnalysis:
     def test_creates_new_topic(self, tmp_data_dir):
         sm = StateManager(data_dir=str(tmp_data_dir))
         sm.process_analysis({
-            "grammar_topic": "te_form",
+            "grammar_topic": "て-Form",
             "mastery_delta": 0.15,
         })
-        assert "te_form" in sm.state.learning.topics
-        tm = sm.state.learning.topics["te_form"]
+        assert "て-Form" in sm.state.learning.topics
+        tm = sm.state.learning.topics["て-Form"]
         assert tm.mastery == pytest.approx(0.15)
         assert tm.attempts == 1
         assert tm.last_seen != ""
 
+    def test_free_form_topic_normalized(self, tmp_data_dir):
+        """Free-form variants map onto the canonical taxonomy entry."""
+        sm = StateManager(data_dir=str(tmp_data_dir))
+        sm.process_analysis({"grammar_topic": "te-form", "mastery_delta": 0.1})
+        assert "て-Form" in sm.state.learning.topics
+        assert "te-form" not in sm.state.learning.topics
+
+    def test_unknown_topic_dropped(self, tmp_data_dir):
+        """Topics outside the taxonomy are dropped, not stored."""
+        sm = StateManager(data_dir=str(tmp_data_dir))
+        sm.process_analysis({"grammar_topic": "greetings", "mastery_delta": 0.1})
+        assert sm.state.learning.topics == {}
+
     def test_accumulates_mastery(self, tmp_data_dir):
         sm = StateManager(data_dir=str(tmp_data_dir))
-        sm.process_analysis({"grammar_topic": "particles", "mastery_delta": 0.3})
-        sm.process_analysis({"grammar_topic": "particles", "mastery_delta": 0.2})
-        tm = sm.state.learning.topics["particles"]
+        sm.process_analysis({"grammar_topic": "Partikel は", "mastery_delta": 0.3})
+        sm.process_analysis({"grammar_topic": "Partikel は", "mastery_delta": 0.2})
+        tm = sm.state.learning.topics["Partikel は"]
         assert tm.mastery == pytest.approx(0.5)
         assert tm.attempts == 2
 
     def test_mastery_clamped_to_1(self, tmp_data_dir):
         sm = StateManager(data_dir=str(tmp_data_dir))
-        sm.process_analysis({"grammar_topic": "greetings", "mastery_delta": 1.5})
-        assert sm.state.learning.topics["greetings"].mastery == 1.0
+        sm.process_analysis({"grammar_topic": "て-Form", "mastery_delta": 1.5})
+        assert sm.state.learning.topics["て-Form"].mastery == 1.0
 
     def test_mastery_clamped_to_0(self, tmp_data_dir):
         sm = StateManager(data_dir=str(tmp_data_dir))
-        sm.process_analysis({"grammar_topic": "greetings", "mastery_delta": 0.3})
-        sm.process_analysis({"grammar_topic": "greetings", "mastery_delta": -0.5})
-        assert sm.state.learning.topics["greetings"].mastery == 0.0
+        sm.process_analysis({"grammar_topic": "て-Form", "mastery_delta": 0.3})
+        sm.process_analysis({"grammar_topic": "て-Form", "mastery_delta": -0.5})
+        assert sm.state.learning.topics["て-Form"].mastery == 0.0
 
     def test_updates_affection(self, tmp_data_dir):
         """Deltas are clamped to ±1 and damped by 0.5, so +5 → +0.5, -2 → -0.5."""
@@ -313,15 +326,15 @@ class TestProcessAnalysis:
     def test_weak_points_calculated(self, tmp_data_dir):
         sm = StateManager(data_dir=str(tmp_data_dir))
         # Create topics with varying mastery
-        sm.process_analysis({"grammar_topic": "greetings", "mastery_delta": 0.9})
-        sm.process_analysis({"grammar_topic": "particles", "mastery_delta": 0.1})
-        sm.process_analysis({"grammar_topic": "te_form", "mastery_delta": 0.3})
-        sm.process_analysis({"grammar_topic": "counting", "mastery_delta": 0.05})
+        sm.process_analysis({"grammar_topic": "Partikel は", "mastery_delta": 0.9})
+        sm.process_analysis({"grammar_topic": "Partikel が", "mastery_delta": 0.1})
+        sm.process_analysis({"grammar_topic": "て-Form", "mastery_delta": 0.3})
+        sm.process_analysis({"grammar_topic": "Zahlen und Zählwörter", "mastery_delta": 0.05})
 
         weak = sm.state.learning.weak_points
         assert len(weak) == 4
-        # counting (0.05) should be first (weakest)
-        assert weak[0] == "counting"
+        # Zahlen und Zählwörter (0.05) should be first (weakest)
+        assert weak[0] == "Zahlen und Zählwörter"
 
 
 class TestProcessTimeUpdate:

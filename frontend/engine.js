@@ -570,6 +570,7 @@ class VNEngine {
             // Cache affection, learning, time data from response
             if (sceneData.aoi_affection) this.lastAffection = sceneData.aoi_affection;
             if (sceneData.time) this.lastTime = sceneData.time;
+            if (sceneData.learning) this.lastLearning = sceneData.learning;
 
             // Update HUD
             this._updateHUD(sceneData.time, sceneData.aoi_affection);
@@ -1418,6 +1419,7 @@ class VNEngine {
             msg.className = "stats-empty-message";
             msg.textContent = "Noch keine Grammatik-Themen geübt.";
             section.appendChild(msg);
+            this._renderVocabStats(section, learning);
             return;
         }
 
@@ -1452,6 +1454,66 @@ class VNEngine {
             row.appendChild(valueSpan);
 
             section.appendChild(row);
+        }
+
+        this._renderVocabStats(section, learning);
+    }
+
+    _renderVocabStats(section, learning) {
+        const vocab = (learning && learning.vocab) || {};
+        const entries = Object.values(vocab);
+
+        const heading = document.createElement("h3");
+        heading.textContent = `Vokabelheft (${entries.length})`;
+        heading.style.marginTop = "1em";
+        section.appendChild(heading);
+
+        if (entries.length === 0) {
+            const msg = document.createElement("div");
+            msg.className = "stats-empty-message";
+            msg.textContent = "Noch keine Vokabeln gesammelt.";
+            section.appendChild(msg);
+            return;
+        }
+
+        // Weakest words first (they are due for review), max 25 shown
+        entries.sort((a, b) => (a.strength || 0) - (b.strength || 0));
+
+        for (const v of entries.slice(0, 25)) {
+            const strength = Math.min(1, Math.max(0, v.strength || 0));
+            const pct = (strength * 100).toFixed(0);
+
+            const row = document.createElement("div");
+            row.className = "stats-topic";
+
+            const nameSpan = document.createElement("span");
+            nameSpan.className = "stats-topic-name";
+            nameSpan.title = v.meaning_de || "";
+            nameSpan.textContent = v.reading ? `${v.word}（${v.reading}）` : v.word;
+            row.appendChild(nameSpan);
+
+            const meaningSpan = document.createElement("span");
+            meaningSpan.className = "stats-topic-name";
+            meaningSpan.style.opacity = "0.75";
+            meaningSpan.textContent = v.meaning_de || "";
+            row.appendChild(meaningSpan);
+
+            const barDiv = document.createElement("div");
+            barDiv.className = "stats-topic-bar";
+            const fillDiv = document.createElement("div");
+            fillDiv.className = "stats-topic-fill";
+            fillDiv.style.width = `${pct}%`;
+            barDiv.appendChild(fillDiv);
+            row.appendChild(barDiv);
+
+            section.appendChild(row);
+        }
+
+        if (entries.length > 25) {
+            const more = document.createElement("div");
+            more.className = "stats-empty-message";
+            more.textContent = `… und ${entries.length - 25} weitere`;
+            section.appendChild(more);
         }
     }
 

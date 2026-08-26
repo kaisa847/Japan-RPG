@@ -8,6 +8,7 @@ from pathlib import Path
 
 from anthropic import AsyncAnthropic, APIError, APITimeoutError, RateLimitError
 
+from backend.grammar_taxonomy import taxonomy_for_level
 from backend.response_parser import ResponseParser, SceneData, CHARACTER_EXPRESSIONS
 
 logger = logging.getLogger(__name__)
@@ -28,7 +29,10 @@ AKTUELLER AOI-TON: {aoi_tone}
 SPIELER-SCHWÄCHEN:
 {weak_points_info}
 
-Du MUSST im folgenden XML-Format antworten:
+SPRACHNIVEAU ({jlpt_level}):
+{level_rules}
+
+{memory_block}{vocab_block}{story_block}Du MUSST im folgenden XML-Format antworten:
 
 <scene>
   <character>aoi</character>
@@ -52,6 +56,11 @@ Du MUSST im folgenden XML-Format antworten:
   <time_update>+1h oder next_day oder leer</time_update>
   <scene_end>true oder false</scene_end>
   <suggested_next>ort1|ort2 (nur bei scene_end=true)</suggested_next>
+  <memory>Nur bei scene_end=true: 1-2 Sätze auf Deutsch, was in dieser Szene passiert ist</memory>
+  <new_vocab>言葉[ことば]=Bedeutung|駅[えき]=Bahnhof (0-3 neue/wiederholte Vokabeln, sonst leer)</new_vocab>
+  <story_flag>flag_name (NUR wenn der aktuelle Story-Beat stattgefunden hat, sonst weglassen)</story_flag>
+  <promise>Kurzbeschreibung, wenn eine konkrete Verabredung/ein Versprechen entstanden ist</promise>
+  <promise_resolved>Text des Versprechens, wenn es eingelöst oder gebrochen wurde</promise_resolved>
 </scene_status>
 
 VERFÜGBARE EXPRESSIONS FÜR AOI:
@@ -109,6 +118,8 @@ REGELN:
 - Passe Aois Verhalten an ihren aktuellen Zuneigungston an
 - Wenn der Spieler Schwächen hat, baue diese Themen gezielt in den Dialog ein
 - ANALYSIS: Bewerte JEDE Interaktion. Gib mastery_delta nur wenn ein Grammatik-Thema relevant ist.
+  grammar_topic MUSS exakt einer dieser kanonischen Bezeichnungen entsprechen (sonst weglassen):
+  {grammar_taxonomy}
   Affection-Werte: NUR -1, -0.5, 0, +0.5 oder +1 pro Faktor. Vergib 0 wenn keine Änderung.
   +1 ist das Maximum und nur bei wirklich besonderen Momenten gerechtfertigt.
   Die meisten Interaktionen sollten 0 oder +0.5 in höchstens 1-2 Faktoren ergeben.
@@ -120,6 +131,21 @@ REGELN:
   * Während einer laufenden Szene: "+1h" nach ca. 4-6 Gesprächsrunden setzen, damit die Zeit realistisch vergeht.
   * "next_day" nur für Tageswechsel (z.B. "Lass uns morgen weitermachen").
   * NIEMALS leer lassen! Wenn du unsicher bist, setze mindestens "+1h".
+- MEMORY: Bei scene_end=true ist <memory> PFLICHT: Fasse in 1-2 deutschen Sätzen zusammen,
+  was in der Szene passiert ist (Ereignisse, wichtige persönliche Infos, Stimmung).
+  Diese Zusammenfassungen sind Aois Langzeitgedächtnis — schreibe sie so, dass sie später
+  als Erinnerung nützlich sind. Während laufender Szenen: <memory> weglassen.
+- NEW_VOCAB: Wenn im Dialog neue oder wiederholte Lernvokabeln vorkommen, liste MAXIMAL 3
+  im Format 言葉[よみ]=deutsche Bedeutung, mit | getrennt. Nur wirklich nützliche Alltagswörter,
+  keine Partikeln oder Namen. Wenn nichts Neues vorkommt: Tag leer lassen oder weglassen.
+- VOKABEL-WIEDERHOLUNG: Wenn oben fällige Vokabeln gelistet sind, webe 1-2 davon natürlich in
+  Aois Dialog ein — oder lass Aoi spielerisch nachfragen ("weißt du noch, was ... heißt?").
+  Nicht mehr als eine Abfrage pro Szene, es soll ein Gespräch bleiben, kein Vokabeltest.
+- PROMISE: Wenn im Gespräch eine KONKRETE Verabredung oder ein Versprechen entsteht
+  (z.B. "morgen um 10 am Schrein", "ich bringe dir das Foto mit"), setze <promise>.
+  Wenn ein offenes Versprechen (siehe Spielstand) eingelöst wird, setze <promise_resolved>
+  und belohne affection_reliability (+0.5 oder +1). Wird es vergessen oder gebrochen,
+  setze ebenfalls <promise_resolved> und gib affection_reliability -0.5 oder -1.
 """
 
 DEFAULT_PREMISE = """\
@@ -127,6 +153,29 @@ Der Spieler heißt {player_name} und ist auf einem Sabbatical in Shimokitazawa, 
 Er hat Aoi (林あおい) online in einem Sprachaustausch-Forum kennengelernt.
 Heute treffen sie sich zum ersten Mal persönlich. Aoi zeigt {player_name} die Gegend \
 und hilft ihm, sein Japanisch in echten Alltagssituationen zu verbessern."""
+
+# Register/difficulty rules per estimated JLPT level. Resolves the conflict
+# between Aoi's character (casual + dialect) and learner level: at N5 she
+# deliberately speaks simply and TEACHES casual forms instead of just using
+# them — that fits her character (she loves teaching Japanese).
+LEVEL_RULES = {
+    "N5": (
+        "- Kurze, einfache Sätze (max. ~12 Wörter), Grundwortschatz, klare です/ます-nahe Sprache.\n"
+        "- Aoi darf einzelne Casual-Ausdrücke benutzen, erklärt sie dann aber kurz und begeistert "
+        "(sie liebt es zu unterrichten). KEIN unkommentierter Slang oder Dialekt.\n"
+        "- Höchstens 1 neues Grammatik-Muster pro Szene."
+    ),
+    "N4": (
+        "- Natürliche, aber noch übersichtliche Sätze. Casual Speech ist jetzt Standard bei Aoi.\n"
+        "- Slang und Saitama-Dialekt sparsam und mit kurzer Erklärung beim ersten Auftreten.\n"
+        "- Baue gezielt N4-Grammatik ein (Konditionale, Potenzialform, あげる/くれる/もらう)."
+    ),
+    "N3": (
+        "- Natürliches Japanisch in normalem Tempo, Casual Speech, Dialekt und Slang erlaubt.\n"
+        "- Erkläre nur noch wirklich seltene Ausdrücke.\n"
+        "- Fordere den Spieler: längere Antworten, Nuancen, indirekte Ausdrucksweisen."
+    ),
+}
 
 TONE_DESCRIPTIONS = {
     "distant": "Aoi ist höflich aber zurückhaltend. Sie verwendet keigo und hält Distanz. Sie kennt {player_name} kaum.",
@@ -192,6 +241,10 @@ class ClaudeHandler:
         weak_points: list[str] | None = None,
         player_name: str = "Spieler",
         custom_premise: str | None = None,
+        jlpt_level: str = "N5",
+        memories: list[dict] | None = None,
+        due_vocab: list[dict] | None = None,
+        story_beat_block: str | None = None,
     ) -> str:
         aoi_expressions = ", ".join(CHARACTER_EXPRESSIONS.get("aoi", ["neutral"]))
         tone_desc = TONE_DESCRIPTIONS.get(aoi_tone, TONE_DESCRIPTIONS["neutral"])
@@ -206,12 +259,49 @@ class ClaudeHandler:
 
         premise = custom_premise if custom_premise else DEFAULT_PREMISE.format(player_name=player_name)
 
+        level_rules = LEVEL_RULES.get(jlpt_level, LEVEL_RULES["N5"])
+        grammar_taxonomy = ", ".join(taxonomy_for_level(jlpt_level))
+
+        # Conditional blocks: omitted entirely when empty to save tokens.
+        memory_block = ""
+        if memories:
+            mem_lines = "\n".join(
+                f"- Tag {m['day']}: {m['text']}" for m in memories
+            )
+            memory_block = (
+                "LANGZEIT-ERINNERUNGEN (was bisher geschah — beziehe dich "
+                "natürlich darauf, Aoi erinnert sich an alles hier):\n"
+                f"{mem_lines}\n\n"
+            )
+
+        vocab_block = ""
+        if due_vocab:
+            vocab_lines = " | ".join(
+                f"{v['word']}[{v['reading']}]={v['meaning_de']}" if v.get("reading")
+                else f"{v['word']}={v['meaning_de']}"
+                for v in due_vocab
+            )
+            vocab_block = (
+                "FÄLLIGE VOKABELN (zum natürlichen Wiederholen, siehe Regel "
+                f"VOKABEL-WIEDERHOLUNG): {vocab_lines}\n\n"
+            )
+
+        story_block = ""
+        if story_beat_block:
+            story_block = f"{story_beat_block}\n\n"
+
         return SYSTEM_PROMPT_TEMPLATE.format(
             premise=premise,
             character_info=self.aoi_sheet,
             aoi_tone=aoi_tone,
             tone_description=tone_desc,
             weak_points_info=weak_points_info,
+            jlpt_level=jlpt_level,
+            level_rules=level_rules,
+            grammar_taxonomy=grammar_taxonomy,
+            memory_block=memory_block,
+            vocab_block=vocab_block,
+            story_block=story_block,
             aoi_expressions=aoi_expressions,
             available_backgrounds=backgrounds,
             game_state_summary=game_state_summary,
@@ -247,10 +337,16 @@ class ClaudeHandler:
         weak_points: list[str] | None = None,
         player_name: str = "Spieler",
         custom_premise: str | None = None,
+        jlpt_level: str = "N5",
+        memories: list[dict] | None = None,
+        due_vocab: list[dict] | None = None,
+        story_beat_block: str | None = None,
     ) -> SceneData:
         system_prompt = self._build_system_prompt(
             game_state_summary, aoi_tone, weak_points,
             player_name=player_name, custom_premise=custom_premise,
+            jlpt_level=jlpt_level, memories=memories,
+            due_vocab=due_vocab, story_beat_block=story_beat_block,
         )
 
         messages = []
@@ -284,12 +380,18 @@ class ClaudeHandler:
         weak_points: list[str] | None = None,
         player_name: str = "Spieler",
         custom_premise: str | None = None,
+        jlpt_level: str = "N5",
+        memories: list[dict] | None = None,
+        due_vocab: list[dict] | None = None,
+        story_beat_block: str | None = None,
     ) -> SceneData:
         try:
             return await self.generate_scene(
                 user_input, game_state_summary, conversation_history,
                 aoi_tone, weak_points, player_name=player_name,
                 custom_premise=custom_premise,
+                jlpt_level=jlpt_level, memories=memories,
+                due_vocab=due_vocab, story_beat_block=story_beat_block,
             )
         except APITimeoutError:
             logger.error("Claude API timeout")
