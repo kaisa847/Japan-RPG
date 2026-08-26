@@ -28,18 +28,11 @@ class VNEngine {
         // Scene-end choices
         this.sceneEndChoices = document.getElementById("scene-end-choices");
 
-        // Toolbar buttons
+        // Navigation buttons (HUD + textbox header)
         this.backButton = document.getElementById("back-button");
         this.historyButton = document.getElementById("history-button");
         this.menuButton = document.getElementById("menu-button");
         this.statsButton = document.getElementById("stats-button");
-
-        // Mobile toolbar
-        this.mobileToolbar = document.getElementById("mobile-toolbar");
-        this.toolbarToggle = document.getElementById("toolbar-toggle");
-        this.toolbarFuriganaToggle = document.getElementById("toolbar-furigana-toggle");
-        this.toolbarTranslationToggle = document.getElementById("toolbar-translation-toggle");
-        this.toolbarHintToggle = document.getElementById("toolbar-hint-toggle");
 
         // Name entry overlay
         this.nameEntryOverlay = document.getElementById("name-entry-overlay");
@@ -80,7 +73,6 @@ class VNEngine {
 
         // Voice toggle buttons
         this.voiceToggle = document.getElementById("voice-toggle");
-        this.toolbarVoiceToggle = document.getElementById("toolbar-voice-toggle");
 
         // State
         this.currentScene = null;
@@ -112,9 +104,8 @@ class VNEngine {
         this._lastTTSText = null;
         this._lastTTSExpression = null;
 
-        // Voice replay buttons
+        // Voice replay button
         this.voiceReplay = document.getElementById("voice-replay");
-        this.toolbarVoiceReplay = document.getElementById("toolbar-voice-replay");
 
         this._bindEvents();
         this._init();
@@ -440,19 +431,9 @@ class VNEngine {
         this.menuButton.addEventListener("click", () => this._openMenu());
         this.statsButton.addEventListener("click", () => this._openStats());
 
-        // Mobile toolbar toggle
-        this.toolbarToggle.addEventListener("click", () => this._toggleMobileToolbar());
-
-        // Mobile toolbar duplicate toggle buttons (synced with header toggles)
-        this.toolbarFuriganaToggle.addEventListener("click", () => this._toggleFurigana());
-        this.toolbarTranslationToggle.addEventListener("click", () => this._toggleTranslation());
-        this.toolbarHintToggle.addEventListener("click", () => this._toggleHints());
-
         // Voice toggle & replay
         this.voiceToggle.addEventListener("click", () => this._toggleVoice());
-        this.toolbarVoiceToggle.addEventListener("click", () => this._toggleVoice());
         this.voiceReplay.addEventListener("click", () => this._replayTTS());
-        this.toolbarVoiceReplay.addEventListener("click", () => this._replayTTS());
 
         // Keyboard detection via visualViewport API
         this._initKeyboardDetection();
@@ -508,8 +489,6 @@ class VNEngine {
         // Furigana and hints are on by default
         this.furiganaToggle.classList.add("active");
         this.hintToggle.classList.add("active");
-        this.toolbarFuriganaToggle.classList.add("active");
-        this.toolbarHintToggle.classList.add("active");
         this._syncVoiceToggleUI();
         this._updateBackButton();
     }
@@ -864,27 +843,23 @@ class VNEngine {
         this.showTranslation = !this.showTranslation;
         this.translationText.classList.toggle("hidden", !this.showTranslation);
         this.translationToggle.classList.toggle("active", this.showTranslation);
-        this.toolbarTranslationToggle.classList.toggle("active", this.showTranslation);
     }
 
     _resetTranslation() {
         this.showTranslation = false;
         this.translationText.classList.add("hidden");
         this.translationToggle.classList.remove("active");
-        this.toolbarTranslationToggle.classList.remove("active");
     }
 
     _toggleFurigana() {
         this.showFurigana = !this.showFurigana;
         this._applyFuriganaVisibility();
         this.furiganaToggle.classList.toggle("active", this.showFurigana);
-        this.toolbarFuriganaToggle.classList.toggle("active", this.showFurigana);
     }
 
     _toggleHints() {
         this.showHints = !this.showHints;
         this.hintToggle.classList.toggle("active", this.showHints);
-        this.toolbarHintToggle.classList.toggle("active", this.showHints);
         // Immediately show/hide current hint
         if (this.errorCorrectionHint) {
             const hasContent = this.errorCorrectionHint.textContent.trim() !== "";
@@ -907,15 +882,11 @@ class VNEngine {
     _syncVoiceToggleUI() {
         const active = this.ttsEnabled && this.ttsAvailable;
         this.voiceToggle.classList.toggle("active", active);
-        this.toolbarVoiceToggle.classList.toggle("active", active);
-        // Use different speaker icons: on vs off
-        const icon = active ? "\u{1F50A}" : "\u{1F507}";
-        this.voiceToggle.innerHTML = icon;
-        this.toolbarVoiceToggle.innerHTML = icon;
+        // Muted state hides the sound waves in the SVG icon (see CSS)
+        this.voiceToggle.classList.toggle("muted", !active);
         // Show/hide replay button
         const showReplay = active && this._lastTTSText;
         this.voiceReplay.classList.toggle("hidden", !showReplay);
-        this.toolbarVoiceReplay.classList.toggle("hidden", !showReplay);
     }
 
     _toggleVoice() {
@@ -1033,13 +1004,6 @@ class VNEngine {
             }
             this._currentSource = null;
         }
-    }
-
-    // --- Mobile Toolbar ---
-
-    _toggleMobileToolbar() {
-        this.mobileToolbar.classList.toggle("collapsed");
-        this.toolbarToggle.classList.toggle("active", !this.mobileToolbar.classList.contains("collapsed"));
     }
 
     _initKeyboardDetection() {
