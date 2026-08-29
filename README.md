@@ -73,8 +73,11 @@ Affection-Deltas pro Interaktion werden auf +/-1 geclampt und mit Faktor 0.5 ged
 
 ### Visual Novel Engine
 - **Typewriter-Effekt:** Dialog erscheint Zeichen fuer Zeichen (30ms pro Zeichen)
-- **12 Charakter-Ausdruecke:** neutral, happy, excited, curious, talking, laughing, surprised, thinking, embarrassed, determined, worried, sleepy
-- **16 Hintergruende:** Orte in Shimokitazawa und Umgebung
+- **Sprite-Baukasten (Layered Sprites):** Charaktere mit `manifest.json` werden aus zwei Ebenen komponiert — Pose-Koerper + Gesichts-Patch am definierten Anker. 6 Posen + 17 Gesichter ergeben so ueber 100 Kombinationen aus 23 Assets. Ohne Manifest greift der Legacy-Modus (ein Sprite pro Expression). Details: `docs/ASSET_PIPELINE.md`
+- **Posen:** stand, wave, arms_crossed, hands_clasped, pointing, phone — die KI waehlt per `<pose>`-Tag passend zur Koerpersprache
+- **Staging:** `<staging>`-Tag fuer Inszenierung: Position (left/center/right) und Nahaufnahme (near), animiert
+- **Blinzeln:** Bei Manifest mit `blink_face` blinzelt der Charakter alle 2,5-6s — Gesichtswechsel bei gleicher Pose sind schnelle Patch-Crossfades
+- **16 Gesichts-Ausdruecke** und **18 Hintergruende:** Orte in Shimokitazawa und Umgebung
 - **Ueberblendungen:** Sanfte Fade-Uebergaenge (300ms) fuer Hintergrund- und Charakterwechsel
 - **Asset-Caching:** Bilder werden vorab geladen und gecacht
 - **Szenen-Navigation:** Zurueckblaettern durch vergangene Szenen (bis zu 100 gespeichert)
@@ -228,6 +231,7 @@ Japan-RPG/
 │   ├── state_manager.py       # Spielzustand: Zeit, Zuneigung, Lernen, Speicherplaetze
 │   ├── grammar_taxonomy.py    # Kanonische N5/N4-Themen, JLPT-Ableitung
 │   ├── story_engine.py        # Story-Beat-Auswahl und Prompt-Block
+│   ├── sprite_manifest.py     # Layered-Sprite-Manifeste (Posen/Gesichter)
 │   ├── auth.py                # JWT-Authentifizierung, Benutzerverwaltung
 │   ├── create_user.py         # CLI-Tool zur Benutzererstellung
 │   └── tests/
@@ -315,6 +319,8 @@ Jede KI-generierte Szene folgt diesem XML-Schema:
 <scene>
   <character>aoi</character>           <!-- leer fuer Erzaehler -->
   <expression>happy</expression>
+  <pose>wave</pose>                    <!-- optional, aus dem Sprite-Manifest -->
+  <staging>right near</staging>        <!-- optional: left/center/right, near -->
   <background>cafe_shimokitazawa</background>
   <dialog_jp>今日はいい天気ですね！</dialog_jp>
   <dialog_jp_furigana>今日[きょう]はいい天気[てんき]ですね！</dialog_jp_furigana>

@@ -3,7 +3,10 @@ class VNEngine {
         // Core elements
         this.backgroundLayer = document.getElementById("background-layer");
         this.backgroundMissingLabel = document.getElementById("background-missing-label");
+        this.characterLayer = document.getElementById("character-layer");
         this.characterSprite = document.getElementById("character-sprite");
+        this.characterBody = document.getElementById("character-body");
+        this.characterFace = document.getElementById("character-face");
         this.characterMissingLabel = document.getElementById("character-missing-label");
         this.characterName = document.getElementById("character-name");
         this.dialogText = document.getElementById("dialog-text");
@@ -95,6 +98,10 @@ class VNEngine {
         this.lastTime = null;
         this.playerName = "";
         this.isAdmin = false;
+
+        // Layered sprite state
+        this._currentComposite = null;   // {character, pose, face} when layered mode active
+        this._blinkTimeout = null;
 
         // TTS state
         this.ttsAvailable = false;
@@ -710,7 +717,10 @@ class VNEngine {
             await this._transitionBackground(sceneData.background);
         }
 
-        await this._transitionCharacter(sceneData.character, sceneData.expression);
+        this._applyStaging(sceneData.staging);
+        await this._transitionCharacter(
+            sceneData.character, sceneData.expression, sceneData.pose,
+        );
         this._updateCharacterName(sceneData.character);
         this._typewriteDialog(
             sceneData.dialog_jp,
@@ -744,26 +754,153 @@ class VNEngine {
 
     // --- Character ---
 
-    async _transitionCharacter(characterId, expression) {
+    _getManifest(characterId) {
+        return (this.availableAssets
+            && this.availableAssets.manifests
+            && this.availableAssets.manifests[characterId]) || null;
+    }
+
+    async _transitionCharacter(characterId, expression, pose) {
         if (!characterId) {
-            this.characterSprite.classList.add("hidden");
+            this._stopBlink();
+            this._currentComposite = null;
+            this.characterLayer.classList.add("hidden");
             this.characterMissingLabel.classList.add("hidden");
             return;
         }
+        const manifest = this._getManifest(characterId);
+        if (manifest) {
+            await this._transitionLayered(characterId, manifest, expression, pose);
+        } else {
+            await this._transitionLegacy(characterId, expression);
+        }
+    }
+
+    /** Legacy mode: one full sprite per expression. */
+    async _transitionLegacy(characterId, expression) {
+        this._stopBlink();
+        this._currentComposite = null;
         const expr = this._resolveExpression(characterId, expression);
         const url = `${CONFIG.ASSET_PATHS.characters}/${characterId}/${expr}.png`;
         const loaded = await this._preloadImage(url);
-        this.characterSprite.classList.add("fade-out");
+        this.characterLayer.classList.add("fade-out");
         await this._wait(CONFIG.FADE_TRANSITION_MS);
         this.characterSprite.src = url;
         this.characterSprite.alt = `${characterId} - ${expr}`;
-        if (!loaded) {
-            this.characterMissingLabel.textContent = `Missing: ${characterId}/${expr}`;
+        this.characterBody.classList.add("hidden");
+        this.characterFace.classList.add("hidden");
+        this.characterSprite.classList.remove("hidden");
+        this._setMissingLabel(loaded ? null : `${characterId}/${expr}`);
+        this.characterLayer.classList.remove("fade-out", "hidden");
+    }
+
+    /** Layered mode: pose body + face patch, composed via manifest anchor. */
+    async _transitionLayered(characterId, manifest, expression, pose) {
+        this._stopBlink();
+
+        const poseId = (pose && manifest.poses[pose]) ? pose : manifest.default_pose;
+        const poseDef = manifest.poses[poseId];
+        const faceId = manifest.faces.includes(expression)
+            ? expression : manifest.default_face;
+
+        const base = `${CONFIG.ASSET_PATHS.characters}/${characterId}`;
+        const bodyUrl = `${base}/${poseDef.body}`;
+        const faceUrl = `${base}/faces/${faceId}.png`;
+
+        const [bodyLoaded, faceLoaded] = await Promise.all([
+            this._preloadImage(bodyUrl),
+            this._preloadImage(faceUrl),
+        ]);
+        this._setMissingLabel(
+            !bodyLoaded ? `${characterId}/${poseDef.body}`
+            : !faceLoaded ? `${characterId}/faces/${faceId}` : null
+        );
+
+        const sameBody = this._currentComposite
+            && this._currentComposite.character === characterId
+            && this._currentComposite.pose === poseId
+            && !this.characterLayer.classList.contains("hidden");
+
+        if (sameBody) {
+            // Face-only change: quick crossfade of just the face patch
+            if (this._currentComposite.face !== faceId) {
+                this.characterFace.classList.add("fade-out");
+                await this._wait(120);
+                this.characterFace.src = faceUrl;
+                this.characterFace.classList.remove("fade-out");
+            }
+        } else {
+            this.characterLayer.classList.add("fade-out");
+            await this._wait(CONFIG.FADE_TRANSITION_MS);
+            this.characterBody.src = bodyUrl;
+            this.characterBody.alt = `${characterId} - ${poseId}`;
+            this._applyFaceAnchor(poseDef.anchor);
+            this.characterFace.src = faceUrl;
+            this.characterFace.alt = "";
+            this.characterSprite.classList.add("hidden");
+            this.characterBody.classList.remove("hidden");
+            this.characterFace.classList.remove("hidden", "fade-out");
+            this.characterLayer.classList.remove("fade-out", "hidden");
+        }
+
+        this._currentComposite = { character: characterId, pose: poseId, face: faceId };
+        this._startBlink(characterId, manifest);
+    }
+
+    _applyFaceAnchor(anchor) {
+        const a = anchor || { x: 0.5, y: 0.15, w: 0.35 };
+        this.characterFace.style.left = `${a.x * 100}%`;
+        this.characterFace.style.top = `${a.y * 100}%`;
+        this.characterFace.style.width = `${a.w * 100}%`;
+    }
+
+    _setMissingLabel(missing) {
+        if (missing) {
+            this.characterMissingLabel.textContent = `Missing: ${missing}`;
             this.characterMissingLabel.classList.remove("hidden");
         } else {
             this.characterMissingLabel.classList.add("hidden");
         }
-        this.characterSprite.classList.remove("fade-out", "hidden");
+    }
+
+    // --- Staging (position + closeness) ---
+
+    _applyStaging(staging) {
+        const s = staging || [];
+        this.characterLayer.classList.toggle("staged-left", s.includes("left"));
+        this.characterLayer.classList.toggle("staged-right", s.includes("right"));
+        this.characterLayer.classList.toggle("staged-near", s.includes("near"));
+    }
+
+    // --- Blink micro-animation (layered mode only) ---
+
+    _startBlink(characterId, manifest) {
+        this._stopBlink();
+        if (!manifest.blink_face) return;
+        const blinkUrl =
+            `${CONFIG.ASSET_PATHS.characters}/${characterId}/faces/${manifest.blink_face}.png`;
+        this._preloadImage(blinkUrl);
+
+        const schedule = () => {
+            const delay = 2500 + Math.random() * 3500;
+            this._blinkTimeout = setTimeout(() => {
+                if (!this._currentComposite) return;
+                const original = this.characterFace.src;
+                this.characterFace.src = blinkUrl;
+                this._blinkTimeout = setTimeout(() => {
+                    this.characterFace.src = original;
+                    schedule();
+                }, 130);
+            }, delay);
+        };
+        schedule();
+    }
+
+    _stopBlink() {
+        if (this._blinkTimeout) {
+            clearTimeout(this._blinkTimeout);
+            this._blinkTimeout = null;
+        }
     }
 
     _resolveExpression(characterId, expression) {
@@ -1169,6 +1306,9 @@ class VNEngine {
             this.translationText.textContent = "";
             this.characterName.textContent = "";
             this.characterSprite.classList.add("hidden");
+            this.characterLayer.classList.add("hidden");
+            this._stopBlink();
+            this._currentComposite = null;
             this.characterMissingLabel.classList.add("hidden");
             this.backgroundMissingLabel.classList.add("hidden");
             this._hideErrorCorrection();
@@ -1243,6 +1383,9 @@ class VNEngine {
         this.translationText.textContent = "";
         this.characterName.textContent = "";
         this.characterSprite.classList.add("hidden");
+        this.characterLayer.classList.add("hidden");
+        this._stopBlink();
+        this._currentComposite = null;
         this.characterMissingLabel.classList.add("hidden");
         this.backgroundMissingLabel.classList.add("hidden");
         this._hideErrorCorrection();

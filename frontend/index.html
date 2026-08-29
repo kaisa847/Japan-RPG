@@ -17,8 +17,12 @@
         <div id="background-layer"></div>
         <div id="background-missing-label" class="hidden"></div>
 
-        <!-- Character Layer -->
-        <img id="character-sprite" class="hidden" src="" alt="" />
+        <!-- Character Layer: legacy single sprite OR layered body+face composite -->
+        <div id="character-layer" class="hidden">
+            <img id="character-sprite" class="hidden" src="" alt="" />
+            <img id="character-body" class="hidden" src="" alt="" />
+            <img id="character-face" class="hidden" src="" alt="" />
+        </div>
         <div id="character-missing-label" class="hidden"></div>
 
         <!-- HUD Bar -->

@@ -73,7 +73,7 @@ button {
     #game-container {
         max-width: calc(100dvh * 16 / 9);
     }
-    #character-sprite {
+    #character-layer {
         height: 100%;
     }
 }
@@ -117,22 +117,47 @@ button {
     pointer-events: none;
 }
 
-/* --- Character Layer (z-index: 2) --- */
+/* --- Character Layer (z-index: 2) ---
+   Wrapper holds either the legacy single sprite OR the layered
+   body+face composite. Position/staging applies to the wrapper. */
 
-#character-sprite {
+#character-layer {
     position: absolute;
     bottom: 0;
     left: 50%;
     transform: translateX(-50%);
     z-index: 2;
     height: 90%;
+    transition: opacity 300ms ease-in-out, left 450ms ease, transform 450ms ease;
+    transform-origin: bottom center;
+}
+
+#character-layer.fade-out {
+    opacity: 0;
+}
+
+/* Staging: horizontal position + closeness */
+#character-layer.staged-left  { left: 30%; }
+#character-layer.staged-right { left: 70%; }
+#character-layer.staged-near  { transform: translateX(-50%) scale(1.18); }
+
+#character-sprite,
+#character-body {
+    display: block;
+    height: 100%;
     width: auto;
     object-fit: contain;
-    transition: opacity 300ms ease-in-out;
     image-rendering: auto;
 }
 
-#character-sprite.fade-out {
+/* Face patch: centered on the manifest anchor (left/top/width set by JS) */
+#character-face {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    transition: opacity 120ms ease-in-out;
+}
+
+#character-face.fade-out {
     opacity: 0;
 }
 
@@ -1309,11 +1334,13 @@ rt {
         max-height: none;
     }
 
-    /* Character: anchor to top so the keyboard doesn't push the face away */
-    #character-sprite {
+    /* Character: anchor to top so the keyboard doesn't push the face away.
+       Top-anchored means the near-zoom must grow downward, not upward. */
+    #character-layer {
         height: 85%;
         bottom: auto;
         top: 34px;
+        transform-origin: top center;
     }
 
     /* Textbox: full-width sheet pinned to the bottom */
@@ -1522,7 +1549,7 @@ rt {
         font-size: 11px;
     }
 
-    #character-sprite {
+    #character-layer {
         height: 60%;
         bottom: 0;
         top: auto;

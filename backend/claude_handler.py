@@ -37,6 +37,8 @@ SPRACHNIVEAU ({jlpt_level}):
 <scene>
   <character>aoi</character>
   <expression>expression_name</expression>
+  <pose>pose_id (nur aus der Posen-Liste; weglassen wenn keine gelistet)</pose>
+  <staging>left/center/right und/oder near (optional, siehe Regeln)</staging>
   <background>background_id</background>
   <dialog_jp>Japanischer Dialog hier</dialog_jp>
   <dialog_jp_furigana>Japanischer Dialog mit Furigana: 漢字[かんじ]</dialog_jp_furigana>
@@ -66,7 +68,7 @@ SPRACHNIVEAU ({jlpt_level}):
 VERFÜGBARE EXPRESSIONS FÜR AOI:
 {aoi_expressions}
 
-VERFÜGBARE HINTERGRÜNDE:
+{pose_block}VERFÜGBARE HINTERGRÜNDE:
 {available_backgrounds}
 
 AKTUELLER SPIELSTAND:
@@ -111,6 +113,11 @@ REGELN:
   NUR gesprochener Text, KEINE Handlungsbeschreibungen oder Erzählertext.
 - Halte Dialoge kurz (1-3 Sätze)
 - Passe die expression an den emotionalen Ton an
+- POSE & STAGING: Wähle <pose> passend zur Körpersprache (nur aus der Posen-Liste;
+  Tag weglassen, wenn keine Posen gelistet sind). <staging> ist Inszenierung:
+  "left"/"center"/"right" für die Position, "near" für Nahaufnahmen bei intimen oder
+  wichtigen Momenten (z.B. "right near"). Standard ist center in normaler Distanz —
+  setze staging nur, wenn die Szene es wirklich verlangt, nicht in jeder Zeile.
 - Führe die Geschichte natürlich basierend auf dem Input von {player_name} weiter
 - Wenn {player_name} Japanisch versucht (egal ob in Kana, Kanji oder Romaji), reagiere ermutigend und korrigiere sanft.
   Bei Romaji-Eingabe: Zeige in error_correction die korrekte japanische Schreibweise (z.B. "onakasuita → お腹[おなか]が空[す]いた")
@@ -245,6 +252,7 @@ class ClaudeHandler:
         memories: list[dict] | None = None,
         due_vocab: list[dict] | None = None,
         story_beat_block: str | None = None,
+        available_poses: list[str] | None = None,
     ) -> str:
         aoi_expressions = ", ".join(CHARACTER_EXPRESSIONS.get("aoi", ["neutral"]))
         tone_desc = TONE_DESCRIPTIONS.get(aoi_tone, TONE_DESCRIPTIONS["neutral"])
@@ -290,6 +298,12 @@ class ClaudeHandler:
         if story_beat_block:
             story_block = f"{story_beat_block}\n\n"
 
+        pose_block = ""
+        if available_poses:
+            pose_block = (
+                f"VERFÜGBARE POSEN FÜR AOI:\n{', '.join(available_poses)}\n\n"
+            )
+
         return SYSTEM_PROMPT_TEMPLATE.format(
             premise=premise,
             character_info=self.aoi_sheet,
@@ -302,6 +316,7 @@ class ClaudeHandler:
             memory_block=memory_block,
             vocab_block=vocab_block,
             story_block=story_block,
+            pose_block=pose_block,
             aoi_expressions=aoi_expressions,
             available_backgrounds=backgrounds,
             game_state_summary=game_state_summary,
@@ -341,12 +356,14 @@ class ClaudeHandler:
         memories: list[dict] | None = None,
         due_vocab: list[dict] | None = None,
         story_beat_block: str | None = None,
+        available_poses: list[str] | None = None,
     ) -> SceneData:
         system_prompt = self._build_system_prompt(
             game_state_summary, aoi_tone, weak_points,
             player_name=player_name, custom_premise=custom_premise,
             jlpt_level=jlpt_level, memories=memories,
             due_vocab=due_vocab, story_beat_block=story_beat_block,
+            available_poses=available_poses,
         )
 
         messages = []
@@ -384,6 +401,7 @@ class ClaudeHandler:
         memories: list[dict] | None = None,
         due_vocab: list[dict] | None = None,
         story_beat_block: str | None = None,
+        available_poses: list[str] | None = None,
     ) -> SceneData:
         try:
             return await self.generate_scene(
@@ -392,6 +410,7 @@ class ClaudeHandler:
                 custom_premise=custom_premise,
                 jlpt_level=jlpt_level, memories=memories,
                 due_vocab=due_vocab, story_beat_block=story_beat_block,
+                available_poses=available_poses,
             )
         except APITimeoutError:
             logger.error("Claude API timeout")

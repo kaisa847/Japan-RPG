@@ -121,9 +121,15 @@ class SceneStatus(BaseModel):
     promise_resolved: Optional[str] = None
 
 
+# Allowed staging tokens: horizontal position and closeness
+STAGING_TOKENS = {"left", "center", "right", "near"}
+
+
 class SceneData(BaseModel):
     character: Optional[str] = None
     expression: str = "neutral"
+    pose: Optional[str] = None
+    staging: list[str] = []
     background: Optional[str] = None
     dialog_jp: str = ""
     dialog_jp_furigana: str = ""
@@ -165,6 +171,16 @@ class ResponseParser:
         expression = data.get("expression", "neutral").strip().lower()
         expression = ResponseParser._validate_expression(expression, character, errors)
 
+        # Pose: free-form id here; validated against the sprite manifest
+        # by the caller (unknown poses fall back to the default pose).
+        pose = ResponseParser._sanitize_character_id(data.get("pose", "")) or None
+
+        # Staging: space-separated tokens, unknown ones silently dropped
+        staging = [
+            t for t in data.get("staging", "").strip().lower().split()
+            if t in STAGING_TOKENS
+        ]
+
         background = data.get("background", "").strip() or None
 
         dialog_jp = html.unescape(data.get("dialog_jp", "").strip())
@@ -205,6 +221,8 @@ class ResponseParser:
         return SceneData(
             character=character,
             expression=expression,
+            pose=pose,
+            staging=staging,
             background=background,
             dialog_jp=dialog_jp,
             dialog_jp_furigana=dialog_jp_furigana,
@@ -230,7 +248,7 @@ class ResponseParser:
         try:
             root = ET.fromstring(scene_xml)
             result = {}
-            for tag in ("character", "expression", "background",
+            for tag in ("character", "expression", "pose", "staging", "background",
                         "dialog_jp", "dialog_jp_furigana", "dialog_de"):
                 elem = root.find(tag)
                 if elem is not None and elem.text:
@@ -242,7 +260,7 @@ class ResponseParser:
     @staticmethod
     def _parse_regex_fallback(scene_xml: str) -> dict:
         result = {}
-        for tag in ("character", "expression", "background",
+        for tag in ("character", "expression", "pose", "staging", "background",
                      "dialog_jp", "dialog_jp_furigana", "dialog_de"):
             match = re.search(rf"<{tag}>(.*?)</{tag}>", scene_xml, re.DOTALL)
             if match:

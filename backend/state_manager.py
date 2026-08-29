@@ -267,6 +267,8 @@ class StateManager:
         entry = {
             "character": scene.get("character"),
             "expression": scene.get("expression", "neutral"),
+            "pose": scene.get("pose"),
+            "staging": scene.get("staging", []),
             "background": scene.get("background"),
             "dialog_jp": scene.get("dialog_jp", ""),
             "dialog_jp_furigana": scene.get("dialog_jp_furigana", ""),
