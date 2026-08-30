@@ -721,7 +721,7 @@ class VNEngine {
         await this._transitionCharacter(
             sceneData.character, sceneData.expression, sceneData.pose,
         );
-        this._updateCharacterName(sceneData.character);
+        this._updateCharacterName(sceneData.character, sceneData.speaker);
         this._typewriteDialog(
             sceneData.dialog_jp,
             sceneData.dialog_jp_furigana || "",
@@ -729,8 +729,9 @@ class VNEngine {
             skipTypewriter,
         );
 
-        // Play TTS in parallel (non-blocking)
-        if (sceneData.dialog_jp && !skipTypewriter) {
+        // Play TTS in parallel (non-blocking) — but not with Aoi's voice
+        // when a side NPC is speaking
+        if (sceneData.dialog_jp && !skipTypewriter && !sceneData.speaker) {
             this._playTTS(sceneData.dialog_jp, sceneData.expression);
         }
     }
@@ -1173,7 +1174,14 @@ class VNEngine {
 
     // --- Character Name ---
 
-    _updateCharacterName(characterId) {
+    _updateCharacterName(characterId, speaker) {
+        // A side NPC (speaker) overrides the sprite character's name plate
+        if (speaker) {
+            this.characterName.textContent = speaker;
+            this.characterName.classList.add("side-speaker");
+            return;
+        }
+        this.characterName.classList.remove("side-speaker");
         if (!characterId) {
             this.characterName.textContent = "";
             return;
@@ -1425,13 +1433,16 @@ class VNEngine {
             const entry = document.createElement("div");
             entry.className = "history-entry";
 
-            const isNarrator = !scene.character;
+            const isNarrator = !scene.character && !scene.speaker;
             if (isNarrator) entry.classList.add("narrator");
 
-            // Character name
+            // Character name (side NPC speaker overrides)
             const charName = document.createElement("div");
             charName.className = "history-char-name";
-            if (isNarrator) {
+            if (scene.speaker) {
+                charName.textContent = scene.speaker;
+                entry.classList.add("side-speaker");
+            } else if (isNarrator) {
                 charName.textContent = "Erzähler";
             } else {
                 charName.textContent = CONFIG.CHARACTER_NAMES[scene.character] || scene.character;

@@ -266,6 +266,7 @@ class StateManager:
         """Append a rendered scene to the scene history (max MAX_SCENE_HISTORY)."""
         entry = {
             "character": scene.get("character"),
+            "speaker": scene.get("speaker"),
             "expression": scene.get("expression", "neutral"),
             "pose": scene.get("pose"),
             "staging": scene.get("staging", []),

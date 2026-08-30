@@ -453,3 +453,73 @@ class TestSceneStatusExtensions:
         vocab = result.scene_status.new_vocab
         assert len(vocab) == 1
         assert vocab[0]["word"] == "駅"
+
+
+class TestSpeakerAndFuriganaFallback:
+    """Side-NPC speaker tag and server-side furigana generation."""
+
+    def test_speaker_parsed(self):
+        raw = """<scene>
+            <character>aoi</character>
+            <speaker>マスター</speaker>
+            <expression>happy</expression>
+            <dialog_jp>あおい、久しぶりだね！</dialog_jp>
+            <dialog_jp_furigana>あおい、久[ひさ]しぶりだね！</dialog_jp_furigana>
+            <dialog_de>Aoi, lange nicht gesehen!</dialog_de>
+        </scene>"""
+        result = ResponseParser.parse_scene(raw)
+        assert result.speaker == "マスター"
+        assert result.character == "aoi"
+
+    def test_speaker_absent_is_none(self):
+        raw = """<scene>
+            <character>aoi</character>
+            <dialog_jp>こんにちは</dialog_jp>
+            <dialog_jp_furigana>こんにちは</dialog_jp_furigana>
+            <dialog_de>Hallo</dialog_de>
+        </scene>"""
+        result = ResponseParser.parse_scene(raw)
+        assert result.speaker is None
+
+    def test_furigana_generated_when_missing(self):
+        """Kanji without any reading annotation -> pykakasi fallback."""
+        raw = """<scene>
+            <character>aoi</character>
+            <dialog_jp>今日は友達？</dialog_jp>
+            <dialog_jp_furigana>今日は友達？</dialog_jp_furigana>
+            <dialog_de>Ist das heute dein Freund?</dialog_de>
+        </scene>"""
+        result = ResponseParser.parse_scene(raw)
+        assert "[" in result.dialog_jp_furigana
+        assert "きょう" in result.dialog_jp_furigana or "こんにち" in result.dialog_jp_furigana
+        assert "Generated furigana via pykakasi fallback" in result.parse_errors
+
+    def test_furigana_generated_when_tag_absent(self):
+        raw = """<scene>
+            <character>aoi</character>
+            <dialog_jp>駅に行く</dialog_jp>
+            <dialog_de>Ich gehe zum Bahnhof</dialog_de>
+        </scene>"""
+        result = ResponseParser.parse_scene(raw)
+        assert "駅[えき]" in result.dialog_jp_furigana
+
+    def test_existing_furigana_untouched(self):
+        raw = """<scene>
+            <character>aoi</character>
+            <dialog_jp>駅に行く</dialog_jp>
+            <dialog_jp_furigana>駅[えき]に行[い]く</dialog_jp_furigana>
+            <dialog_de>Ich gehe zum Bahnhof</dialog_de>
+        </scene>"""
+        result = ResponseParser.parse_scene(raw)
+        assert result.dialog_jp_furigana == "駅[えき]に行[い]く"
+        assert "Generated furigana via pykakasi fallback" not in result.parse_errors
+
+    def test_kana_only_text_needs_no_generation(self):
+        raw = """<scene>
+            <character>aoi</character>
+            <dialog_jp>こんにちは！</dialog_jp>
+            <dialog_jp_furigana>こんにちは！</dialog_jp_furigana>
+            <dialog_de>Hallo!</dialog_de>
+        </scene>"""
+        result = ResponseParser.parse_scene(raw)
+        assert result.dialog_jp_furigana == "こんにちは！"
