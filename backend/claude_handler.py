@@ -205,10 +205,20 @@ PROFILE_LABELS = [
     ("sprachniveau", "Selbsteinschätzung Japanisch"),
 ]
 
+PROLOGUE_PREMISE = """\
+{player_name} lernt Japanisch und hat im Sprachaustausch-Forum "NihongoConnect" einen \
+Beitrag geschrieben: Tandem-Partner gesucht ({tandem_language} gegen Japanisch). \
+Aoi (林あおい) antwortet gerade ZUM ERSTEN MAL darauf. Die beiden kennen sich NOCH NICHT — \
+es gibt keine gemeinsame Vergangenheit, keine Treffen, keine Insider-Witze. \
+{player_name} ist zu Hause im Heimatland, NICHT in Japan. Erst im Lauf dieses Chats \
+entsteht die Idee, für 90 Tage nach Tokio zu kommen."""
+
 PROLOGUE_TEMPLATE = """\
 PROLOG-MODUS (Forum-Chat, VOR der Ankunft in Japan):
 Dies ist der Spielanfang: {player_name} und Aoi chatten im Sprachaustausch-Forum
-"NihongoConnect". {player_name} ist noch NICHT in Japan — kein Treffen, keine Orte, nur Chat.
+"NihongoConnect". Ihr kennt euch am Anfang NICHT — beginne wie bei einer echten ersten
+Kontaktaufnahme (höflich-neugierig, noch kein vertrauter Ton). Erfinde KEINE gemeinsamen
+Erinnerungen. {player_name} ist noch NICHT in Japan — kein Treffen, keine Orte, nur Chat.
 - Schreibe Aois Nachrichten als kurze Chat-Nachrichten (1-3 Sätze, sparsame Emojis ok).
   Mische sehr einfaches Japanisch mit Erklärungen, wie in einem echten Tandem-Chat.
 - <character>aoi</character>, <background> leer lassen, keine <pose>/<staging>.
@@ -333,9 +343,18 @@ class ClaudeHandler:
         profile = player_profile or {}
         tandem_language = profile.get("muttersprache") or "Deutsch"
 
-        premise = custom_premise if custom_premise else DEFAULT_PREMISE.format(
-            player_name=player_name, tandem_language=tandem_language,
-        )
+        if phase == "prologue":
+            # The main premise ("is now really in Tokyo") would contradict
+            # the prologue; before the arrival, the prologue premise rules.
+            premise = PROLOGUE_PREMISE.format(
+                player_name=player_name, tandem_language=tandem_language,
+            )
+        elif custom_premise:
+            premise = custom_premise
+        else:
+            premise = DEFAULT_PREMISE.format(
+                player_name=player_name, tandem_language=tandem_language,
+            )
 
         # Player profile block with anti-assumption rule (always present:
         # the rule matters even when the profile is empty)

@@ -309,10 +309,14 @@ button {
 #textbox-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 8px;
     min-height: 30px;
     flex-shrink: 0;
+}
+
+#textbox-header .icon-button {
+    margin-left: auto;
 }
 
 #character-name {
@@ -645,7 +649,7 @@ rt {
     font-size: 12px;
     cursor: pointer;
     padding: 4px 8px;
-    margin-left: auto;
+    white-space: nowrap;
     transition: color 150ms;
 }
 
@@ -682,6 +686,30 @@ rt {
     font-size: 11px;
     letter-spacing: 0.5px;
     margin-right: 8px;
+}
+
+/* Chat avatar: face patch (cover) or CSS crop of the full sprite */
+#chat-avatar {
+    display: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background-size: cover;
+    background-position: center;
+    background-color: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--accent-border);
+    flex-shrink: 0;
+    margin-right: 2px;
+}
+
+.chat-mode #chat-avatar:not(.hidden) {
+    display: block;
+}
+
+/* Legacy full-body sprite: zoom to the head region */
+#chat-avatar.sprite-crop {
+    background-size: 300% auto;
+    background-position: 50% 14%;
 }
 
 .chat-mode #dialog-text {
