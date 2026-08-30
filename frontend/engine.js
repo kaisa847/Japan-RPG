@@ -114,6 +114,26 @@ class VNEngine {
         // Voice replay button
         this.voiceReplay = document.getElementById("voice-replay");
 
+        // Title card + prologue
+        this.titleCard = document.getElementById("title-card");
+        this.titleCardText = document.getElementById("title-card-text");
+        this.prologueSkip = document.getElementById("prologue-skip");
+        this.phase = "main";
+        this._pendingMainStart = null;
+
+        // Profile editor (menu)
+        this.profileFields = {
+            gender: document.getElementById("profile-gender"),
+            alter: document.getElementById("profile-alter"),
+            herkunft: document.getElementById("profile-herkunft"),
+            muttersprache: document.getElementById("profile-muttersprache"),
+            beschaeftigung: document.getElementById("profile-beschaeftigung"),
+            sprachniveau: document.getElementById("profile-sprachniveau"),
+            interessen: document.getElementById("profile-interessen"),
+        };
+        this.profileSave = document.getElementById("profile-save");
+        this.profileStatus = document.getElementById("profile-status");
+
         this._bindEvents();
         this._init();
     }
@@ -390,7 +410,8 @@ class VNEngine {
             if (state.learning) this.lastLearning = state.learning;
             if (state.time) this.lastTime = state.time;
 
-            // Update HUD with restored state
+            // Apply phase (chat mode for prologue) + HUD
+            this._applyPhase(state.phase || "main");
             this._updateHUD(state.time, state.affection);
 
             if (state.has_history && state.last_scene) {
@@ -441,6 +462,10 @@ class VNEngine {
         // Voice toggle & replay
         this.voiceToggle.addEventListener("click", () => this._toggleVoice());
         this.voiceReplay.addEventListener("click", () => this._replayTTS());
+
+        // Prologue skip + profile save
+        this.prologueSkip.addEventListener("click", () => this._skipPrologue());
+        this.profileSave.addEventListener("click", () => this._saveProfile());
 
         // Keyboard detection via visualViewport API
         this._initKeyboardDetection();
@@ -559,6 +584,20 @@ class VNEngine {
             if (sceneData.time) this.lastTime = sceneData.time;
             if (sceneData.learning) this.lastLearning = sceneData.learning;
 
+            const st = sceneData.scene_status || {};
+
+            // Title card BEFORE the scene — except at the prologue finale,
+            // where the card plays after the last chat line (on Weiter)
+            if (sceneData.title_card && !st.prologue_end) {
+                await this._showTitleCard(sceneData.title_card);
+            }
+            if (st.prologue_end) {
+                this._pendingMainStart =
+                    sceneData.title_card || "Drei Wochen sp\u00e4ter \u2014 Tokio";
+            } else if (sceneData.phase) {
+                this._applyPhase(sceneData.phase);
+            }
+
             // Update HUD
             this._updateHUD(sceneData.time, sceneData.aoi_affection);
 
@@ -570,8 +609,10 @@ class VNEngine {
                 this._showErrorCorrection(sceneData.analysis.error_correction);
             }
 
-            // Handle scene-end choices
-            if (sceneData.scene_status && sceneData.scene_status.scene_end) {
+            // Handle prologue finale / scene-end choices
+            if (st.prologue_end) {
+                this._showPrologueContinue();
+            } else if (sceneData.scene_status && sceneData.scene_status.scene_end) {
                 this._showSceneEndChoices(sceneData.scene_status.suggested_next || []);
             } else if (!sceneData.character) {
                 // Narrator/transition scene: offer a simple continue button
@@ -618,7 +659,8 @@ class VNEngine {
 
     _updateHUD(time, affection) {
         if (time) {
-            this.hudDay.textContent = `Tag ${time.day || 1}`;
+            const totalDays = CONFIG.TOTAL_DAYS || 90;
+            this.hudDay.textContent = `Tag ${time.day || 1}/${totalDays}`;
             const hour = time.hour != null ? time.hour : 14;
             this.hudHour.textContent = `${String(hour).padStart(2, "0")}:00`;
         }
@@ -1201,6 +1243,7 @@ class VNEngine {
         this.adminSection.classList.toggle("hidden", !this.isAdmin);
         this._refreshSaveSlots();
         this._loadScenario();
+        this._loadProfile();
     }
 
     _closeMenu() {
@@ -1331,6 +1374,7 @@ class VNEngine {
             if (state.affection) this.lastAffection = state.affection;
             if (state.learning) this.lastLearning = state.learning;
             if (state.time) this.lastTime = state.time;
+            this._applyPhase(state.phase || "main");
             this._updateHUD(state.time, state.affection);
 
             if (state.last_scene) {
@@ -1373,6 +1417,7 @@ class VNEngine {
             if (freshState.time) this.lastTime = freshState.time;
             if (freshState.affection) this.lastAffection = freshState.affection;
             if (freshState.learning) this.lastLearning = freshState.learning;
+            this._applyPhase(freshState.phase || "main");
             this._updateHUD(freshState.time, freshState.affection);
         } catch (e) {
             console.warn("[VNEngine] Reset request failed:", e);
@@ -1668,6 +1713,113 @@ class VNEngine {
             more.className = "stats-empty-message";
             more.textContent = `… und ${entries.length - 25} weitere`;
             section.appendChild(more);
+        }
+    }
+
+    // --- Phase / Prologue / Title Cards ---
+
+    _applyPhase(phase) {
+        this.phase = phase;
+        const container = document.getElementById("game-container");
+        container.classList.toggle("chat-mode", phase === "prologue");
+        this.prologueSkip.classList.toggle("hidden", phase !== "prologue");
+    }
+
+    _showTitleCard(text) {
+        return new Promise((resolve) => {
+            this.titleCardText.textContent = text;
+            this.titleCard.classList.remove("hidden");
+            requestAnimationFrame(() => {
+                this.titleCard.classList.add("visible");
+            });
+            setTimeout(() => {
+                this.titleCard.classList.remove("visible");
+                setTimeout(() => {
+                    this.titleCard.classList.add("hidden");
+                    resolve();
+                }, 500);
+            }, 2100);
+        });
+    }
+
+    _showPrologueContinue() {
+        if (!this.sceneEndChoices) return;
+        this.sceneEndChoices.innerHTML = "";
+        const btn = document.createElement("button");
+        btn.className = "scene-choice-button";
+        btn.textContent = "Weiter \u25b8";
+        btn.addEventListener("click", () => this._finishPrologue());
+        this.sceneEndChoices.appendChild(btn);
+        this.sceneEndChoices.classList.remove("hidden");
+    }
+
+    async _finishPrologue() {
+        this._hideSceneEndChoices();
+        const card = this._pendingMainStart || "Drei Wochen sp\u00e4ter \u2014 Tokio";
+        this._pendingMainStart = null;
+        this._applyPhase("main");
+        await this._showTitleCard(card);
+        await this._fetchStartPrompt();
+        this.sendInput(this.startPrompt);
+    }
+
+    async _skipPrologue() {
+        if (this.isLoading) return;
+        if (!confirm("Prolog \u00fcberspringen? Dein Profil kannst du jederzeit im Men\u00fc ausf\u00fcllen.")) {
+            return;
+        }
+        try {
+            const resp = await Auth.fetchAuthenticated(
+                `${CONFIG.API_BASE_URL}/api/prologue/skip`, { method: "POST" });
+            if (!resp.ok) throw new Error(`Server-Fehler: ${resp.status}`);
+        } catch (e) {
+            console.warn("[VNEngine] Prologue skip failed:", e);
+            return;
+        }
+        this.sceneHistory = [];
+        this.sceneHistoryIndex = -1;
+        this._updateBackButton();
+        await this._finishPrologue();
+    }
+
+    // --- Player Profile (menu) ---
+
+    async _loadProfile() {
+        try {
+            const resp = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/api/player_profile`);
+            if (!resp.ok) return;
+            const data = await resp.json();
+            const profile = data.profile || {};
+            for (const [key, el] of Object.entries(this.profileFields)) {
+                if (el) el.value = profile[key] || "";
+            }
+            this.profileStatus.textContent = "";
+        } catch (e) {
+            console.warn("[VNEngine] Could not load profile:", e);
+        }
+    }
+
+    async _saveProfile() {
+        const profile = {};
+        for (const [key, el] of Object.entries(this.profileFields)) {
+            if (el) profile[key] = el.value.trim();
+        }
+        try {
+            const resp = await Auth.fetchAuthenticated(`${CONFIG.API_BASE_URL}/api/player_profile`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ profile }),
+            });
+            if (!resp.ok) throw new Error(`Server-Fehler: ${resp.status}`);
+            const data = await resp.json();
+            // Reflect server-side sanity checks (e.g. rejected age)
+            const saved = data.profile || {};
+            for (const [key, el] of Object.entries(this.profileFields)) {
+                if (el) el.value = saved[key] || "";
+            }
+            this.profileStatus.textContent = "Gespeichert.";
+        } catch (e) {
+            this.profileStatus.textContent = "Speichern fehlgeschlagen.";
         }
     }
 

@@ -20,6 +20,8 @@ das deutschsprachigen Spielern Japanisch beibringt.
 PRÄMISSE:
 {premise}
 
+{profile_block}
+
 AOI-CHARAKTER:
 {character_info}
 
@@ -32,7 +34,7 @@ SPIELER-SCHWÄCHEN:
 SPRACHNIVEAU ({jlpt_level}):
 {level_rules}
 
-{memory_block}{vocab_block}{story_block}Du MUSST im folgenden XML-Format antworten:
+{memory_block}{vocab_block}{story_block}{prologue_block}Du MUSST im folgenden XML-Format antworten:
 
 <scene>
   <character>aoi</character>
@@ -64,6 +66,9 @@ SPRACHNIVEAU ({jlpt_level}):
   <story_flag>flag_name (NUR wenn der aktuelle Story-Beat stattgefunden hat, sonst weglassen)</story_flag>
   <promise>Kurzbeschreibung, wenn eine konkrete Verabredung/ein Versprechen entstanden ist</promise>
   <promise_resolved>Text des Versprechens, wenn es eingelöst oder gebrochen wurde</promise_resolved>
+  <profile_update>herkunft=Köln|alter=34 (nur wenn {player_name} Neues über sich verrät; Felder: gender, herkunft, alter, beschaeftigung, interessen, muttersprache, sprachniveau)</profile_update>
+  <prologue_end>true (NUR im Prolog-Modus, wenn der Chat abgeschlossen ist — sonst weglassen)</prologue_end>
+  <title_card>Kurze Kapitel-Überschrift bei Zeitsprüngen (optional, z.B. Tag 3 — Abend in Shimokita)</title_card>
 </scene_status>
 
 VERFÜGBARE EXPRESSIONS FÜR AOI:
@@ -157,6 +162,8 @@ REGELN:
   * Während einer laufenden Szene: "+1h" nach ca. 4-6 Gesprächsrunden setzen, damit die Zeit realistisch vergeht.
   * "next_day" nur für Tageswechsel (z.B. "Lass uns morgen weitermachen").
   * NIEMALS leer lassen! Wenn du unsicher bist, setze mindestens "+1h".
+- TITLE_CARD: Bei markanten Übergängen (neuer Tag, großer Zeitsprung, Kapitelwechsel)
+  darfst du eine <title_card> setzen: 3-6 Wörter, atmosphärisch. Nicht bei normalen Ortswechseln.
 - MEMORY: Bei scene_end=true ist <memory> PFLICHT: Fasse in 1-2 deutschen Sätzen zusammen,
   was in der Szene passiert ist (Ereignisse, wichtige persönliche Infos, Stimmung).
   Diese Zusammenfassungen sind Aois Langzeitgedächtnis — schreibe sie so, dass sie später
@@ -175,10 +182,47 @@ REGELN:
 """
 
 DEFAULT_PREMISE = """\
-Der Spieler heißt {player_name} und ist auf einem Sabbatical in Shimokitazawa, Tokio.
-Er hat Aoi (林あおい) online in einem Sprachaustausch-Forum kennengelernt.
-Heute treffen sie sich zum ersten Mal persönlich. Aoi zeigt {player_name} die Gegend \
-und hilft ihm, sein Japanisch in echten Alltagssituationen zu verbessern."""
+{player_name} hat 90 Tage Auszeit genommen und wohnt für diese Zeit in einem kleinen \
+Share House in Shimokitazawa, Tokio. Kennengelernt haben sich {player_name} und Aoi \
+(林あおい) vor Monaten im Sprachaustausch-Forum "NihongoConnect". Ihr Deal: Sie sprechen \
+Japanisch, dafür hilft {player_name} ihr mit {tandem_language} — Aoi träumt von einem \
+Auslandssemester. Nach wochenlangem Chatten ist {player_name} nun wirklich in Tokio. \
+Aoi zeigt {player_name} ihre Stadt — und mit jedem Tag stellt sich mehr die Frage, \
+was passiert, wenn Tag 90 kommt und der Rückflug geht."""
+
+GENDER_PRONOUNS = {
+    "männlich": "Pronomen für {player_name}: er/ihm.",
+    "weiblich": "Pronomen für {player_name}: sie/ihr.",
+    "divers": "Formuliere geschlechtsneutral — sprich {player_name} direkt an statt Pronomen zu verwenden.",
+}
+
+PROFILE_LABELS = [
+    ("herkunft", "Herkunft"),
+    ("alter", "Alter"),
+    ("beschaeftigung", "Beschäftigung"),
+    ("interessen", "Interessen"),
+    ("muttersprache", "Muttersprache"),
+    ("sprachniveau", "Selbsteinschätzung Japanisch"),
+]
+
+PROLOGUE_TEMPLATE = """\
+PROLOG-MODUS (Forum-Chat, VOR der Ankunft in Japan):
+Dies ist der Spielanfang: {player_name} und Aoi chatten im Sprachaustausch-Forum
+"NihongoConnect". {player_name} ist noch NICHT in Japan — kein Treffen, keine Orte, nur Chat.
+- Schreibe Aois Nachrichten als kurze Chat-Nachrichten (1-3 Sätze, sparsame Emojis ok).
+  Mische sehr einfaches Japanisch mit Erklärungen, wie in einem echten Tandem-Chat.
+- <character>aoi</character>, <background> leer lassen, keine <pose>/<staging>.
+- Lerne {player_name} kennen: Frage im Gesprächsverlauf natürlich nach dem, was im
+  SPIELER-PROFIL noch fehlt (Herkunft, Alter, Beschäftigung, Interessen, Muttersprache,
+  Japanisch-Niveau). Höchstens 1-2 Fragen pro Nachricht — Gespräch, kein Formular.
+- Alles, was {player_name} über sich verrät, meldest du in <profile_update>.
+- Dramaturgie über ca. 5-8 Runden: Kennenlernen → der Tandem-Deal (Japanisch gegen
+  {tandem_language}) → {player_name}s Entschluss, nach Tokio zu kommen → Vorfreude und
+  die Verabredung: Südausgang Bahnhof Shimokitazawa, gleich nach der Ankunft.
+- Sobald die Verabredung steht: <prologue_end>true</prologue_end> + <scene_end>true</scene_end>
+  mit einem herzlichen Abschluss ("Bis in drei Wochen!"). Setze time_update immer auf +1h.
+
+"""
 
 # Register/difficulty rules per estimated JLPT level. Resolves the conflict
 # between Aoi's character (casual + dialect) and learner level: at N5 she
@@ -272,6 +316,8 @@ class ClaudeHandler:
         due_vocab: list[dict] | None = None,
         story_beat_block: str | None = None,
         available_poses: list[str] | None = None,
+        player_profile: dict | None = None,
+        phase: str = "main",
     ) -> str:
         aoi_expressions = ", ".join(CHARACTER_EXPRESSIONS.get("aoi", ["neutral"]))
         tone_desc = TONE_DESCRIPTIONS.get(aoi_tone, TONE_DESCRIPTIONS["neutral"])
@@ -284,7 +330,37 @@ class ClaudeHandler:
 
         backgrounds = ", ".join(self.get_background_ids())
 
-        premise = custom_premise if custom_premise else DEFAULT_PREMISE.format(player_name=player_name)
+        profile = player_profile or {}
+        tandem_language = profile.get("muttersprache") or "Deutsch"
+
+        premise = custom_premise if custom_premise else DEFAULT_PREMISE.format(
+            player_name=player_name, tandem_language=tandem_language,
+        )
+
+        # Player profile block with anti-assumption rule (always present:
+        # the rule matters even when the profile is empty)
+        profile_lines = [
+            f"- {label}: {profile[key]}"
+            for key, label in PROFILE_LABELS if profile.get(key)
+        ]
+        pronoun_rule = GENDER_PRONOUNS.get(
+            (profile.get("gender") or "").lower(),
+            "Geschlecht unbekannt — formuliere geschlechtsneutral, bis {player_name} es erwähnt.",
+        ).format(player_name=player_name)
+        profile_block = (
+            f"SPIELER-PROFIL von {player_name}:\n"
+            + ("\n".join(profile_lines) if profile_lines else "- (noch nichts bekannt)")
+            + f"\n{pronoun_rule}\n"
+            f"WICHTIG: Erfinde NIEMALS biografische Fakten über {player_name} "
+            f"(Herkunft, Alter, Beruf, Gründe, ...). Was nicht im Profil steht, "
+            f"weißt du nicht — lass Aoi natürlich danach FRAGEN, statt etwas anzunehmen."
+        )
+
+        prologue_block = ""
+        if phase == "prologue":
+            prologue_block = PROLOGUE_TEMPLATE.format(
+                player_name=player_name, tandem_language=tandem_language,
+            )
 
         level_rules = LEVEL_RULES.get(jlpt_level, LEVEL_RULES["N5"])
         grammar_taxonomy = ", ".join(taxonomy_for_level(jlpt_level))
@@ -325,6 +401,8 @@ class ClaudeHandler:
 
         return SYSTEM_PROMPT_TEMPLATE.format(
             premise=premise,
+            profile_block=profile_block,
+            prologue_block=prologue_block,
             character_info=self.aoi_sheet,
             aoi_tone=aoi_tone,
             tone_description=tone_desc,
@@ -376,6 +454,8 @@ class ClaudeHandler:
         due_vocab: list[dict] | None = None,
         story_beat_block: str | None = None,
         available_poses: list[str] | None = None,
+        player_profile: dict | None = None,
+        phase: str = "main",
     ) -> SceneData:
         system_prompt = self._build_system_prompt(
             game_state_summary, aoi_tone, weak_points,
@@ -383,6 +463,7 @@ class ClaudeHandler:
             jlpt_level=jlpt_level, memories=memories,
             due_vocab=due_vocab, story_beat_block=story_beat_block,
             available_poses=available_poses,
+            player_profile=player_profile, phase=phase,
         )
 
         messages = []
@@ -421,6 +502,8 @@ class ClaudeHandler:
         due_vocab: list[dict] | None = None,
         story_beat_block: str | None = None,
         available_poses: list[str] | None = None,
+        player_profile: dict | None = None,
+        phase: str = "main",
     ) -> SceneData:
         try:
             return await self.generate_scene(
@@ -430,6 +513,7 @@ class ClaudeHandler:
                 jlpt_level=jlpt_level, memories=memories,
                 due_vocab=due_vocab, story_beat_block=story_beat_block,
                 available_poses=available_poses,
+                player_profile=player_profile, phase=phase,
             )
         except APITimeoutError:
             logger.error("Claude API timeout")

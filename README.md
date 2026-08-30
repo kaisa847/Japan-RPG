@@ -27,6 +27,13 @@ Der Spieler tippt frei, was Kai sagen oder tun soll (auf Deutsch oder Japanisch)
 - **Niveau-Steuerung:** Aois Sprachregister haengt am Level: Bei N5 spricht sie bewusst einfach und erklaert Casual-Ausdruecke; Slang und Saitama-Dialekt kommen erst mit steigendem Niveau dazu
 - **Vokabelheft:** Neue Woerter aus den Dialogen werden gesammelt (max. 300); schwache, laenger nicht gesehene Woerter werden Claude als "faellig" mitgegeben und natuerlich im Gespraech wiederholt (verdecktes Spaced Repetition). Einsehbar im Stats-Panel
 
+### Prolog & Spielerprofil
+- **Forum-Chat-Prolog:** Ein neues Spiel beginnt nicht kalt am Bahnhof, sondern im Sprachaustausch-Forum "NihongoConnect" — als Chat (eigener Darstellungsmodus). Aoi lernt den Spieler ueber 5-8 Nachrichten kennen; ihre Fragen ersetzen das Profilformular. Ueberspringbar; danach Titelkarte "Drei Wochen spaeter — Tokio" und Uebergang zur ersten Begegnung
+- **Spielerprofil:** Gender, Herkunft, Alter, Beschaeftigung, Interessen, Muttersprache (Tandem-Sprache, nicht hardcoded — auch Franzoesisch etc.), Japanisch-Selbsteinschaetzung. Gespeichert pro Benutzer (`player_profile` im UserRecord), editierbar im Menue, befuellt aus dem Prolog via `<profile_update>`-Tag. Serverseitige Sanity-Checks (Alter numerisch 10-120, Gender normalisiert, Prompt-Struktur-Zeichen entfernt)
+- **Anti-Annahme-Regel:** Die KI darf keine biografischen Fakten ueber den Spieler erfinden — was nicht im Profil steht, fragt Aoi im Spiel nach (Selbstvorstellung als Gameplay). Die Selbsteinschaetzung seedet das JLPT-Startlevel
+- **Praemisse V2:** 90-Tage-Uhr (HUD: "Tag X/90"), Share House in Shimokitazawa als Homebase, Sprachpakt (Japanisch gegen die Muttersprache des Spielers)
+- **Titelkarten:** Kapitel-/Tagesuebergaenge als eingeblendete Karten — von der KI gesetzt (`<title_card>`) oder automatisch bei Tageswechseln
+
 ### Story-System
 - **Story-Arc "Hayashiya":** 10 geskriptete Story-Beats rund um Aois Konflikt mit dem Familienrestaurant in Kawagoe (Draft: `data/story/story_arc.md`, Beats: `data/story/beats.json`)
 - **Trigger:** Beats aktivieren sich ueber Tag, Zuneigungs-Score und Story-Flags; es ist immer hoechstens ein Beat aktiv, nur dessen kurze Regieanweisung wandert in den Prompt

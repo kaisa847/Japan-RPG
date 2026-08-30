@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 import secrets
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -32,6 +33,79 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 
 # --- Models ---
 
+# Allowed player profile fields (German keys, shared with the prompt's
+# <profile_update> tag). All values are free-text strings, length-capped.
+PROFILE_FIELDS = {
+    "gender",          # "männlich" / "weiblich" / "divers" / ""
+    "herkunft",        # Land/Stadt
+    "alter",
+    "beschaeftigung",  # Beruf / was die Person sonst macht
+    "interessen",
+    "muttersprache",   # Tandem-Sprache, z.B. Deutsch, Französisch
+    "sprachniveau",    # Selbsteinschätzung Japanisch
+}
+PROFILE_VALUE_MAX_LEN = 120
+
+# Gender is normalized to a fixed set (accepts common variants)
+_GENDER_ALIASES = {
+    "m": "männlich", "männlich": "männlich", "maennlich": "männlich",
+    "male": "männlich", "mann": "männlich",
+    "w": "weiblich", "f": "weiblich", "weiblich": "weiblich",
+    "female": "weiblich", "frau": "weiblich",
+    "d": "divers", "divers": "divers", "nb": "divers",
+    "nonbinary": "divers", "non-binary": "divers",
+}
+
+
+def _clean_profile_value(key: str, value) -> str:
+    """Sanity-check a single profile value.
+
+    Profile values are injected into the system prompt, so besides
+    plausibility checks this strips characters that could break the
+    prompt structure (newlines, angle brackets, pipes).
+
+    Returns "" for invalid values (treated as 'clear/ignore field').
+    """
+    text = " ".join(str(value).split())          # collapse all whitespace
+    text = re.sub(r"[<>|{}]", "", text).strip()  # no tag/placeholder chars
+    text = text[:PROFILE_VALUE_MAX_LEN]
+    if not text:
+        return ""
+
+    if key == "alter":
+        digits = re.sub(r"\D", "", text)
+        if not digits:
+            return ""
+        age = int(digits[:3])
+        return str(age) if 10 <= age <= 120 else ""
+
+    if key == "gender":
+        return _GENDER_ALIASES.get(text.lower(), "")
+
+    if key == "muttersprache":
+        # A language name, not a story: letters/hyphens only, short
+        if len(text) > 30 or not re.fullmatch(r"[A-Za-zÀ-ÿĀ-ž' -]+", text):
+            return ""
+        return text[:1].upper() + text[1:]
+
+    if key == "sprachniveau":
+        return text[:40]
+
+    return text
+
+
+def sanitize_profile(profile: dict) -> dict:
+    """Keep only whitelisted fields with sanity-checked values."""
+    clean: dict[str, str] = {}
+    for key, value in (profile or {}).items():
+        if key not in PROFILE_FIELDS:
+            continue
+        text = _clean_profile_value(key, value)
+        if text:
+            clean[key] = text
+    return clean
+
+
 class UserRecord(BaseModel):
     username: str
     hashed_password: str
@@ -39,6 +113,7 @@ class UserRecord(BaseModel):
     created_at: str = ""
     player_name: str = ""
     custom_scenario: str = ""
+    player_profile: dict[str, str] = {}
 
 
 class UserStore(BaseModel):
@@ -155,6 +230,29 @@ class UserManager:
         user.player_name = player_name.strip()
         self._save()
         return True
+
+    def update_profile(self, username: str, updates: dict) -> Optional[dict]:
+        """Merge whitelisted profile fields into the user's profile.
+
+        Returns the new profile, or None if the user does not exist.
+        Pass an empty string value to clear a field.
+        """
+        user = self.store.users.get(username.lower())
+        if not user:
+            return None
+        for key, value in (updates or {}).items():
+            if key not in PROFILE_FIELDS:
+                continue
+            raw = str(value).strip()
+            text = _clean_profile_value(key, raw)
+            if text:
+                user.player_profile[key] = text
+            elif not raw:
+                # Explicit empty value clears the field; invalid values
+                # are ignored instead (don't destroy good data)
+                user.player_profile.pop(key, None)
+        self._save()
+        return dict(user.player_profile)
 
     def update_scenario(self, username: str, scenario: str) -> bool:
         user = self.store.users.get(username.lower())

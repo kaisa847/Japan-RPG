@@ -154,6 +154,9 @@ class SceneStatus(BaseModel):
     story_flag: Optional[str] = None
     promise: Optional[str] = None
     promise_resolved: Optional[str] = None
+    profile_update: dict[str, str] = {}
+    prologue_end: bool = False
+    title_card: Optional[str] = None
 
 
 # Allowed staging tokens: horizontal position and closeness
@@ -376,6 +379,7 @@ class ResponseParser:
             "time_update", "scene_end", "suggested_next",
             "memory", "new_vocab", "story_flag",
             "promise", "promise_resolved",
+            "profile_update", "prologue_end", "title_card",
         ])
 
         time_update = data.get("time_update") or None
@@ -388,6 +392,17 @@ class ResponseParser:
 
         new_vocab = ResponseParser._parse_vocab(data.get("new_vocab", ""))
 
+        # Profile updates: feld=wert|feld=wert (validated/whitelisted by caller)
+        profile_update: dict[str, str] = {}
+        raw_profile = html.unescape(data.get("profile_update", "").strip())
+        for chunk in raw_profile.split("|"):
+            if "=" not in chunk:
+                continue
+            key, _, value = chunk.partition("=")
+            key, value = key.strip().lower(), value.strip()
+            if key and value:
+                profile_update[key] = value
+
         return SceneStatus(
             time_update=time_update,
             scene_end=scene_end,
@@ -399,6 +414,9 @@ class ResponseParser:
             promise_resolved=html.unescape(
                 data.get("promise_resolved", "").strip()
             ) or None,
+            profile_update=profile_update,
+            prologue_end=data.get("prologue_end", "").strip().lower() == "true",
+            title_card=html.unescape(data.get("title_card", "").strip()) or None,
         )
 
     # Vocab item: 言葉[ことば]=Bedeutung  (reading optional)
