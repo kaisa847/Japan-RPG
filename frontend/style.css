@@ -604,6 +604,136 @@ rt {
     margin-right: 8px;
 }
 
+/* --- Title Card (chapter/day transitions) --- */
+
+#title-card {
+    position: absolute;
+    inset: 0;
+    z-index: 25;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(7, 8, 12, 0.96);
+    opacity: 0;
+    transition: opacity 500ms ease;
+    pointer-events: none;
+}
+
+#title-card.visible {
+    opacity: 1;
+}
+
+#title-card-text {
+    color: var(--text);
+    font-size: 24px;
+    font-weight: 500;
+    letter-spacing: 3px;
+    text-align: center;
+    padding: 0 24px;
+    border-top: 1px solid var(--accent-border);
+    border-bottom: 1px solid var(--accent-border);
+    padding-top: 18px;
+    padding-bottom: 18px;
+}
+
+/* --- Prologue Chat Mode --- */
+
+#prologue-skip {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    font-size: 12px;
+    cursor: pointer;
+    padding: 4px 8px;
+    margin-left: auto;
+    transition: color 150ms;
+}
+
+#prologue-skip:hover {
+    color: var(--text-soft);
+}
+
+.chat-mode #background-layer {
+    visibility: hidden;
+}
+
+.chat-mode #character-layer {
+    display: none;
+}
+
+.chat-mode {
+    background:
+        radial-gradient(ellipse at 30% 10%, rgba(217, 122, 142, 0.08), transparent 60%),
+        radial-gradient(ellipse at 80% 90%, rgba(106, 130, 217, 0.07), transparent 55%),
+        #0e1018 !important;
+}
+
+.chat-mode #hud-left {
+    display: none;
+}
+
+.chat-mode #textbox-layer {
+    max-height: 72%;
+}
+
+.chat-mode #textbox-header::after {
+    content: "NihongoConnect";
+    color: var(--text-dim);
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    margin-right: 8px;
+}
+
+.chat-mode #dialog-text {
+    background: rgba(255, 255, 255, 0.055);
+    border-radius: 4px 16px 16px 16px;
+    padding: 12px 16px;
+    font-size: 16px;
+    line-height: 1.9;
+}
+
+/* --- Profile Editor (menu) --- */
+
+.profile-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.profile-grid input,
+.profile-grid select {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 150ms;
+}
+
+.profile-grid input:focus,
+.profile-grid select:focus {
+    border-color: var(--accent-border);
+}
+
+.profile-grid select {
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.profile-wide {
+    grid-column: 1 / -1;
+}
+
+#profile-section {
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--hairline);
+}
+
 /* --- Loading Overlay --- */
 
 #loading-overlay {

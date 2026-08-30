@@ -22,6 +22,7 @@ from pydantic import BaseModel
 
 from backend.auth import (
     UserManager, UserRecord, create_access_token, get_current_user,
+    sanitize_profile,
 )
 from backend.response_parser import SceneData
 from backend.sprite_manifest import SpriteManifests
@@ -36,23 +37,56 @@ FRONTEND_DIR = PROJECT_ROOT / "frontend"
 ASSETS_DIR = PROJECT_ROOT / "assets"
 
 DEFAULT_SCENARIO = """\
-Der Spieler heißt {player_name} und ist auf einem Sabbatical in Shimokitazawa, Tokio.
-Er hat Aoi (林あおい) online in einem Sprachaustausch-Forum kennengelernt.
-Heute treffen sie sich zum ersten Mal persönlich. Aoi zeigt {player_name} die Gegend \
-und hilft ihm, sein Japanisch in echten Alltagssituationen zu verbessern.
+{player_name} hat 90 Tage Auszeit genommen und wohnt für diese Zeit in einem kleinen \
+Share House in Shimokitazawa, Tokio. Kennengelernt haben sich {player_name} und Aoi \
+(林あおい) vor Monaten im Sprachaustausch-Forum "NihongoConnect". Ihr Deal: Sie sprechen \
+Japanisch, dafür hilft {player_name} ihr mit {native_language} — Aoi träumt von einem \
+Auslandssemester. Nach wochenlangem Chatten ist {player_name} nun wirklich in Tokio. \
+Aoi zeigt {player_name} ihre Stadt — und mit jedem Tag stellt sich mehr die Frage, \
+was passiert, wenn Tag 90 kommt und der Rückflug geht.
 
 SPIELSTART:
-Aoi trifft {player_name} am Südausgang des Bahnhofs Shimokitazawa. \
-Es ist ein sonniger Nachmittag. \
-Sie erkennt ihn sofort und ruft fröhlich nach ihm. \
-Aoi begrüßt {player_name} auf Japanisch — einfaches, anfängerfreundliches Japanisch. \
-Sie ist aufgeregt, ihn endlich persönlich zu treffen, nachdem sie monatelang online gechattet haben. \
+Aoi trifft {player_name} am Südausgang des Bahnhofs Shimokitazawa — genau wie im \
+Forum-Chat verabredet. Es ist ein sonniger Nachmittag, {player_name} ist heute Morgen \
+gelandet. Sie erkennt {player_name} sofort und ruft fröhlich — endlich persönlich, \
+nach all den Wochen im Chat! Aoi begrüßt {player_name} auf Japanisch — einfaches, \
+anfängerfreundliches Japanisch. \
 Verwende character=aoi, expression=happy, background=shimokitazawa_station. \
-Dies ist die ERSTE Begegnung — halte den Ton freundlich aber noch etwas formell.\
+Erste ECHTE Begegnung — aufgeregt-freundlich, aber noch etwas schüchtern-formell.\
 """
 
+PROLOGUE_START_PROMPT = """\
+(SPIELSTART – PROLOG. Regieanweisung, NICHT als Dialog anzeigen:
+Beginne den Forum-Chat: Aoi antwortet begeistert auf {player_name}s Beitrag im \
+Sprachaustausch-Forum "NihongoConnect" (Suche: Tandem-Partner für Japanisch). \
+Erste kurze Chat-Nachricht: Sie stellt sich knapp vor und stellt eine Gegenfrage. \
+character=aoi, background leer lassen.)"""
 
-def _parse_scenario(scenario_text: str, player_name: str) -> tuple[str, str]:
+# German labels for auto title cards on day changes
+GERMAN_PERIODS = {
+    "early_morning": "Früher Morgen",
+    "morning": "Morgen",
+    "midday": "Mittag",
+    "afternoon": "Nachmittag",
+    "evening": "Abend",
+    "night": "Nacht",
+    "late_night": "Tiefe Nacht",
+}
+
+
+def _seed_level_from_profile(profile: dict) -> str:
+    """Map the self-assessed language level onto a starting JLPT level."""
+    lvl = (profile.get("sprachniveau") or "").lower()
+    if "n3" in lvl:
+        return "N3"
+    if "n4" in lvl or "fortgeschritten" in lvl:
+        return "N4"
+    return "N5"
+
+
+def _parse_scenario(
+    scenario_text: str, player_name: str, native_language: str = "Deutsch",
+) -> tuple[str, str]:
     """Split scenario into (premise, start_prompt) and substitute player_name.
 
     If the text contains a 'SPIELSTART:' marker, everything before it becomes
@@ -60,6 +94,7 @@ def _parse_scenario(scenario_text: str, player_name: str) -> tuple[str, str]:
     Otherwise the full text is used for both.
     """
     text = scenario_text.replace("{player_name}", player_name)
+    text = text.replace("{native_language}", native_language)
     marker = "SPIELSTART:"
     idx = text.find(marker)
     if idx >= 0:
@@ -91,9 +126,12 @@ class GenerateSceneResponse(BaseModel):
     time: Optional[dict] = None
     learning: Optional[dict] = None
     story_beat: Optional[str] = None
+    phase: str = "main"
+    title_card: Optional[str] = None
 
 
 class GameStateResponse(BaseModel):
+    phase: str = "main"
     day_number: int = 1
     time: dict = {}
     current_location: str = ""
@@ -339,6 +377,50 @@ async def update_player_name(
     return {"player_name": name}
 
 
+# --- Player profile ---
+
+@app.get("/api/player_profile")
+async def get_player_profile(user: UserRecord = Depends(get_current_user)):
+    return {"profile": user.player_profile}
+
+
+@app.put("/api/player_profile")
+async def update_player_profile(
+    request: Request,
+    user: UserRecord = Depends(get_current_user),
+):
+    body = await request.json()
+    updates = body.get("profile", {})
+    if not isinstance(updates, dict):
+        raise HTTPException(status_code=400, detail="profile muss ein Objekt sein.")
+    um: UserManager = request.app.state.user_manager
+    profile = um.update_profile(user.username, updates)
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Benutzer nicht gefunden.")
+    return {"profile": profile}
+
+
+@app.post("/api/prologue/skip")
+async def skip_prologue(
+    request: Request,
+    user: UserRecord = Depends(get_current_user),
+):
+    """Skip the forum-chat prologue and jump straight to the main game.
+
+    Profile data collected so far is kept; missing fields become
+    in-game questions from Aoi (anti-assumption rule).
+    """
+    sm = get_user_state_manager(user, request.app.state)
+    if sm.state.phase == "prologue":
+        sm.state.phase = "main"
+        sm.state.conversation_history = []
+        sm.state.time.day = 1
+        sm.state.time.hour = 14
+        sm.state.time.period = "afternoon"
+        sm.save()
+    return {"phase": sm.state.phase}
+
+
 # --- Scenario ---
 
 @app.get("/api/scenario")
@@ -385,10 +467,19 @@ async def root():
 # --- Start prompt ---
 
 @app.get("/api/start_prompt")
-async def get_start_prompt(user: UserRecord = Depends(get_current_user)):
+async def get_start_prompt(
+    request: Request,
+    user: UserRecord = Depends(get_current_user),
+):
     player_name = user.player_name or "Spieler"
+    sm = get_user_state_manager(user, request.app.state)
+    if sm.state.phase == "prologue":
+        return {"prompt": PROLOGUE_START_PROMPT.format(player_name=player_name)}
+    native_language = user.player_profile.get("muttersprache", "Deutsch")
     scenario_text = user.custom_scenario or DEFAULT_SCENARIO
-    _premise, start_prompt = _parse_scenario(scenario_text, player_name)
+    _premise, start_prompt = _parse_scenario(
+        scenario_text, player_name, native_language=native_language,
+    )
     return {"prompt": start_prompt}
 
 
@@ -453,6 +544,7 @@ async def get_game_state(
             "dialog_de": s.last_scene.get("dialog_de", ""),
         }
     return GameStateResponse(
+        phase=s.phase,
         day_number=s.time.day,
         time=s.time.model_dump(),
         current_location=s.current_location,
@@ -472,8 +564,12 @@ async def reset_game_state(
     user: UserRecord = Depends(get_current_user),
 ):
     sm = get_user_state_manager(user, request.app.state)
-    fresh = sm.reset()
+    fresh = sm.reset(
+        phase="prologue",
+        overall_level=_seed_level_from_profile(user.player_profile),
+    )
     return GameStateResponse(
+        phase=fresh.phase,
         day_number=fresh.time.day,
         time=fresh.time.model_dump(),
         current_location=fresh.current_location,
@@ -506,7 +602,11 @@ async def generate_scene(
     # perform a full reset so old context never bleeds into a new game.
     if body.user_input.startswith("(SPIELSTART") and sm.state.conversation_history:
         logger.info("SPIELSTART with stale history detected — performing full state reset")
-        sm.reset()
+        is_prologue_start = "PROLOG" in body.user_input[:40]
+        sm.reset(
+            phase="prologue" if is_prologue_start else "main",
+            overall_level=_seed_level_from_profile(user.player_profile),
+        )
 
     # Get current state info for Claude
     aoi_tone = sm.state.affection.tone
@@ -516,8 +616,12 @@ async def generate_scene(
     history = sm.state.conversation_history
 
     # Resolve custom scenario premise
+    player_profile = dict(user.player_profile)
+    native_language = player_profile.get("muttersprache", "Deutsch")
     scenario_text = user.custom_scenario or DEFAULT_SCENARIO
-    custom_premise, _start = _parse_scenario(scenario_text, player_name)
+    custom_premise, _start = _parse_scenario(
+        scenario_text, player_name, native_language=native_language,
+    )
 
     # Long-term memory, due vocabulary, active story beat
     memories = [
@@ -530,17 +634,21 @@ async def generate_scene(
     sprite_manifests: SpriteManifests = request.app.state.sprite_manifests
     available_poses = sprite_manifests.pose_ids("aoi") or None
 
-    story_engine: StoryEngine = request.app.state.story_engine
-    active_beat = story_engine.select_beat(
-        day=sm.state.time.day,
-        score=sm.state.affection.weighted_score,
-        flags=sm.state.flags,
-        completed_beats=sm.state.story.completed_beats,
-    )
-    story_beat_block = (
-        story_engine.build_prompt_block(active_beat, player_name)
-        if active_beat else None
-    )
+    # Story beats pause during the prologue (the chat has its own script)
+    active_beat = None
+    story_beat_block = None
+    if sm.state.phase != "prologue":
+        story_engine: StoryEngine = request.app.state.story_engine
+        active_beat = story_engine.select_beat(
+            day=sm.state.time.day,
+            score=sm.state.affection.weighted_score,
+            flags=sm.state.flags,
+            completed_beats=sm.state.story.completed_beats,
+        )
+        story_beat_block = (
+            story_engine.build_prompt_block(active_beat, player_name)
+            if active_beat else None
+        )
 
     if handler:
         scene = await handler.generate_scene_safe(
@@ -556,6 +664,8 @@ async def generate_scene(
             due_vocab=due_vocab,
             story_beat_block=story_beat_block,
             available_poses=available_poses,
+            player_profile=player_profile,
+            phase=sm.state.phase,
         )
     else:
         scene = SceneData(
@@ -590,6 +700,29 @@ async def generate_scene(
     if not time_advanced:
         # No explicit time advancement — use periodic fallback
         sm.maybe_advance_time_periodic()
+
+    # Profile updates, prologue end, title card
+    title_card = scene.scene_status.title_card if scene.scene_status else None
+    if scene.scene_status:
+        st = scene.scene_status
+        if st.profile_update:
+            um: UserManager = request.app.state.user_manager
+            updated = um.update_profile(user.username, st.profile_update)
+            if updated is not None:
+                logger.info("Profile updated from prologue: %s",
+                            list(st.profile_update.keys()))
+        if st.prologue_end and sm.state.phase == "prologue":
+            sm.state.phase = "main"
+            # The main game starts fresh on day 1, afternoon of the arrival
+            sm.state.time.day = 1
+            sm.state.time.hour = 14
+            sm.state.time.period = "afternoon"
+            sm.state.turns_since_time_advance = 0
+            if not title_card:
+                title_card = "Drei Wochen später — Tokio"
+        elif st.time_update and st.time_update.strip().lower() == "next_day" and not title_card:
+            period = GERMAN_PERIODS.get(sm.state.time.period, "")
+            title_card = f"Tag {sm.state.time.day} — {period}".rstrip(" —")
 
     # Process episodic memory, vocab, story flag, promises
     if scene.scene_status:
@@ -657,6 +790,8 @@ async def generate_scene(
         time=sm.state.time.model_dump(),
         learning=sm.state.learning.model_dump(),
         story_beat=active_beat.title if active_beat else None,
+        phase=sm.state.phase,
+        title_card=title_card,
     )
 
 
@@ -734,6 +869,7 @@ async def load_from_slot(
             "dialog_de": loaded.last_scene.get("dialog_de", ""),
         }
     return GameStateResponse(
+        phase=loaded.phase,
         day_number=loaded.time.day,
         time=loaded.time.model_dump(),
         current_location=loaded.current_location,

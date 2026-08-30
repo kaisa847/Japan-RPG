@@ -6,6 +6,7 @@ const CONFIG = {
     FADE_TRANSITION_MS: 300,
     DEFAULT_EXPRESSION: "neutral",
     DEFAULT_BACKGROUND: "apartment",
+    TOTAL_DAYS: 90,
     MAX_SAVE_SLOTS: 9,
     MAX_SCENE_HISTORY: 100,
     ASSET_PATHS: {

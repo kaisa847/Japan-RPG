@@ -55,6 +55,7 @@
         <div id="textbox-layer">
             <div id="textbox-header">
                 <div id="character-name"></div>
+                <button id="prologue-skip" class="hidden">Prolog &uuml;berspringen &#9656;</button>
                 <button id="back-button" class="icon-button" title="Vorherige Szene" aria-label="Vorherige Szene">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>
                 </button>
@@ -87,6 +88,11 @@
                     <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M8 5.5v13l11-6.5L8 5.5Z"/></svg>
                 </button>
             </div>
+        </div>
+
+        <!-- Title Card Overlay (chapter/day transitions) -->
+        <div id="title-card" class="hidden">
+            <div id="title-card-text"></div>
         </div>
 
         <!-- Loading Overlay -->
@@ -129,9 +135,36 @@
                         </div>
                         <div id="menu-player-name-status" class="player-name-status"></div>
                     </div>
+                    <div id="profile-section">
+                        <label class="menu-label">Spielerprofil</label>
+                        <p class="scenario-hint">Aoi kennt nur, was hier steht — alles andere fragt sie dich im Spiel. Leere Felder sind ok.</p>
+                        <div class="profile-grid">
+                            <select id="profile-gender">
+                                <option value="">Geschlecht: keine Angabe</option>
+                                <option value="m&auml;nnlich">m&auml;nnlich</option>
+                                <option value="weiblich">weiblich</option>
+                                <option value="divers">divers</option>
+                            </select>
+                            <input type="text" id="profile-alter" placeholder="Alter" inputmode="numeric" maxlength="3" autocomplete="off" />
+                            <input type="text" id="profile-herkunft" placeholder="Herkunft (Land/Stadt)" maxlength="60" autocomplete="off" />
+                            <input type="text" id="profile-muttersprache" placeholder="Muttersprache (z.B. Deutsch)" maxlength="30" autocomplete="off" />
+                            <input type="text" id="profile-beschaeftigung" placeholder="Beruf / Besch&auml;ftigung" maxlength="60" autocomplete="off" />
+                            <select id="profile-sprachniveau">
+                                <option value="">Japanisch: Anf&auml;nger</option>
+                                <option value="N5">etwa N5</option>
+                                <option value="N4">etwa N4</option>
+                                <option value="N3">N3 oder h&ouml;her</option>
+                            </select>
+                            <input type="text" id="profile-interessen" class="profile-wide" placeholder="Interessen/Hobbys (kurz)" maxlength="120" autocomplete="off" />
+                        </div>
+                        <div class="scenario-actions">
+                            <button id="profile-save">Speichern</button>
+                        </div>
+                        <div id="profile-status" class="player-name-status"></div>
+                    </div>
                     <div id="scenario-section">
                         <label class="menu-label">Szenario</label>
-                        <p class="scenario-hint">Beschreibe die Spielwelt und den Startpunkt. Verwende {player_name} als Platzhalter f&uuml;r den Spielernamen. Trenne Pr&auml;misse und Startanweisung mit &bdquo;SPIELSTART:&ldquo;.</p>
+                        <p class="scenario-hint">Beschreibe die Spielwelt und den Startpunkt. Platzhalter: {player_name} (Spielername) und {native_language} (Muttersprache aus dem Profil). Trenne Pr&auml;misse und Startanweisung mit &bdquo;SPIELSTART:&ldquo;.</p>
                         <textarea id="menu-scenario-input" rows="6" maxlength="5000"
                                   placeholder="Szenario eingeben..."></textarea>
                         <div class="scenario-actions">

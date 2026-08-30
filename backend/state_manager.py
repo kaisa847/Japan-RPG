@@ -147,6 +147,9 @@ class TimeState(BaseModel):
 
 
 class GameState(BaseModel):
+    # "prologue" = forum chat before arriving in Japan; "main" = the game.
+    # Defaults to "main" so existing saves are unaffected.
+    phase: str = "main"
     time: TimeState = TimeState()
     current_location: str = "apartment"
     current_background: str = "apartment"
@@ -219,9 +222,11 @@ class StateManager:
             if tmp_path.exists():
                 tmp_path.unlink()
 
-    def reset(self) -> GameState:
+    def reset(self, phase: str = "main", overall_level: str | None = None) -> GameState:
         self._archive_session()
-        self.state = GameState()
+        self.state = GameState(phase=phase)
+        if overall_level:
+            self.state.learning.overall_level = overall_level
         self.save()
         return self.state
 

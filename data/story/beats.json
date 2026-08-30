@@ -4,7 +4,11 @@
     {
       "id": "saitama_mentioned",
       "title": "Woher kommst du eigentlich?",
-      "trigger": { "min_day": 1, "min_score": 0, "required_flags": [] },
+      "trigger": {
+        "min_day": 1,
+        "min_score": 0,
+        "required_flags": []
+      },
       "sets_flag": "saitama_mentioned",
       "direction": "Baue natürlich ein: Aoi erwähnt beiläufig, dass sie aus Saitama stammt und vor drei Jahren nach Tokio gezogen ist — wechselt dann aber auffällig schnell das Thema. Kein Drama, nur ein kurzer Riss in ihrer fröhlichen Fassade.",
       "didactic_hint": "Herkunft: 出身, 〜から来ました"
@@ -12,7 +16,13 @@
     {
       "id": "mother_called",
       "title": "Der ignorierte Anruf",
-      "trigger": { "min_day": 2, "min_score": 0, "required_flags": ["saitama_mentioned"] },
+      "trigger": {
+        "min_day": 2,
+        "min_score": 0,
+        "required_flags": [
+          "saitama_mentioned"
+        ]
+      },
       "sets_flag": "mother_called",
       "direction": "Baue natürlich ein: Aois Handy klingelt mitten im Gespräch. Sie schaut aufs Display, drückt den Anruf weg und sagt nur „Nur meine Mutter…“. Kurzer Stimmungsknick (expression: worried), dann überspielt sie es. Beantworte keine Fragen dazu ausführlich — sie weicht aus.",
       "didactic_hint": "Telefon/Entschuldigung: すみません、ちょっと…"
@@ -20,7 +30,13 @@
     {
       "id": "family_story_told",
       "title": "Der Schrein auf dem Hügel",
-      "trigger": { "min_day": 3, "min_score": 30, "required_flags": ["mother_called"] },
+      "trigger": {
+        "min_day": 3,
+        "min_score": 30,
+        "required_flags": [
+          "mother_called"
+        ]
+      },
       "sets_flag": "family_story_told",
       "location_hint": "shrine",
       "direction": "Wenn ein ruhiger, vertrauter Moment entsteht (ideal: am Schrein), erzählt Aoi ihre Geschichte: Ihre Familie führt seit über 100 Jahren das Unagi-Restaurant „Hayashiya“ (林屋) in Kawagoe. Sie sollte es übernehmen und ist stattdessen nach Tokio geflohen. Sie fragt sich bis heute, ob das richtig war. Großer Vertrauensmoment — belohne aufmerksames Zuhören mit personal_bond.",
@@ -29,7 +45,13 @@
     {
       "id": "family_pressure",
       "title": "Daikis Nachricht",
-      "trigger": { "min_day": 4, "min_score": 0, "required_flags": ["family_story_told"] },
+      "trigger": {
+        "min_day": 4,
+        "min_score": 0,
+        "required_flags": [
+          "family_story_told"
+        ]
+      },
       "sets_flag": "family_pressure",
       "direction": "Baue ein: Aoi bekommt eine LINE-Nachricht von ihrem Bruder Daiki (大輝). Der Rücken des Vaters wird schlimmer, das Restaurant schafft die Saison kaum, die Mutter fragt, wann Aoi heimkommt. Aoi liest vor oder fasst zusammen, versucht es wegzulächeln — aber es arbeitet sichtbar in ihr.",
       "didactic_hint": "Familienbegriffe: 父/お父さん, 兄/お兄さん"
@@ -37,23 +59,41 @@
     {
       "id": "doubt_shared",
       "title": "Bin ich feige?",
-      "trigger": { "min_day": 5, "min_score": 45, "required_flags": ["family_pressure"] },
+      "trigger": {
+        "min_day": 5,
+        "min_score": 45,
+        "required_flags": [
+          "family_pressure"
+        ]
+      },
       "sets_flag": "doubt_shared",
-      "direction": "In einem ruhigen Moment dreht Aoi den Spieß um: Sie fragt {player_name} nach SEINEM Sabbatical — wovor läuft er weg? Danach gesteht sie ihren eigenen Zweifel: War ihre Flucht aus Kawagoe Mut oder Feigheit? Gehe ernsthaft auf die Antwort von {player_name} ein; persönliche Offenheit belohnt personal_bond.",
+      "direction": "In einem ruhigen Moment dreht Aoi den Spieß um: Sie fragt {player_name} nach der eigenen Auszeit — wovor läuft {player_name} weg? Danach gesteht sie ihren eigenen Zweifel: War ihre Flucht aus Kawagoe Mut oder Feigheit? Gehe ernsthaft auf die Antwort von {player_name} ein; persönliche Offenheit belohnt personal_bond.",
       "didactic_hint": "Meinung äußern: 〜と思う, Nominalisierung の/こと"
     },
     {
       "id": "kawagoe_planned",
       "title": "Die Bitte",
-      "trigger": { "min_day": 6, "min_score": 50, "required_flags": ["doubt_shared"] },
+      "trigger": {
+        "min_day": 6,
+        "min_score": 50,
+        "required_flags": [
+          "doubt_shared"
+        ]
+      },
       "sets_flag": "kawagoe_planned",
-      "direction": "Aoi fasst einen Entschluss: Sie will nach Kawagoe fahren und ihre Familie besuchen — und bittet {player_name}, mitzukommen, als moralische Stütze („und echtes Unagi musst du sowieso probieren!“). Wenn er zusagt, lege ein konkretes Versprechen an (promise-Tag): gemeinsamer Ausflug nach Kawagoe in 1-2 Tagen.",
+      "direction": "Aoi fasst einen Entschluss: Sie will nach Kawagoe fahren und ihre Familie besuchen — und bittet {player_name}, mitzukommen, als moralische Stütze („und echtes Unagi musst du sowieso probieren!“). Bei Zusage lege ein konkretes Versprechen an (promise-Tag): gemeinsamer Ausflug nach Kawagoe in 1-2 Tagen.",
       "didactic_hint": "Verabredung: 〜ませんか, 〜ましょう, Datum/Uhrzeit"
     },
     {
       "id": "kawagoe_visited",
       "title": "Der Besuch bei Hayashiya",
-      "trigger": { "min_day": 7, "min_score": 0, "required_flags": ["kawagoe_planned"] },
+      "trigger": {
+        "min_day": 7,
+        "min_score": 0,
+        "required_flags": [
+          "kawagoe_planned"
+        ]
+      },
       "sets_flag": "kawagoe_visited",
       "location_hint": "train_station",
       "direction": "Der Kawagoe-Ausflug: Zugfahrt, Klein-Edo-Gassen, dann das Familienrestaurant Hayashiya. Begrüßung der Eltern (Erzähler), angespanntes Essen. WICHTIG: Aoi wechselt gegenüber ihrem Vater hörbar in Keigo — mache diesen Registerwechsel explizit und erkläre ihn {player_name} kurz. Der Vater bleibt stur, aber die Anwesenheit von {player_name} entschärft die Stimmung. Dieser Beat darf sich über mehrere Szenen erstrecken.",
@@ -62,7 +102,13 @@
     {
       "id": "resolution_idea",
       "title": "Der Gedanke danach",
-      "trigger": { "min_day": 7, "min_score": 0, "required_flags": ["kawagoe_visited"] },
+      "trigger": {
+        "min_day": 7,
+        "min_score": 0,
+        "required_flags": [
+          "kawagoe_visited"
+        ]
+      },
       "sets_flag": "resolution_idea",
       "location_hint": "izakaya",
       "direction": "Zurück in Shimokitazawa (abends, Izakaya oder Rooftop): Aoi sortiert ihre Gedanken über den Besuch. Lass im Gespräch mit {player_name} die Idee entstehen: Kulturanthropologie und Hayashiya schließen sich nicht aus — sie könnte die 100-jährige Geschichte des Hauses dokumentieren und dem Restaurant helfen, während Daiki die Küche übernimmt. Die Idee soll sich gemeinsam erarbeitet anfühlen, nicht fertig aus ihr heraussprudeln.",
@@ -71,16 +117,28 @@
     {
       "id": "arc1_resolved",
       "title": "Der Anruf bei der Mutter",
-      "trigger": { "min_day": 8, "min_score": 60, "required_flags": ["resolution_idea"] },
+      "trigger": {
+        "min_day": 8,
+        "min_score": 60,
+        "required_flags": [
+          "resolution_idea"
+        ]
+      },
       "sets_flag": "arc1_resolved",
       "location_hint": "rooftop",
-      "direction": "Aoi ruft ihre Mutter an und trägt ihren Plan vor — diesmal drückt sie den Anruf nicht weg. Danach auf dem Rooftop: Erleichterung, Dankbarkeit, emotionaler Höhepunkt. Aoi sagt {player_name}, dass sie das ohne ihn nicht geschafft hätte (〜てくれてありがとう). Warmer, ruhiger Ton.",
+      "direction": "Aoi ruft ihre Mutter an und trägt ihren Plan vor — diesmal drückt sie den Anruf nicht weg. Danach auf dem Rooftop: Erleichterung, Dankbarkeit, emotionaler Höhepunkt. Aoi sagt {player_name}, dass sie das ohne {player_name}s Unterstützung nicht geschafft hätte (〜てくれてありがとう). Warmer, ruhiger Ton.",
       "didactic_hint": "Dank: 〜てくれてありがとう"
     },
     {
       "id": "new_chapter",
       "title": "Neues Kapitel",
-      "trigger": { "min_day": 9, "min_score": 0, "required_flags": ["arc1_resolved"] },
+      "trigger": {
+        "min_day": 9,
+        "min_score": 0,
+        "required_flags": [
+          "arc1_resolved"
+        ]
+      },
       "sets_flag": "new_chapter",
       "direction": "Epilog-Stimmung: Der Alltag kehrt ein, aber verändert. Aoi erzählt von ihrem Dokumentationsprojekt über Hayashiya und plant Kawagoe-Wochenenden. Deute an, dass am Kitazawa-Hachiman-Schrein bald ein Sommerfest ansteht (Ausblick). Kein Druck — offenes, warmes Weiterspielen.",
       "didactic_hint": "Alltag & Zukunft: 予定, 楽しみ"
