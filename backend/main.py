@@ -24,6 +24,7 @@ from backend.auth import (
     UserManager, UserRecord, create_access_token, get_current_user,
 )
 from backend.response_parser import SceneData
+from backend.sprite_manifest import SpriteManifests
 from backend.state_manager import StateManager
 from backend.story_engine import StoryEngine
 
@@ -76,6 +77,8 @@ def _parse_scenario(scenario_text: str, player_name: str) -> tuple[str, str]:
 class GenerateSceneResponse(BaseModel):
     character: Optional[str] = None
     expression: str = "neutral"
+    pose: Optional[str] = None
+    staging: list[str] = []
     background: Optional[str] = None
     dialog_jp: str = ""
     dialog_jp_furigana: str = ""
@@ -135,6 +138,9 @@ async def lifespan(app: FastAPI):
 
     # Story engine (shared, stateless — per-user progress lives in game state)
     app.state.story_engine = StoryEngine(data_dir=data_dir)
+
+    # Layered sprite manifests (pose/face compositing)
+    app.state.sprite_manifests = SpriteManifests(assets_dir=str(ASSETS_DIR))
 
     # Claude handler (may fail without API key)
     try:
@@ -410,7 +416,8 @@ async def get_available_assets():
             if f.suffix.lower() in (".png", ".jpg", ".webp")
         ])
 
-    return {"characters": characters, "backgrounds": backgrounds}
+    manifests = app.state.sprite_manifests.to_api_dict()
+    return {"characters": characters, "backgrounds": backgrounds, "manifests": manifests}
 
 
 @app.get("/api/locations")
@@ -436,6 +443,8 @@ async def get_game_state(
         last_scene = {
             "character": s.last_scene.get("character"),
             "expression": s.last_scene.get("expression", "neutral"),
+            "pose": s.last_scene.get("pose"),
+            "staging": s.last_scene.get("staging", []),
             "background": s.last_scene.get("background"),
             "dialog_jp": s.last_scene.get("dialog_jp", ""),
             "dialog_jp_furigana": s.last_scene.get("dialog_jp_furigana", ""),
@@ -516,6 +525,9 @@ async def generate_scene(
         {"word": v.word, "reading": v.reading, "meaning_de": v.meaning_de}
         for v in sm.get_due_vocab()
     ]
+    sprite_manifests: SpriteManifests = request.app.state.sprite_manifests
+    available_poses = sprite_manifests.pose_ids("aoi") or None
+
     story_engine: StoryEngine = request.app.state.story_engine
     active_beat = story_engine.select_beat(
         day=sm.state.time.day,
@@ -541,6 +553,7 @@ async def generate_scene(
             memories=memories,
             due_vocab=due_vocab,
             story_beat_block=story_beat_block,
+            available_poses=available_poses,
         )
     else:
         scene = SceneData(
@@ -602,10 +615,16 @@ async def generate_scene(
     )
     sm.add_conversation_turn("assistant", dialog_summary)
 
+    # Validate pose against the sprite manifest (unknown -> None,
+    # frontend falls back to the character's default pose)
+    pose = sprite_manifests.validate_pose(scene.character or "", scene.pose)
+
     # Store last scene for restoring UI state
     scene_dict = {
         "character": scene.character,
         "expression": scene.expression,
+        "pose": pose,
+        "staging": scene.staging,
         "background": scene.background,
         "dialog_jp": scene.dialog_jp,
         "dialog_jp_furigana": scene.dialog_jp_furigana,
@@ -619,6 +638,8 @@ async def generate_scene(
     return GenerateSceneResponse(
         character=scene.character,
         expression=scene.expression,
+        pose=pose,
+        staging=scene.staging,
         background=scene.background,
         dialog_jp=scene.dialog_jp,
         dialog_jp_furigana=scene.dialog_jp_furigana,
@@ -698,6 +719,8 @@ async def load_from_slot(
         last_scene = {
             "character": loaded.last_scene.get("character"),
             "expression": loaded.last_scene.get("expression", "neutral"),
+            "pose": loaded.last_scene.get("pose"),
+            "staging": loaded.last_scene.get("staging", []),
             "background": loaded.last_scene.get("background"),
             "dialog_jp": loaded.last_scene.get("dialog_jp", ""),
             "dialog_jp_furigana": loaded.last_scene.get("dialog_jp_furigana", ""),

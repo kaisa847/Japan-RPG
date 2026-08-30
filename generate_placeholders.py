@@ -115,6 +115,101 @@ def generate_character_placeholder(
     img.save(output_dir / f"{expression}.png", "PNG")
 
 
+# --- Layered sprite set (pose bodies + face patches + manifest) ---
+
+# Pose id -> arm drawing spec (simple rectangles so poses are tellable apart)
+LAYERED_POSES = {
+    "stand": [],
+    "wave": [(275, 120, 315, 340)],                    # right arm raised
+    "arms_crossed": [(130, 330, 270, 380)],            # bar across chest
+    "hands_clasped": [(170, 380, 230, 460)],           # hands in front
+    "pointing": [(285, 300, 395, 340)],                # arm out to the side
+    "phone": [(255, 180, 295, 320)],                   # arm bent up to ear
+}
+
+# Face patch geometry relative to the 400x800 body (head at [130,40,270,200])
+FACE_SIZE = 150
+FACE_ANCHOR = {"x": 0.5, "y": 0.15, "w": FACE_SIZE / 400}
+
+LAYERED_FACES = CHARACTER_EXPRESSIONS["aoi"] + ["blink"]
+
+
+def generate_pose_body(color: tuple, pose: str, arms: list, output_dir: Path) -> None:
+    """Body silhouette without facial features; arms vary per pose."""
+    img = Image.new("RGBA", (400, 800), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    r, g, b = color
+
+    draw.ellipse([130, 40, 270, 200], fill=(r, g, b, 220))                  # head
+    draw.rounded_rectangle([110, 190, 290, 720], radius=20, fill=(r, g, b, 180))
+    draw.rectangle([130, 700, 185, 790], fill=(r, g, b, 160))               # legs
+    draw.rectangle([215, 700, 270, 790], fill=(r, g, b, 160))
+    for x0, y0, x1, y1 in arms:
+        draw.rounded_rectangle([x0, y0, x1, y1], radius=12, fill=(r, g, b, 200))
+
+    draw.text((200, 770), pose, fill=(255, 255, 255, 180),
+              anchor="mm", font=get_font(13))
+    img.save(output_dir / f"{pose}.png", "PNG")
+
+
+def generate_face_patch(color: tuple, face: str, output_dir: Path) -> None:
+    """Face patch overlaid on the head at the manifest anchor."""
+    s = FACE_SIZE
+    img = Image.new("RGBA", (s, s), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    r, g, b = color
+    lighter = (min(r + 40, 255), min(g + 40, 255), min(b + 40, 255), 255)
+
+    draw.ellipse([5, 5, s - 5, s - 5], fill=lighter)
+
+    eye_y = int(s * 0.42)
+    if face in ("blink", "sleepy"):
+        draw.line([s * 0.28, eye_y, s * 0.42, eye_y], fill=(30, 30, 40), width=4)
+        draw.line([s * 0.58, eye_y, s * 0.72, eye_y], fill=(30, 30, 40), width=4)
+    else:
+        draw.ellipse([s * 0.30, eye_y - 6, s * 0.40, eye_y + 6], fill=(30, 30, 40))
+        draw.ellipse([s * 0.60, eye_y - 6, s * 0.70, eye_y + 6], fill=(30, 30, 40))
+
+    mouth_y = int(s * 0.66)
+    draw.arc([s * 0.38, mouth_y - 10, s * 0.62, mouth_y + 10],
+             start=0, end=180, fill=(30, 30, 40), width=3)
+
+    draw.text((s / 2, s * 0.86), face, fill=(40, 40, 60, 230),
+              anchor="mm", font=get_font(12))
+    img.save(output_dir / f"{face}.png", "PNG")
+
+
+def generate_layered_set(char_id: str, color: tuple, base: Path) -> None:
+    """Generate poses/, faces/ and manifest.json for one character."""
+    char_dir = base / "characters" / char_id
+    poses_dir = char_dir / "poses"
+    faces_dir = char_dir / "faces"
+    poses_dir.mkdir(parents=True, exist_ok=True)
+    faces_dir.mkdir(parents=True, exist_ok=True)
+
+    for pose, arms in LAYERED_POSES.items():
+        generate_pose_body(color, pose, arms, poses_dir)
+    for face in LAYERED_FACES:
+        generate_face_patch(color, face, faces_dir)
+
+    manifest = {
+        "version": 1,
+        "default_pose": "stand",
+        "default_face": "neutral",
+        "blink_face": "blink",
+        "poses": {
+            pose: {"body": f"poses/{pose}.png", "anchor": FACE_ANCHOR}
+            for pose in LAYERED_POSES
+        },
+        "faces": LAYERED_FACES,
+    }
+    (char_dir / "manifest.json").write_text(
+        json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    print(f"  {char_id}: layered set ({len(LAYERED_POSES)} poses, "
+          f"{len(LAYERED_FACES)} faces + manifest)")
+
+
 def generate_background_placeholder(
     bg_id: str, color: tuple, label: str, output_dir: Path
 ) -> None:
@@ -159,6 +254,9 @@ def main():
         for expr in expressions:
             generate_character_placeholder(char_id, display, color, expr, char_dir)
         print(f"  {char_id}: {len(expressions)} sprites")
+
+    # Layered sprite set (Baukasten) for the active character
+    generate_layered_set("aoi", CHARACTER_COLORS["aoi"], base)
 
     # Backgrounds
     bg_dir = base / "backgrounds"

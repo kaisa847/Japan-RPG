@@ -7,6 +7,7 @@ from httpx import ASGITransport, AsyncClient
 from backend.auth import UserManager, create_access_token
 from backend.state_manager import StateManager
 from backend.response_parser import SceneData
+from backend.sprite_manifest import SpriteManifests
 from backend.story_engine import StoryEngine
 
 
@@ -29,6 +30,7 @@ async def client(monkeypatch, tmp_path):
     app.state.data_dir = data_dir
     app.state.claude_handler = None
     app.state.story_engine = StoryEngine(data_dir=data_dir)
+    app.state.sprite_manifests = SpriteManifests(assets_dir=str(tmp_path / "assets"))
 
     token = create_access_token("testuser", jwt_secret)
 
@@ -74,6 +76,7 @@ class TestAPI:
         data = resp.json()
         assert "characters" in data
         assert "backgrounds" in data
+        assert "manifests" in data
 
     async def test_generate_scene_no_api_key(self, client):
         resp = await client.post(
