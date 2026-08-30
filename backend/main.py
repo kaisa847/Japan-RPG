@@ -76,6 +76,7 @@ def _parse_scenario(scenario_text: str, player_name: str) -> tuple[str, str]:
 
 class GenerateSceneResponse(BaseModel):
     character: Optional[str] = None
+    speaker: Optional[str] = None
     expression: str = "neutral"
     pose: Optional[str] = None
     staging: list[str] = []
@@ -442,6 +443,7 @@ async def get_game_state(
     if s.last_scene:
         last_scene = {
             "character": s.last_scene.get("character"),
+            "speaker": s.last_scene.get("speaker"),
             "expression": s.last_scene.get("expression", "neutral"),
             "pose": s.last_scene.get("pose"),
             "staging": s.last_scene.get("staging", []),
@@ -606,9 +608,11 @@ async def generate_scene(
 
     # Update conversation history (dialog-only, no analysis/scene_status noise)
     sm.add_conversation_turn("user", body.user_input)
+    speaker_line = f"  <speaker>{scene.speaker}</speaker>\n" if scene.speaker else ""
     dialog_summary = (
         f"<scene>\n"
         f"  <character>{scene.character or ''}</character>\n"
+        f"{speaker_line}"
         f"  <dialog_jp>{scene.dialog_jp}</dialog_jp>\n"
         f"  <dialog_de>{scene.dialog_de}</dialog_de>\n"
         f"</scene>"
@@ -622,6 +626,7 @@ async def generate_scene(
     # Store last scene for restoring UI state
     scene_dict = {
         "character": scene.character,
+        "speaker": scene.speaker,
         "expression": scene.expression,
         "pose": pose,
         "staging": scene.staging,
@@ -637,6 +642,7 @@ async def generate_scene(
 
     return GenerateSceneResponse(
         character=scene.character,
+        speaker=scene.speaker,
         expression=scene.expression,
         pose=pose,
         staging=scene.staging,
@@ -718,6 +724,7 @@ async def load_from_slot(
     if loaded.last_scene:
         last_scene = {
             "character": loaded.last_scene.get("character"),
+            "speaker": loaded.last_scene.get("speaker"),
             "expression": loaded.last_scene.get("expression", "neutral"),
             "pose": loaded.last_scene.get("pose"),
             "staging": loaded.last_scene.get("staging", []),

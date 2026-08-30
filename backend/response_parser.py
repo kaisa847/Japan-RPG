@@ -85,6 +85,41 @@ def _fix_reversed_furigana(text: str) -> str:
     return _ANY_BRACKET_RE.sub(_fix_match, text)
 
 
+# Lazily initialized pykakasi converter (optional dependency)
+_kakasi = None
+
+
+def _generate_furigana(text: str) -> str | None:
+    """Generate 漢字[かんじ] furigana annotations locally via pykakasi.
+
+    Fallback for responses where Claude forgot the readings entirely.
+    Segment-level readings (言った[いった]), not per-kanji precision —
+    good enough for the ruby renderer. Returns None if pykakasi is
+    not installed or conversion fails.
+    """
+    global _kakasi
+    if _kakasi is None:
+        try:
+            import pykakasi
+            _kakasi = pykakasi.kakasi()
+        except ImportError:
+            logger.warning("pykakasi not installed - furigana fallback disabled")
+            return None
+    try:
+        parts = []
+        for item in _kakasi.convert(text):
+            orig = item.get("orig", "")
+            hira = item.get("hira", "")
+            if _has_kanji(orig) and hira and hira != orig:
+                parts.append(f"{orig}[{hira}]")
+            else:
+                parts.append(orig)
+        return "".join(parts)
+    except Exception as e:
+        logger.warning("Furigana generation failed: %s", e)
+        return None
+
+
 # Aoi-only valid expressions
 CHARACTER_EXPRESSIONS: dict[str, list[str]] = {
     "aoi": [
@@ -127,6 +162,9 @@ STAGING_TOKENS = {"left", "center", "right", "near"}
 
 class SceneData(BaseModel):
     character: Optional[str] = None
+    # Display name of who is talking, when it is NOT the sprite character
+    # (side NPCs like the ramen shop master). None = character speaks.
+    speaker: Optional[str] = None
     expression: str = "neutral"
     pose: Optional[str] = None
     staging: list[str] = []
@@ -167,6 +205,9 @@ class ResponseParser:
         character = ResponseParser._sanitize_character_id(data.get("character", ""))
         if not character:
             character = None
+
+        # Side-NPC speaker (free-text display name, e.g. マスター)
+        speaker = html.unescape(data.get("speaker", "").strip()) or None
 
         expression = data.get("expression", "neutral").strip().lower()
         expression = ResponseParser._validate_expression(expression, character, errors)
@@ -212,6 +253,15 @@ class ResponseParser:
             dialog_jp_furigana = dialog_jp
             errors.append("Missing dialog_jp_furigana, falling back to dialog_jp")
 
+        # Server-side guarantee: if kanji remain without any reading
+        # annotation (Claude forgot the furigana), generate them locally.
+        if (dialog_jp_furigana and "[" not in dialog_jp_furigana
+                and _has_kanji(dialog_jp_furigana)):
+            generated = _generate_furigana(dialog_jp_furigana)
+            if generated:
+                dialog_jp_furigana = generated
+                errors.append("Generated furigana via pykakasi fallback")
+
         # Parse optional analysis block
         analysis = ResponseParser._parse_analysis(raw_response)
 
@@ -220,6 +270,7 @@ class ResponseParser:
 
         return SceneData(
             character=character,
+            speaker=speaker,
             expression=expression,
             pose=pose,
             staging=staging,
@@ -248,7 +299,8 @@ class ResponseParser:
         try:
             root = ET.fromstring(scene_xml)
             result = {}
-            for tag in ("character", "expression", "pose", "staging", "background",
+            for tag in ("character", "speaker", "expression", "pose", "staging",
+                        "background",
                         "dialog_jp", "dialog_jp_furigana", "dialog_de"):
                 elem = root.find(tag)
                 if elem is not None and elem.text:
@@ -260,7 +312,8 @@ class ResponseParser:
     @staticmethod
     def _parse_regex_fallback(scene_xml: str) -> dict:
         result = {}
-        for tag in ("character", "expression", "pose", "staging", "background",
+        for tag in ("character", "speaker", "expression", "pose", "staging",
+                     "background",
                      "dialog_jp", "dialog_jp_furigana", "dialog_de"):
             match = re.search(rf"<{tag}>(.*?)</{tag}>", scene_xml, re.DOTALL)
             if match:

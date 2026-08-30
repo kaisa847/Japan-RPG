@@ -330,6 +330,23 @@ button {
     visibility: hidden;
 }
 
+/* Side NPC speaker (e.g. the ramen shop master): neutral plate
+   instead of Aoi's accent color */
+#character-name.side-speaker {
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--text);
+    box-shadow: none;
+    border: 1px solid var(--hairline-strong);
+}
+
+.history-entry.side-speaker {
+    border-left-color: var(--hairline-strong);
+}
+
+.history-entry.side-speaker .history-char-name {
+    color: var(--text-soft);
+}
+
 #textbox-header .icon-button {
     width: 30px;
     height: 30px;
