@@ -199,3 +199,49 @@ class TestPrologueOpener:
         assert data["parse_errors"] == []
         # Scripted vocab lands in the notebook
         assert "投稿" in data["learning"]["vocab"]
+
+
+@pytest.mark.asyncio
+class TestExpAPI:
+    async def test_exp_in_game_state(self, client):
+        resp = await client.get("/game_state")
+        assert resp.status_code == 200
+        assert resp.json()["exp"] == 0
+
+    async def test_translation_peek_deducts(self, client):
+        from backend.main import app
+        # Prime the per-user state manager, then give it some EXP
+        await client.get("/game_state")
+        sm = app.state.user_state_managers["testuser"]
+        sm.state.exp = 10
+        sm.state.phase = "main"
+
+        resp = await client.post("/api/exp/translation_peek")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["exp"] == 8
+        assert data["event"]["amount"] == -2
+
+    async def test_translation_peek_floored_at_zero(self, client):
+        from backend.main import app
+        await client.get("/game_state")
+        sm = app.state.user_state_managers["testuser"]
+        sm.state.exp = 0
+        sm.state.phase = "main"
+
+        resp = await client.post("/api/exp/translation_peek")
+        data = resp.json()
+        assert data["exp"] == 0
+        assert data["event"] is None
+
+    async def test_translation_peek_free_in_prologue(self, client):
+        from backend.main import app
+        await client.get("/game_state")
+        sm = app.state.user_state_managers["testuser"]
+        sm.state.exp = 10
+        sm.state.phase = "prologue"
+
+        resp = await client.post("/api/exp/translation_peek")
+        data = resp.json()
+        assert data["exp"] == 10
+        assert data["event"] is None

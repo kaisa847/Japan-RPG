@@ -193,3 +193,49 @@ class TestLearningStatsAndMilestones:
 
     def test_no_milestone_without_progress(self, sm):
         assert sm.pending_milestone_note("Kai") is None
+
+
+class TestExp:
+    def test_add_exp_returns_event(self, sm):
+        ev = sm.add_exp(5, "Grammatik")
+        assert ev == {"amount": 5, "reason": "Grammatik"}
+        assert sm.state.exp == 5
+
+    def test_exp_floored_at_zero(self, sm):
+        sm.add_exp(3, "Test")
+        ev = sm.add_exp(-10, "Abzug")
+        # Only -3 could actually be applied
+        assert ev == {"amount": -3, "reason": "Abzug"}
+        assert sm.state.exp == 0
+
+    def test_deduction_at_zero_is_noop(self, sm):
+        assert sm.add_exp(-2, "Abzug") is None
+        assert sm.state.exp == 0
+
+    def test_zero_amount_is_noop(self, sm):
+        assert sm.add_exp(0, "Nichts") is None
+
+    def test_exp_survives_save_load(self, sm, tmp_path):
+        sm.add_exp(42, "Test")
+        sm.save()
+        sm2 = StateManager(data_dir=str(tmp_path))
+        assert sm2.state.exp == 42
+
+    def test_process_vocab_counts_new_words_only(self, sm):
+        n = sm.process_vocab([
+            {"word": "駅", "meaning_de": "Bahnhof"},
+            {"word": "喉", "meaning_de": "Hals"},
+        ])
+        assert n == 2
+        # Re-encounter + one genuinely new word
+        n = sm.process_vocab([{"word": "駅"}, {"word": "国", "meaning_de": "Land"}])
+        assert n == 1
+
+    def test_prologue_save_slot_name(self, sm):
+        sm.state.phase = "prologue"
+        meta = sm.save_to_slot(1)
+        assert meta.name == "Prolog — Forum-Chat"
+
+    def test_main_save_slot_name_unchanged(self, sm):
+        meta = sm.save_to_slot(2)
+        assert meta.name.startswith("Tag 1")

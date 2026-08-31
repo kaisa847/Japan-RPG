@@ -24,6 +24,9 @@ class VNEngine {
         this.hudHour = document.getElementById("hud-hour");
         this.hudAffectionIcon = document.getElementById("hud-affection-icon");
         this.hudAffectionLabel = document.getElementById("hud-affection-label");
+        this.hudExp = document.getElementById("hud-exp");
+        this.hudExpValue = document.getElementById("hud-exp-value");
+        this.statPopups = document.getElementById("stat-popups");
 
         // Error correction hint
         this.errorCorrectionHint = document.getElementById("error-correction-hint");
@@ -81,6 +84,11 @@ class VNEngine {
         this.currentScene = null;
         this.isLoading = false;
         this.showTranslation = false;
+        // EXP layer: current total, and whether the translation was
+        // already revealed (= penalized) for the current scene
+        this.lastExp = 0;
+        this.translationPeeked = false;
+        this._popupDelay = 0;
         this.showFurigana = true;
         this.showHints = true;
         this.typewriterTimeout = null;
@@ -421,6 +429,7 @@ class VNEngine {
             // Apply phase (chat mode for prologue) + HUD
             this._applyPhase(state.phase || "main");
             this._updateHUD(state.time, state.affection);
+            this._updateExp(state.exp || 0);
 
             if (state.has_history && state.last_scene) {
                 // Load scene history from backend
@@ -590,10 +599,37 @@ class VNEngine {
             this.sceneHistoryIndex = this.sceneHistory.length - 1;
             this._updateBackButton();
 
+            // Affection change for the ♥ popup (before overwriting the cache)
+            const prevScore = this.lastAffection
+                ? this.lastAffection.weighted_score : null;
+
             // Cache affection, learning, time data from response
             if (sceneData.aoi_affection) this.lastAffection = sceneData.aoi_affection;
             if (sceneData.time) this.lastTime = sceneData.time;
             if (sceneData.learning) this.lastLearning = sceneData.learning;
+
+            // Stat popups: EXP events from the server + affection delta
+            if (Array.isArray(sceneData.exp_events)) {
+                for (const ev of sceneData.exp_events) {
+                    this._queueStatPopup(
+                        `${ev.amount > 0 ? "+" : "−"}${Math.abs(ev.amount)} EXP`,
+                        ev.reason || "",
+                        ev.amount > 0 ? "gain" : "loss"
+                    );
+                }
+            }
+            if (prevScore != null && sceneData.aoi_affection
+                    && sceneData.aoi_affection.weighted_score != null) {
+                const d = sceneData.aoi_affection.weighted_score - prevScore;
+                if (Math.abs(d) >= 0.05) {
+                    const num = Math.abs(d).toFixed(1).replace(".", ",");
+                    this._queueStatPopup(
+                        `♥ ${d > 0 ? "+" : "−"}${num}`,
+                        "", d > 0 ? "heart" : "loss"
+                    );
+                }
+            }
+            if (sceneData.exp != null) this._updateExp(sceneData.exp);
 
             const st = sceneData.scene_status || {};
 
@@ -687,6 +723,67 @@ class VNEngine {
             this.hudAffectionLabel.textContent = toneConfig.label;
             this.hudAffectionLabel.style.color = toneConfig.color;
             this.hudAffectionIcon.style.color = toneConfig.color;
+        }
+    }
+
+    _updateExp(exp) {
+        this.lastExp = exp;
+        if (this.hudExpValue) this.hudExpValue.textContent = `${exp}`;
+    }
+
+    // --- Floating stat popups (+5 EXP etc.) ---
+
+    /** Queue a floating popup; multiple popups in one turn are staggered
+        so they rise one after another instead of overlapping. */
+    _queueStatPopup(amountText, reasonText, kind) {
+        if (!this.statPopups) return;
+        const now = Date.now();
+        // Next free slot: at least now, otherwise 450ms after the previous
+        this._popupDelay = Math.max(now, this._popupDelay + 450);
+        const wait = this._popupDelay - now;
+        setTimeout(() => this._showStatPopup(amountText, reasonText, kind), wait);
+    }
+
+    _showStatPopup(amountText, reasonText, kind) {
+        const popup = document.createElement("div");
+        popup.className = `stat-popup ${kind}`;
+        const amount = document.createElement("span");
+        amount.className = "stat-popup-amount";
+        amount.textContent = amountText;
+        popup.appendChild(amount);
+        if (reasonText) {
+            const reason = document.createElement("span");
+            reason.className = "stat-popup-reason";
+            reason.textContent = reasonText;
+            popup.appendChild(reason);
+        }
+        this.statPopups.appendChild(popup);
+        popup.addEventListener("animationend", () => popup.remove());
+        // Safety net in case animationend never fires
+        setTimeout(() => popup.remove(), 2600);
+    }
+
+    /** First reveal of the translation in a scene costs EXP (main phase
+        only — the server is authoritative and skips the prologue). */
+    async _penalizeTranslationPeek() {
+        if (this.translationPeeked || this.phase === "prologue") return;
+        this.translationPeeked = true;
+        try {
+            const response = await Auth.fetchAuthenticated(
+                `${CONFIG.API_BASE_URL}/api/exp/translation_peek`,
+                { method: "POST" }
+            );
+            if (!response.ok) return;
+            const data = await response.json();
+            if (data.event) {
+                this._queueStatPopup(
+                    `−${Math.abs(data.event.amount)} EXP`,
+                    "Übersetzung", "loss"
+                );
+            }
+            if (data.exp != null) this._updateExp(data.exp);
+        } catch (e) {
+            console.warn("[VNEngine] EXP penalty request failed:", e);
         }
     }
 
@@ -1040,10 +1137,14 @@ class VNEngine {
         this.showTranslation = !this.showTranslation;
         this.translationText.classList.toggle("hidden", !this.showTranslation);
         this.translationToggle.classList.toggle("active", this.showTranslation);
+        if (this.showTranslation && this.translationText.textContent) {
+            this._penalizeTranslationPeek();
+        }
     }
 
     _resetTranslation() {
         this.showTranslation = false;
+        this.translationPeeked = false;
         this.translationText.classList.add("hidden");
         this.translationToggle.classList.remove("active");
     }
@@ -1393,6 +1494,7 @@ class VNEngine {
             if (state.time) this.lastTime = state.time;
             this._applyPhase(state.phase || "main");
             this._updateHUD(state.time, state.affection);
+            this._updateExp(state.exp || 0);
 
             if (state.last_scene) {
                 await this._renderScene(state.last_scene, { skipTypewriter: true });
@@ -1436,6 +1538,7 @@ class VNEngine {
             if (freshState.learning) this.lastLearning = freshState.learning;
             this._applyPhase(freshState.phase || "main");
             this._updateHUD(freshState.time, freshState.affection);
+            this._updateExp(freshState.exp || 0);
         } catch (e) {
             console.warn("[VNEngine] Reset request failed:", e);
             this._showError("Spiel konnte nicht zurückgesetzt werden.");
@@ -1748,12 +1851,14 @@ class VNEngine {
         const mastered = topics.filter(t => (t.mastery || 0) >= 0.6).length;
         const toneConfig = CONFIG.AFFECTION_TONES[affection.tone] || CONFIG.AFFECTION_TONES.neutral;
 
+        const exp = sceneData.exp != null ? sceneData.exp : this.lastExp;
         const stats = [
             { value: `${time.day || 90}`, label: "Tage in Tokio" },
             { value: `${vocabCount}`, label: "Vokabeln gesammelt" },
             { value: `${mastered}`, label: "Grammatik gemeistert" },
             { value: learning.overall_level || "N5", label: "Erreichtes Niveau" },
             { value: toneConfig.label, label: "Aois Zuneigung" },
+            { value: `${exp}`, label: "EXP gesammelt" },
         ];
 
         this.endingStats.innerHTML = "";
