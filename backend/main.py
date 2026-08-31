@@ -161,6 +161,8 @@ class GenerateSceneResponse(BaseModel):
     phase: str = "main"
     title_card: Optional[str] = None
     ending: Optional[dict] = None
+    exp: int = 0
+    exp_events: list[dict] = []
 
 
 class GameStateResponse(BaseModel):
@@ -175,6 +177,7 @@ class GameStateResponse(BaseModel):
     affection: Optional[dict] = None
     learning: Optional[dict] = None
     player_name: str = ""
+    exp: int = 0
 
 
 class SaveSlotResponse(BaseModel):
@@ -599,6 +602,7 @@ async def get_game_state(
         affection=s.affection.to_display_dict(),
         learning=s.learning.model_dump(),
         player_name=user.player_name,
+        exp=s.exp,
     )
 
 
@@ -624,6 +628,7 @@ async def reset_game_state(
         affection=fresh.affection.to_display_dict(),
         learning=fresh.learning.model_dump(),
         player_name=user.player_name,
+        exp=fresh.exp,
     )
 
 
@@ -661,10 +666,20 @@ async def generate_scene(
     player_name = user.player_name or "Spieler"
     context_summary = sm.get_context_summary(player_name=player_name)
 
+    # EXP popup events collected over this turn (gamification layer)
+    exp_events: list[dict] = []
+
     # One-time milestone director notes (level-up, vocab milestones)
     milestone_note = sm.pending_milestone_note(player_name)
     if milestone_note:
         context_summary += f"\n{milestone_note}"
+        ev = sm.add_exp(
+            sm.EXP_LEVEL_MILESTONE if "Niveau" in milestone_note
+            else sm.EXP_VOCAB_MILESTONE,
+            "Meilenstein",
+        )
+        if ev:
+            exp_events.append(ev)
     history = sm.state.conversation_history
 
     # Resolve custom scenario premise
@@ -743,6 +758,10 @@ async def generate_scene(
     # Process analysis data (learning + affection updates)
     if scene.analysis:
         sm.process_analysis(scene.analysis.model_dump())
+        if scene.analysis.mastery_delta > 0:
+            ev = sm.add_exp(sm.EXP_GRAMMAR_PROGRESS, "Grammatik")
+            if ev:
+                exp_events.append(ev)
 
     # Process time update
     time_advanced = False
@@ -791,10 +810,19 @@ async def generate_scene(
         if st.memory:
             sm.add_memory(st.memory)
         if st.new_vocab:
-            sm.process_vocab(st.new_vocab)
+            new_words = sm.process_vocab(st.new_vocab)
+            if new_words:
+                label = ("Neue Vokabel" if new_words == 1
+                         else f"{new_words} neue Vokabeln")
+                ev = sm.add_exp(sm.EXP_NEW_VOCAB * new_words, label)
+                if ev:
+                    exp_events.append(ev)
         if st.story_flag and active_beat and st.story_flag == active_beat.sets_flag:
             sm.complete_story_beat(active_beat.id, active_beat.sets_flag)
             logger.info("Story beat completed: %s", active_beat.id)
+            ev = sm.add_exp(sm.EXP_STORY_BEAT, "Story-Moment")
+            if ev:
+                exp_events.append(ev)
             if active_beat.type == "ending":
                 ending_reached = {
                     "id": active_beat.id,
@@ -862,7 +890,30 @@ async def generate_scene(
         phase=sm.state.phase,
         title_card=title_card,
         ending=ending_reached,
+        exp=sm.state.exp,
+        exp_events=exp_events,
     )
+
+
+# --- EXP (gamification) ---
+
+@app.post("/api/exp/translation_peek")
+async def exp_translation_peek(
+    request: Request,
+    user: UserRecord = Depends(get_current_user),
+):
+    """Deduct EXP for revealing the German translation.
+
+    Called by the frontend once per scene on first reveal. Free during
+    the prologue (onboarding) — reading along is encouraged there.
+    """
+    sm = get_user_state_manager(user, request.app.state)
+    if sm.state.phase == "prologue":
+        return {"exp": sm.state.exp, "event": None}
+    event = sm.add_exp(sm.EXP_TRANSLATION_PEEK, "Übersetzung angesehen")
+    if event:
+        sm.save()
+    return {"exp": sm.state.exp, "event": event}
 
 
 # --- Save slots ---
@@ -950,6 +1001,7 @@ async def load_from_slot(
         affection=loaded.affection.to_display_dict(),
         learning=loaded.learning.model_dump(),
         player_name=user.player_name,
+        exp=loaded.exp,
     )
 
 

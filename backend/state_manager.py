@@ -165,6 +165,9 @@ class GameState(BaseModel):
     open_promises: list[Promise] = []
     last_updated: str = ""
     turns_since_time_advance: int = 0
+    # Gamification layer: purely motivational, never gates story or endings.
+    # Defaults to 0 so existing saves are unaffected.
+    exp: int = 0
 
 
 class SaveSlotMeta(BaseModel):
@@ -386,14 +389,16 @@ class StateManager:
 
     # --- Vocabulary Notebook ---
 
-    def process_vocab(self, entries: list[dict]) -> None:
+    def process_vocab(self, entries: list[dict]) -> int:
         """Register new/repeated vocabulary from a scene.
 
         Re-encountering a known word strengthens it — recycling due
         words through the dialog acts as hidden spaced repetition.
+        Returns the number of genuinely new words added (for EXP).
         """
         vocab = self.state.learning.vocab
         day = self.state.time.day
+        new_words = 0
         for entry in entries:
             word = (entry.get("word") or "").strip()
             if not word:
@@ -421,6 +426,8 @@ class StateManager:
                 first_seen_day=day,
                 last_seen_day=day,
             )
+            new_words += 1
+        return new_words
 
     def get_due_vocab(self, limit: int = 5) -> list[VocabEntry]:
         """Weakest, longest-unseen words that should be recycled soon."""
@@ -466,6 +473,30 @@ class StateManager:
             self.state.story.completed_beats.append(beat_id)
         if sets_flag:
             self.state.flags[sets_flag] = True
+
+    # --- EXP (gamification layer) ---
+    # Motivational points only: never gate story beats or endings.
+    EXP_NEW_VOCAB = 2          # per genuinely new word
+    EXP_GRAMMAR_PROGRESS = 5   # positive mastery_delta this turn
+    EXP_STORY_BEAT = 15        # a story beat was completed
+    EXP_LEVEL_MILESTONE = 50   # JLPT level milestone fired
+    EXP_VOCAB_MILESTONE = 25   # vocab count milestone fired
+    EXP_TRANSLATION_PEEK = -2  # revealed the German translation
+
+    def add_exp(self, amount: int, reason: str) -> dict | None:
+        """Apply an EXP change (floored at 0 total).
+
+        Returns an event dict {amount, reason} for the frontend popup,
+        or None if nothing was actually applied.
+        """
+        if amount == 0:
+            return None
+        before = self.state.exp
+        self.state.exp = max(0, before + amount)
+        applied = self.state.exp - before
+        if applied == 0:
+            return None
+        return {"amount": applied, "reason": reason}
 
     # Mastery threshold used for "topics mastered" counts (story triggers)
     TOPIC_MASTERED_THRESHOLD = 0.6
@@ -564,7 +595,10 @@ class StateManager:
             raise ValueError(f"Slot ID must be between 1 and {self.MAX_SAVE_SLOTS}")
 
         now = datetime.now(timezone.utc).isoformat()
-        auto_name = name or f"Tag {self.state.time.day} - {self.state.current_background}"
+        if self.state.phase == "prologue":
+            auto_name = name or "Prolog — Forum-Chat"
+        else:
+            auto_name = name or f"Tag {self.state.time.day} - {self.state.current_background}"
 
         meta = SaveSlotMeta(
             slot_id=slot_id,
