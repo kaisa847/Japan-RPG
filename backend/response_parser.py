@@ -85,6 +85,20 @@ def _fix_reversed_furigana(text: str) -> str:
     return _ANY_BRACKET_RE.sub(_fix_match, text)
 
 
+# Annotated span: kanji word (optionally with okurigana) directly followed
+# by a [reading] bracket, e.g. 母語[ぼご] or 言った[いった]
+_ANNOTATED_SPAN_RE = re.compile(
+    r'((?:' + _KANJI_CHAR + r'+' + _HIRAGANA_CHAR + r'*)+\[[^\[\]]*\])'
+)
+
+# Contiguous run of Japanese script (kanji + kana) — only these are fed
+# to pykakasi; emoji, punctuation and Latin text pass through verbatim
+# (pykakasi mangles characters it does not know).
+_JP_RUN_RE = re.compile(
+    r'[々-〇㐀-䶿一-鿿ヵヶ'
+    r'぀-ゟ゠-ヿ]+'
+)
+
 # Lazily initialized pykakasi converter (optional dependency)
 _kakasi = None
 
@@ -118,6 +132,34 @@ def _generate_furigana(text: str) -> str | None:
     except Exception as e:
         logger.warning("Furigana generation failed: %s", e)
         return None
+
+
+def _complete_furigana(text: str) -> str:
+    """Annotate kanji runs that still lack a [reading].
+
+    Existing annotations are left untouched, so this also repairs lines
+    Claude only annotated halfway (e.g. stopped adding furigana after an
+    emoji). A fully annotated line comes back unchanged.
+    """
+    if not text or not _has_kanji(text):
+        return text
+
+    def _annotate_run(m: re.Match) -> str:
+        run = m.group(0)
+        if not _has_kanji(run):
+            return run
+        generated = _generate_furigana(run)
+        return generated if generated else run
+
+    parts = _ANNOTATED_SPAN_RE.split(text)
+    out = []
+    for i, part in enumerate(parts):
+        # Odd indices are already-annotated spans from the capturing split
+        if i % 2 == 1 or not _has_kanji(part):
+            out.append(part)
+            continue
+        out.append(_JP_RUN_RE.sub(_annotate_run, part))
+    return "".join(out)
 
 
 # Aoi-only valid expressions
@@ -256,14 +298,14 @@ class ResponseParser:
             dialog_jp_furigana = dialog_jp
             errors.append("Missing dialog_jp_furigana, falling back to dialog_jp")
 
-        # Server-side guarantee: if kanji remain without any reading
-        # annotation (Claude forgot the furigana), generate them locally.
-        if (dialog_jp_furigana and "[" not in dialog_jp_furigana
-                and _has_kanji(dialog_jp_furigana)):
-            generated = _generate_furigana(dialog_jp_furigana)
-            if generated:
-                dialog_jp_furigana = generated
-                errors.append("Generated furigana via pykakasi fallback")
+        # Server-side guarantee: annotate any kanji still lacking a
+        # [reading] — covers both fully missing furigana and lines where
+        # Claude stopped annotating partway through (e.g. after an emoji).
+        if dialog_jp_furigana and _has_kanji(dialog_jp_furigana):
+            completed = _complete_furigana(dialog_jp_furigana)
+            if completed != dialog_jp_furigana:
+                dialog_jp_furigana = completed
+                errors.append("Completed missing furigana via pykakasi fallback")
 
         # Parse optional analysis block
         analysis = ResponseParser._parse_analysis(raw_response)

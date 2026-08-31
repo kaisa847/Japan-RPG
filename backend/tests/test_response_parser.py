@@ -492,7 +492,7 @@ class TestSpeakerAndFuriganaFallback:
         result = ResponseParser.parse_scene(raw)
         assert "[" in result.dialog_jp_furigana
         assert "きょう" in result.dialog_jp_furigana or "こんにち" in result.dialog_jp_furigana
-        assert "Generated furigana via pykakasi fallback" in result.parse_errors
+        assert "Completed missing furigana via pykakasi fallback" in result.parse_errors
 
     def test_furigana_generated_when_tag_absent(self):
         raw = """<scene>
@@ -512,7 +512,29 @@ class TestSpeakerAndFuriganaFallback:
         </scene>"""
         result = ResponseParser.parse_scene(raw)
         assert result.dialog_jp_furigana == "駅[えき]に行[い]く"
-        assert "Generated furigana via pykakasi fallback" not in result.parse_errors
+        assert "Completed missing furigana via pykakasi fallback" not in result.parse_errors
+
+    def test_partial_furigana_completed_after_emoji(self):
+        """Claude stopped annotating halfway (live bug: dropped after emoji).
+
+        Existing annotations must survive untouched; bare kanji after the
+        emoji get readings generated.
+        """
+        raw = """<scene>
+            <character>aoi</character>
+            <dialog_jp>母語ですね！完璧です！😄 私は日本語を教えます！</dialog_jp>
+            <dialog_jp_furigana>母語[ぼご]ですね！完璧[かんぺき]です！😄 私は日本語を教えます！</dialog_jp_furigana>
+            <dialog_de>Muttersprache! Perfekt! Ich bringe dir Japanisch bei!</dialog_de>
+        </scene>"""
+        result = ResponseParser.parse_scene(raw)
+        assert "母語[ぼご]" in result.dialog_jp_furigana
+        assert "完璧[かんぺき]" in result.dialog_jp_furigana
+        assert "😄" in result.dialog_jp_furigana
+        assert "私[わたし]" in result.dialog_jp_furigana
+        # No bare kanji run without a reading left anywhere
+        import re as _re
+        assert not _re.search(r'[一-鿿](?![一-鿿぀-ゟ]*\[)', result.dialog_jp_furigana)
+        assert "Completed missing furigana via pykakasi fallback" in result.parse_errors
 
     def test_kana_only_text_needs_no_generation(self):
         raw = """<scene>

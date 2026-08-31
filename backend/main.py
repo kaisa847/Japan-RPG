@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import secrets
+import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
@@ -376,7 +377,18 @@ async def admin_restart(
     if rc != 0:
         return {"success": False, "phase": "git pull", "output": git_output}
 
-    # Step 2: schedule restart *after* this response is sent
+    # Step 2: install/refresh dependencies into the service's own venv,
+    # so requirements added by a pull (e.g. pykakasi) actually land on
+    # the server instead of silently disabling features
+    rc, stdout, stderr = await _run_command(
+        sys.executable, "-m", "pip", "install", "-q",
+        "-r", str(DEPLOY_DIR / "backend" / "requirements.txt"),
+    )
+    pip_output = (stdout + stderr).strip()
+    if rc != 0:
+        return {"success": False, "phase": "pip install", "output": pip_output}
+
+    # Step 3: schedule restart *after* this response is sent
     async def _do_restart():
         await asyncio.sleep(1)  # give the response time to reach the client
         await _run_command("sudo", "systemctl", "restart", "japan-rpg")
