@@ -207,8 +207,8 @@ PROFILE_LABELS = [
 
 PROLOGUE_PREMISE = """\
 {player_name} lernt Japanisch und hat im Sprachaustausch-Forum "NihongoConnect" einen \
-Beitrag geschrieben: Tandem-Partner gesucht ({tandem_language} gegen Japanisch). \
-Aoi (林あおい) antwortet gerade ZUM ERSTEN MAL darauf. Die beiden kennen sich NOCH NICHT — \
+Beitrag geschrieben: Tandem-Partner gesucht. {tandem_clause} \
+Aoi (林あおい) hat gerade ZUM ERSTEN MAL darauf geantwortet. Die beiden kennen sich NOCH NICHT — \
 es gibt keine gemeinsame Vergangenheit, keine Treffen, keine Insider-Witze. \
 {player_name} ist zu Hause im Heimatland, NICHT in Japan. Erst im Lauf dieses Chats \
 entsteht die Idee, für 90 Tage nach Tokio zu kommen."""
@@ -223,11 +223,14 @@ Erinnerungen. {player_name} ist noch NICHT in Japan — kein Treffen, keine Orte
   Mische sehr einfaches Japanisch mit Erklärungen, wie in einem echten Tandem-Chat.
 - <character>aoi</character>, <background> leer lassen, keine <pose>/<staging>.
 - Lerne {player_name} kennen: Frage im Gesprächsverlauf natürlich nach dem, was im
-  SPIELER-PROFIL noch fehlt (Herkunft, Alter, Beschäftigung, Interessen, Muttersprache,
+  SPIELER-PROFIL noch fehlt (Herkunft, Muttersprache, Alter, Beschäftigung, Interessen,
   Japanisch-Niveau). Höchstens 1-2 Fragen pro Nachricht — Gespräch, kein Formular.
+- REIHENFOLGE: Erst Herkunft und Muttersprache etablieren (fragen!), DANN erst den
+  Tandem-Deal vorschlagen. Du weißt NICHT, welche Sprache {player_name} spricht,
+  bevor es gesagt wurde — nimm niemals eine an.
 - Alles, was {player_name} über sich verrät, meldest du in <profile_update>.
-- Dramaturgie über ca. 5-8 Runden: Kennenlernen → der Tandem-Deal (Japanisch gegen
-  {tandem_language}) → {player_name}s Entschluss, nach Tokio zu kommen → Vorfreude und
+- Dramaturgie über ca. 5-8 Runden: Kennenlernen → der Tandem-Deal ({tandem_clause_short})
+  → {player_name}s Entschluss, nach Tokio zu kommen → Vorfreude und
   die Verabredung: Südausgang Bahnhof Shimokitazawa, gleich nach der Ankunft.
 - Sobald die Verabredung steht: <prologue_end>true</prologue_end> + <scene_end>true</scene_end>
   mit einem herzlichen Abschluss ("Bis in drei Wochen!"). Setze time_update immer auf +1h.
@@ -343,11 +346,28 @@ class ClaudeHandler:
         profile = player_profile or {}
         tandem_language = profile.get("muttersprache") or "Deutsch"
 
+        # Tandem clause: never assume the player's language before they
+        # said it — the default "Deutsch" applies to the main game only.
+        if profile.get("muttersprache"):
+            tandem_clause = (
+                f"Im Gegenzug bietet {player_name} Hilfe mit "
+                f"{profile['muttersprache']} an."
+            )
+            tandem_clause_short = f"Japanisch gegen {profile['muttersprache']}"
+        else:
+            tandem_clause = (
+                f"Welche Sprache {player_name} im Gegenzug anbietet, weiß Aoi "
+                f"noch NICHT — sie interessiert sich erstmal für den Menschen."
+            )
+            tandem_clause_short = (
+                f"Japanisch gegen die Muttersprache von {player_name}"
+            )
+
         if phase == "prologue":
             # The main premise ("is now really in Tokyo") would contradict
             # the prologue; before the arrival, the prologue premise rules.
             premise = PROLOGUE_PREMISE.format(
-                player_name=player_name, tandem_language=tandem_language,
+                player_name=player_name, tandem_clause=tandem_clause,
             )
         elif custom_premise:
             premise = custom_premise
@@ -378,7 +398,7 @@ class ClaudeHandler:
         prologue_block = ""
         if phase == "prologue":
             prologue_block = PROLOGUE_TEMPLATE.format(
-                player_name=player_name, tandem_language=tandem_language,
+                player_name=player_name, tandem_clause_short=tandem_clause_short,
             )
 
         level_rules = LEVEL_RULES.get(jlpt_level, LEVEL_RULES["N5"])

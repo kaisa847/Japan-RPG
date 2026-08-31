@@ -116,3 +116,29 @@ class TestPhaseState:
         sm.reset(phase="prologue")
         sm2 = StateManager(data_dir=str(tmp_path))
         assert sm2.state.phase == "prologue"
+
+
+class TestPrologueTandemClause:
+    """Aoi must not assume the player's language before it was said."""
+
+    def _handler(self, monkeypatch):
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy")
+        from backend.claude_handler import ClaudeHandler
+        return ClaudeHandler(data_dir="data")
+
+    def test_unknown_language_not_assumed(self, monkeypatch):
+        h = self._handler(monkeypatch)
+        p = h._build_system_prompt("Tag: 1", player_name="Kai", phase="prologue")
+        assert "weiß Aoi" in p and "NICHT" in p
+        assert "Deutsch gegen Japanisch" not in p
+        assert "Hilfe mit Deutsch an" not in p
+        assert "Erst Herkunft und Muttersprache etablieren" in p
+
+    def test_known_language_used(self, monkeypatch):
+        h = self._handler(monkeypatch)
+        p = h._build_system_prompt(
+            "Tag: 1", player_name="Camille", phase="prologue",
+            player_profile={"muttersprache": "Französisch"},
+        )
+        assert "Hilfe mit Französisch an" in p
+        assert "Japanisch gegen Französisch" in p

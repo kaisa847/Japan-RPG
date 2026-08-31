@@ -177,3 +177,25 @@ class TestSceneHistoryAPI:
 
         resp = await client.get("/api/scene_history")
         assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+class TestPrologueOpener:
+    async def test_scripted_opener_without_api_key(self, client):
+        # New game -> prologue phase
+        await client.post("/game_state/reset")
+        resp = await client.get("/api/start_prompt")
+        prompt = resp.json()["prompt"]
+        assert "PROLOG" in prompt
+
+        # The opener is scripted: works without any Claude handler
+        resp = await client.post("/generate_scene", json={"user_input": prompt})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["phase"] == "prologue"
+        assert data["character"] == "aoi"
+        assert "あおい" in data["dialog_jp"]
+        assert "国[くに]" in data["dialog_jp_furigana"]
+        assert data["parse_errors"] == []
+        # Scripted vocab lands in the notebook
+        assert "投稿" in data["learning"]["vocab"]

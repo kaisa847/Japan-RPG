@@ -24,7 +24,7 @@ from backend.auth import (
     UserManager, UserRecord, create_access_token, get_current_user,
     sanitize_profile,
 )
-from backend.response_parser import SceneData
+from backend.response_parser import SceneData, SceneStatus
 from backend.sprite_manifest import SpriteManifests
 from backend.state_manager import StateManager
 from backend.story_engine import StoryEngine
@@ -72,6 +72,37 @@ GERMAN_PERIODS = {
     "night": "Nacht",
     "late_night": "Tiefe Nacht",
 }
+
+
+def _scripted_prologue_opener() -> SceneData:
+    """Hand-authored first chat message of the prologue.
+
+    The opening beat is always the same (greeting, who Aoi is, a
+    counter-question) — scripting it makes the first impression
+    deterministic, instant, free of API cost, and guarantees Aoi
+    assumes nothing about the player (no language, no origin).
+    """
+    return SceneData(
+        character="aoi",
+        expression="happy",
+        dialog_jp="「はじめまして！タンデムの投稿、見ました！私は林あおい、東京の大学生です。あなたはどこの国の人ですか？」",
+        dialog_jp_furigana=(
+            "「はじめまして！タンデムの投稿[とうこう]、見[み]ました！"
+            "私[わたし]は林[はやし]あおい、東京[とうきょう]の大学生[だいがくせい]です。"
+            "あなたはどこの国[くに]の人[ひと]ですか？」"
+        ),
+        dialog_de=(
+            "„Freut mich! Ich habe deinen Tandem-Beitrag gesehen! "
+            "Ich bin Hayashi Aoi, Studentin aus Tokio. Aus welchem Land kommst du?“"
+        ),
+        scene_status=SceneStatus(
+            time_update="+1h",
+            new_vocab=[
+                {"word": "投稿", "reading": "とうこう", "meaning_de": "Beitrag/Post"},
+                {"word": "国", "reading": "くに", "meaning_de": "Land"},
+            ],
+        ),
+    )
 
 
 def _seed_level_from_profile(profile: dict) -> str:
@@ -600,9 +631,12 @@ async def generate_scene(
 
     # Safety net: if a SPIELSTART prompt arrives with leftover history,
     # perform a full reset so old context never bleeds into a new game.
+    is_prologue_start = (
+        body.user_input.startswith("(SPIELSTART")
+        and "PROLOG" in body.user_input[:40]
+    )
     if body.user_input.startswith("(SPIELSTART") and sm.state.conversation_history:
         logger.info("SPIELSTART with stale history detected — performing full state reset")
-        is_prologue_start = "PROLOG" in body.user_input[:40]
         sm.reset(
             phase="prologue" if is_prologue_start else "main",
             overall_level=_seed_level_from_profile(user.player_profile),
@@ -650,7 +684,11 @@ async def generate_scene(
             if active_beat else None
         )
 
-    if handler:
+    if is_prologue_start and sm.state.phase == "prologue":
+        # The prologue opener is hand-authored: deterministic, instant,
+        # and guaranteed to assume nothing about the player.
+        scene = _scripted_prologue_opener()
+    elif handler:
         scene = await handler.generate_scene_safe(
             user_input=body.user_input,
             game_state_summary=context_summary,
