@@ -118,6 +118,7 @@ class VNEngine {
         this.titleCard = document.getElementById("title-card");
         this.titleCardText = document.getElementById("title-card-text");
         this.prologueSkip = document.getElementById("prologue-skip");
+        this.chatAvatar = document.getElementById("chat-avatar");
         this.phase = "main";
         this._pendingMainStart = null;
 
@@ -760,6 +761,7 @@ class VNEngine {
         }
 
         this._applyStaging(sceneData.staging);
+        this._updateChatAvatar(sceneData);
         await this._transitionCharacter(
             sceneData.character, sceneData.expression, sceneData.pose,
         );
@@ -1717,6 +1719,31 @@ class VNEngine {
     }
 
     // --- Phase / Prologue / Title Cards ---
+
+    /** Chat-mode avatar: manifest face patch, or a CSS crop of the
+        legacy full sprite. Reacts to the current expression. */
+    _updateChatAvatar(sceneData) {
+        if (!this.chatAvatar) return;
+        const char = sceneData.character;
+        if (!char) {
+            this.chatAvatar.classList.add("hidden");
+            return;
+        }
+        const manifest = this._getManifest(char);
+        let url;
+        if (manifest) {
+            const face = manifest.faces.includes(sceneData.expression)
+                ? sceneData.expression : manifest.default_face;
+            url = `${CONFIG.ASSET_PATHS.characters}/${char}/faces/${face}.png`;
+            this.chatAvatar.classList.remove("sprite-crop");
+        } else {
+            const expr = this._resolveExpression(char, sceneData.expression);
+            url = `${CONFIG.ASSET_PATHS.characters}/${char}/${expr}.png`;
+            this.chatAvatar.classList.add("sprite-crop");
+        }
+        this.chatAvatar.style.backgroundImage = `url('${url}')`;
+        this.chatAvatar.classList.remove("hidden");
+    }
 
     _applyPhase(phase) {
         this.phase = phase;
