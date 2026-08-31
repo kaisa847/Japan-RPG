@@ -34,6 +34,14 @@ Der Spieler tippt frei, was Kai sagen oder tun soll (auf Deutsch oder Japanisch)
 - **Praemisse V2:** 90-Tage-Uhr (HUD: "Tag X/90"), Share House in Shimokitazawa als Homebase, Sprachpakt (Japanisch gegen die Muttersprache des Spielers)
 - **Titelkarten:** Kapitel-/Tagesuebergaenge als eingeblendete Karten — von der KI gesetzt (`<title_card>`) oder automatisch bei Tageswechseln
 
+### Endspiel & Endings
+- **Design-Prinzip "Gates verzeihen, Endings urteilen":** Die Hauptstory kommt immer voran; der Lernstand entscheidet, WIE Szenen sich spielen (z. B. Kawagoe-Essen mit/ohne Dolmetsch-Aoi) und WELCHES Ende erreicht wird
+- **Lern-Trigger fuer Beats:** `min_vocab`, `min_topics_mastered` (Mastery >= 60 %), `min_level`, `forbidden_flags` — harte Lern-Gates nur fuer Bonus-Beats (Jazz-Kissa ab 50 Vokabeln, Telefonat mit Aois Mutter ab N4)
+- **Abschieds-Sequenz:** ab Tag 84 ("Noch eine Woche") und Tag 88 (letzter gemeinsamer Abend mit Rueckgriff auf echte Erinnerungen)
+- **5 Endings ab Tag 90**, deterministisch nach Prioritaet aus Bindung x Lernen: Sommerfest (verstecktes bestes Ende), Zwei Staedte, Der Brief, Der Absolvent, Der Tourist — Details in `data/story/story_arc.md`
+- **Recap-Screen:** Ending-Titel, Epilogtext und die Bilanz der 90 Tage (Vokabeln, gemeisterte Grammatik, Niveau, Zuneigung); danach freies Weiterspielen, neue Durchlaeufe locken mit anderen Enden
+- **Meilenstein-Kommentare:** Bei Level-Aufstieg und 50/100/200 Vokabeln wuerdigt Aoi den Fortschritt einmalig — die Endings wirken so verdient statt willkuerlich
+
 ### Story-System
 - **Story-Arc "Hayashiya":** 10 geskriptete Story-Beats rund um Aois Konflikt mit dem Familienrestaurant in Kawagoe (Draft: `data/story/story_arc.md`, Beats: `data/story/beats.json`)
 - **Trigger:** Beats aktivieren sich ueber Tag, Zuneigungs-Score und Story-Flags; es ist immer hoechstens ein Beat aktiv, nur dessen kurze Regieanweisung wandert in den Prompt
