@@ -159,6 +159,7 @@ class GenerateSceneResponse(BaseModel):
     story_beat: Optional[str] = None
     phase: str = "main"
     title_card: Optional[str] = None
+    ending: Optional[dict] = None
 
 
 class GameStateResponse(BaseModel):
@@ -647,6 +648,11 @@ async def generate_scene(
     weak_points = sm.state.learning.weak_points
     player_name = user.player_name or "Spieler"
     context_summary = sm.get_context_summary(player_name=player_name)
+
+    # One-time milestone director notes (level-up, vocab milestones)
+    milestone_note = sm.pending_milestone_note(player_name)
+    if milestone_note:
+        context_summary += f"\n{milestone_note}"
     history = sm.state.conversation_history
 
     # Resolve custom scenario premise
@@ -672,12 +678,16 @@ async def generate_scene(
     active_beat = None
     story_beat_block = None
     if sm.state.phase != "prologue":
+        stats = sm.learning_stats()
         story_engine: StoryEngine = request.app.state.story_engine
         active_beat = story_engine.select_beat(
             day=sm.state.time.day,
             score=sm.state.affection.weighted_score,
             flags=sm.state.flags,
             completed_beats=sm.state.story.completed_beats,
+            vocab_count=stats["vocab_count"],
+            topics_mastered=stats["topics_mastered"],
+            level=stats["level"],
         )
         story_beat_block = (
             story_engine.build_prompt_block(active_beat, player_name)
@@ -739,7 +749,8 @@ async def generate_scene(
         # No explicit time advancement — use periodic fallback
         sm.maybe_advance_time_periodic()
 
-    # Profile updates, prologue end, title card
+    # Profile updates, prologue end, title card, ending
+    ending_reached = None
     title_card = scene.scene_status.title_card if scene.scene_status else None
     if scene.scene_status:
         st = scene.scene_status
@@ -772,6 +783,14 @@ async def generate_scene(
         if st.story_flag and active_beat and st.story_flag == active_beat.sets_flag:
             sm.complete_story_beat(active_beat.id, active_beat.sets_flag)
             logger.info("Story beat completed: %s", active_beat.id)
+            if active_beat.type == "ending":
+                ending_reached = {
+                    "id": active_beat.id,
+                    "title": active_beat.title,
+                    "epilogue": active_beat.epilogue or "",
+                }
+                if not title_card:
+                    title_card = f"Ende: {active_beat.title}"
         if st.promise:
             sm.add_promise(st.promise)
         if st.promise_resolved:
@@ -830,6 +849,7 @@ async def generate_scene(
         story_beat=active_beat.title if active_beat else None,
         phase=sm.state.phase,
         title_card=title_card,
+        ending=ending_reached,
     )
 
 

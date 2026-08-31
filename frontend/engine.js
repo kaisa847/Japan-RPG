@@ -119,6 +119,13 @@ class VNEngine {
         this.titleCardText = document.getElementById("title-card-text");
         this.prologueSkip = document.getElementById("prologue-skip");
         this.chatAvatar = document.getElementById("chat-avatar");
+
+        // Ending / recap overlay
+        this.endingOverlay = document.getElementById("ending-overlay");
+        this.endingTitle = document.getElementById("ending-title");
+        this.endingEpilogue = document.getElementById("ending-epilogue");
+        this.endingStats = document.getElementById("ending-stats");
+        this.endingContinue = document.getElementById("ending-continue");
         this.phase = "main";
         this._pendingMainStart = null;
 
@@ -467,6 +474,9 @@ class VNEngine {
         // Prologue skip + profile save
         this.prologueSkip.addEventListener("click", () => this._skipPrologue());
         this.profileSave.addEventListener("click", () => this._saveProfile());
+        this.endingContinue.addEventListener("click", () => {
+            this.endingOverlay.classList.add("hidden");
+        });
 
         // Keyboard detection via visualViewport API
         this._initKeyboardDetection();
@@ -608,6 +618,11 @@ class VNEngine {
             // Show error correction hint if present
             if (sceneData.analysis && sceneData.analysis.error_correction) {
                 this._showErrorCorrection(sceneData.analysis.error_correction);
+            }
+
+            // Ending reached: show the recap screen
+            if (sceneData.ending) {
+                this._showEnding(sceneData.ending, sceneData);
             }
 
             // Handle prologue finale / scene-end choices
@@ -1716,6 +1731,47 @@ class VNEngine {
             more.textContent = `… und ${entries.length - 25} weitere`;
             section.appendChild(more);
         }
+    }
+
+    // --- Ending / Recap ---
+
+    _showEnding(ending, sceneData) {
+        this.endingTitle.textContent = ending.title || "Ende";
+        this.endingEpilogue.textContent = ending.epilogue || "";
+
+        const learning = sceneData.learning || this.lastLearning || {};
+        const affection = sceneData.aoi_affection || this.lastAffection || {};
+        const time = sceneData.time || this.lastTime || {};
+
+        const vocabCount = Object.keys(learning.vocab || {}).length;
+        const topics = Object.values(learning.topics || {});
+        const mastered = topics.filter(t => (t.mastery || 0) >= 0.6).length;
+        const toneConfig = CONFIG.AFFECTION_TONES[affection.tone] || CONFIG.AFFECTION_TONES.neutral;
+
+        const stats = [
+            { value: `${time.day || 90}`, label: "Tage in Tokio" },
+            { value: `${vocabCount}`, label: "Vokabeln gesammelt" },
+            { value: `${mastered}`, label: "Grammatik gemeistert" },
+            { value: learning.overall_level || "N5", label: "Erreichtes Niveau" },
+            { value: toneConfig.label, label: "Aois Zuneigung" },
+        ];
+
+        this.endingStats.innerHTML = "";
+        for (const s of stats) {
+            const div = document.createElement("div");
+            div.className = "ending-stat";
+            const v = document.createElement("div");
+            v.className = "ending-stat-value";
+            v.textContent = s.value;
+            const l = document.createElement("div");
+            l.className = "ending-stat-label";
+            l.textContent = s.label;
+            div.appendChild(v);
+            div.appendChild(l);
+            this.endingStats.appendChild(div);
+        }
+
+        this.endingOverlay.classList.remove("hidden");
     }
 
     // --- Phase / Prologue / Title Cards ---

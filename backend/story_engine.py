@@ -21,20 +21,33 @@ from pydantic import BaseModel, Field
 logger = logging.getLogger(__name__)
 
 
+# JLPT ordering for min_level triggers
+LEVEL_ORDER = {"N5": 0, "N4": 1, "N3": 2, "N2": 3, "N1": 4}
+
+
 class BeatTrigger(BaseModel):
     min_day: int = 1
     min_score: float = 0.0
     required_flags: list[str] = []
+    forbidden_flags: list[str] = []
+    # Learning-based triggers ("gates forgive, endings judge"):
+    # hard learning gates should only be used on bonus/ending beats.
+    min_vocab: int = 0
+    min_topics_mastered: int = 0
+    min_level: Optional[str] = None
 
 
 class StoryBeat(BaseModel):
     id: str
     title: str = ""
+    type: str = "main"          # main | bonus | ending
+    priority: int = 0           # endings: highest eligible priority wins
     trigger: BeatTrigger = Field(default_factory=BeatTrigger)
     sets_flag: str = ""
     direction: str = ""
     location_hint: Optional[str] = None
     didactic_hint: Optional[str] = None
+    epilogue: Optional[str] = None   # endings: recap-screen text
 
 
 class StoryEngine:
@@ -57,24 +70,55 @@ class StoryEngine:
         score: float,
         flags: dict[str, bool],
         completed_beats: list[str],
+        vocab_count: int = 0,
+        topics_mastered: int = 0,
+        level: str = "N5",
     ) -> Optional[StoryBeat]:
-        """Return the first eligible beat, in file order, or None.
+        """Return the active beat, or None.
 
-        Eligible = not completed, day/score thresholds met, all
-        required flags set.
+        Ending beats take precedence and are chosen by highest eligible
+        priority (deterministic ending selection); everything else runs
+        in file order (main arc first, learning-gated bonus beats fill
+        the gaps).
         """
-        for beat in self.beats:
-            if beat.id in completed_beats:
-                continue
-            t = beat.trigger
-            if day < t.min_day:
-                continue
-            if score < t.min_score:
-                continue
-            if any(not flags.get(f, False) for f in t.required_flags):
-                continue
-            return beat
-        return None
+        eligible = [
+            b for b in self.beats
+            if self._is_eligible(
+                b, day, score, flags, completed_beats,
+                vocab_count, topics_mastered, level,
+            )
+        ]
+        endings = [b for b in eligible if b.type == "ending"]
+        if endings:
+            return max(endings, key=lambda b: b.priority)
+        return eligible[0] if eligible else None
+
+    @staticmethod
+    def _is_eligible(
+        beat: StoryBeat,
+        day: int,
+        score: float,
+        flags: dict[str, bool],
+        completed_beats: list[str],
+        vocab_count: int,
+        topics_mastered: int,
+        level: str,
+    ) -> bool:
+        if beat.id in completed_beats:
+            return False
+        t = beat.trigger
+        if day < t.min_day or score < t.min_score:
+            return False
+        if any(not flags.get(f, False) for f in t.required_flags):
+            return False
+        if any(flags.get(f, False) for f in t.forbidden_flags):
+            return False
+        if vocab_count < t.min_vocab or topics_mastered < t.min_topics_mastered:
+            return False
+        if t.min_level is not None:
+            if LEVEL_ORDER.get(level, 0) < LEVEL_ORDER.get(t.min_level, 0):
+                return False
+        return True
 
     def get_beat(self, beat_id: str) -> Optional[StoryBeat]:
         for beat in self.beats:

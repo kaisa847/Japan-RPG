@@ -166,3 +166,30 @@ class TestCanonicalTopics:
                 "affection_deltas": {},
             })
         assert sm.state.learning.overall_level == "N4"
+
+
+class TestLearningStatsAndMilestones:
+    def test_learning_stats(self, sm):
+        sm.process_vocab([{"word": "駅", "meaning_de": "Bahnhof"}])
+        sm.process_analysis({"grammar_topic": "て-Form", "mastery_delta": 0.7})
+        sm.process_analysis({"grammar_topic": "Partikel は", "mastery_delta": 0.3})
+        stats = sm.learning_stats()
+        assert stats["vocab_count"] == 1
+        assert stats["topics_mastered"] == 1  # only て-Form >= 0.6
+        assert stats["level"] == "N5"
+
+    def test_level_milestone_fires_once(self, sm):
+        sm.state.learning.overall_level = "N4"
+        note = sm.pending_milestone_note("Kai")
+        assert note is not None and "N4" in note
+        assert sm.pending_milestone_note("Kai") is None
+
+    def test_vocab_milestone_fires_once(self, sm):
+        for i in range(55):
+            sm.process_vocab([{"word": f"言葉{i}", "meaning_de": "Wort"}])
+        note = sm.pending_milestone_note("Kai")
+        assert note is not None and "50" in note
+        assert sm.pending_milestone_note("Kai") is None
+
+    def test_no_milestone_without_progress(self, sm):
+        assert sm.pending_milestone_note("Kai") is None

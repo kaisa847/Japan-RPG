@@ -128,3 +128,66 @@ Der Druck steigt, Aoi zieht den Spieler in ihre Entscheidung hinein.
   Vorspulen möglich).
 - Ein Beat drängt nicht: Wenn der Spieler das Thema wechselt, bleibt
   der Beat aktiv und die KI versucht es in einer späteren Szene erneut.
+
+---
+
+# Endspiel: Die 90-Tage-Uhr läuft ab
+
+Design-Prinzip: **Gates verzeihen, Endings urteilen.** Die Geschichte
+kommt immer voran (zeit-/beziehungsgetrieben); der Lernstand entscheidet,
+WIE Szenen sich spielen und WELCHES Ende erreicht wird. Harte Lern-Gates
+gibt es nur für Bonus-Inhalte — verpassen tut nicht weh, erreichen fühlt
+sich verdient an.
+
+## Lern-Trigger (neu)
+
+Beat-Trigger können jetzt zusätzlich fordern:
+- `min_vocab` — Anzahl gesammelter Vokabeln
+- `min_topics_mastered` — Anzahl Grammatik-Themen mit Mastery ≥ 60 %
+- `min_level` — JLPT-Mindestlevel (N5 < N4 < N3)
+- `forbidden_flags` — Beat nie, wenn eines dieser Flags gesetzt ist
+
+## Bonus-Beats (lerngetriggert)
+
+1. **bonus_secret_alley** (ab 50 Vokabeln): Aoi merkt, wie viel
+   {player_name} inzwischen versteht — und zeigt zur Belohnung ihren
+   echten Geheimort: die winzige Jazz-Kissa hinter dem Plattenladen,
+   in die sie sonst niemanden mitnimmt.
+2. **bonus_mother_phone** (ab N4, nach der Schrein-Beichte): Aois Handy
+   klingelt, sie ist kurz weg — {player_name} geht ran. Ihre Mutter am
+   Telefon, pures Japanisch ohne Netz. Kleiner Ritterschlag; die Mutter
+   ist danach neugierig auf „den Menschen aus dem Ausland".
+
+## Abschieds-Sequenz (zeitgetrieben, immer)
+
+1. **departure_shadow** (ab Tag 84): Beim Blick auf den Kalender wird
+   beiden klar: noch eine Woche. Stimmungswechsel; Aoi fragt, was
+   {player_name} unbedingt noch machen will — die „Liste".
+2. **last_evening** (ab Tag 88): Der letzte gemeinsame Abend — kleine
+   Tour zu den Orten der ersten Tage, Rooftop zum Schluss. Melancholisch,
+   aber warm; keine großen Erklärungen, die hebt sich das Ende auf.
+
+## Die fünf Endings (ab Tag 90, deterministische Auswahl nach Priorität)
+
+Achsen: **Bindung** (Zuneigungs-Score) × **Lernen** (gemeisterte Themen/
+Vokabeln/Level). Auswahl: höchste Priorität, deren Bedingungen erfüllt sind.
+
+| Prio | Ending | Bedingungen | Kern |
+|---|---|---|---|
+| 100 | **Sommerfest** (versteckt) | Hayashiya-Arc abgeschlossen + Score ≥ 75 + 10 Themen gemeistert | Statt Abflug-Tag am Flughafen: der Morgen davor beim Matsuri am Kitazawa-Hachiman — {player_name} hilft am Hayashiya-Stand, Service-Japanisch live, Aois Familie ist da. Letzte Zeile, Aoi: „…du könntest ja wiederkommen. Oder bleiben." Schnitt. |
+| 80 | **Zwei Städte** | Score ≥ 60 + 8 Themen gemeistert | Bahnhof statt Träne: ein Plan. Sie besucht {player_name} im Winter (ihr Auslandssemester-Traum!), {player_name} kommt zum Neujahrsfest wieder. Abschied mit Rückfahrkarte. |
+| 60 | **Der Brief** | Score ≥ 60 | Am Gate drückt Aoi {player_name} einen handgeschriebenen Brief in die Hand — auf Japanisch. „Lies ihn, wenn du ihn lesen KANNST." Bittersüß: viel Gefühl, die Sprache bleibt die offene Aufgabe. |
+| 40 | **Der Absolvent** | 8 Themen gemeistert | Respektvoller Abschied unter Freunden: Aoi ist stolz („mein bester Schüler"), tauscht Adressen — aber man spürt, es war ein Kapitel, kein Anfang. |
+| 0 | **Der Tourist** | — | Warm, aber leicht: 90 schöne Tage, ein Foto am Südausgang, wo alles begann. Aoi winkt, bis der Zug weg ist. |
+
+Jedes Ending endet mit `game_ended` und zeigt danach den **Recap-Screen**:
+Ending-Titel, kurzer Epilogtext, und die Bilanz der 90 Tage (Vokabeln,
+gemeisterte Grammatik, erreichtes Level, Zuneigung). Danach ist freies
+Weiterspielen möglich (Epilog-Alltag); ein neuer Durchlauf lockt mit den
+nicht erreichten Endings.
+
+## Meilenstein-Kommentare
+
+Damit die Endings nicht wie ein verstecktes Urteil wirken, würdigt Aoi
+Fortschritt unterwegs: bei Level-Aufstieg und bei 50/100/200 Vokabeln
+bekommt sie einen einmaligen Regiehinweis („Weißt du noch, am Anfang…").

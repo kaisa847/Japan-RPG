@@ -96,7 +96,7 @@
       },
       "sets_flag": "kawagoe_visited",
       "location_hint": "train_station",
-      "direction": "Der Kawagoe-Ausflug: Zugfahrt, Klein-Edo-Gassen, dann das Familienrestaurant Hayashiya. Begrüßung der Eltern (Erzähler), angespanntes Essen. WICHTIG: Aoi wechselt gegenüber ihrem Vater hörbar in Keigo — mache diesen Registerwechsel explizit und erkläre ihn {player_name} kurz. Der Vater bleibt stur, aber die Anwesenheit von {player_name} entschärft die Stimmung. Dieser Beat darf sich über mehrere Szenen erstrecken.",
+      "direction": "Der Kawagoe-Ausflug: Zugfahrt, Klein-Edo-Gassen, dann das Familienrestaurant Hayashiya. Begrüßung der Eltern (Erzähler), angespanntes Essen. WICHTIG: Aoi wechselt gegenüber ihrem Vater hörbar in Keigo — mache diesen Registerwechsel explizit und erkläre ihn {player_name} kurz. Der Vater bleibt stur, aber die Anwesenheit von {player_name} entschärft die Stimmung. Dieser Beat darf sich über mehrere Szenen erstrecken. Spiele das Essen nach {player_name}s Niveau: bei N5 dolmetscht Aoi charmant (ruhig auch komisch), ab N4 versteht {player_name} den Vater überraschend gut — ein kleiner Triumph-Moment.",
       "didactic_hint": "Keigo erleben, お邪魔します, いただきます"
     },
     {
@@ -142,6 +142,175 @@
       "sets_flag": "new_chapter",
       "direction": "Epilog-Stimmung: Der Alltag kehrt ein, aber verändert. Aoi erzählt von ihrem Dokumentationsprojekt über Hayashiya und plant Kawagoe-Wochenenden. Deute an, dass am Kitazawa-Hachiman-Schrein bald ein Sommerfest ansteht (Ausblick). Kein Druck — offenes, warmes Weiterspielen.",
       "didactic_hint": "Alltag & Zukunft: 予定, 楽しみ"
+    },
+    {
+      "id": "departure_shadow",
+      "title": "Noch eine Woche",
+      "type": "main",
+      "trigger": {
+        "min_day": 84,
+        "min_score": 0,
+        "required_flags": [],
+        "forbidden_flags": [
+          "game_ended"
+        ]
+      },
+      "sets_flag": "departure_shadow",
+      "direction": "Beim Blick auf Handy-Kalender oder ein beiläufiges Datum wird beiden klar: Nur noch eine Woche, dann geht {player_name}s Rückflug. Kurzer Stimmungswechsel (expression: worried, dann gefasst). Aoi fragt: Was willst du unbedingt noch machen? Lass gemeinsam eine kleine Liste entstehen — sie prägt die letzten Tage.",
+      "didactic_hint": "Zukunft/Pläne: つもり, 〜たい, まだ〜ていない"
+    },
+    {
+      "id": "last_evening",
+      "title": "Der letzte Abend",
+      "type": "main",
+      "trigger": {
+        "min_day": 88,
+        "min_score": 0,
+        "required_flags": [],
+        "forbidden_flags": [
+          "game_ended"
+        ]
+      },
+      "sets_flag": "last_evening",
+      "location_hint": "rooftop",
+      "direction": "Der letzte gemeinsame Abend: eine kleine Tour zu Orten der ersten Tage (greife 1-2 echte Erinnerungen aus den LANGZEIT-ERINNERUNGEN auf!), zum Schluss Rooftop. Melancholisch, aber warm — keine großen Erklärungen, kein Abschiedswort; das hebt sich der Morgen auf. Dieser Beat darf sich über mehrere Szenen erstrecken.",
+      "didactic_hint": "Erinnern: 〜たね, 覚えてる？, 楽しかった"
+    },
+    {
+      "id": "bonus_secret_alley",
+      "title": "Die Jazz-Kissa",
+      "type": "bonus",
+      "trigger": {
+        "min_day": 5,
+        "min_score": 40,
+        "min_vocab": 50,
+        "required_flags": [],
+        "forbidden_flags": [
+          "game_ended"
+        ]
+      },
+      "sets_flag": "bonus_secret_alley",
+      "direction": "Aoi stellt fest, wie viel {player_name} inzwischen versteht — und beschließt spontan, zur Belohnung ihren ECHTEN Geheimort zu zeigen: eine winzige Jazz-Kissa hinter dem Plattenladen, in die sie sonst niemanden mitnimmt. Mache spürbar, dass das eine Auszeichnung ist. Der alte Besitzer legt Platten auf und redet nur Japanisch.",
+      "didactic_hint": "Komplimente & Bescheidenheit: 上手, まだまだです"
+    },
+    {
+      "id": "bonus_mother_phone",
+      "title": "Das Telefonat",
+      "type": "bonus",
+      "trigger": {
+        "min_day": 6,
+        "min_score": 0,
+        "min_level": "N4",
+        "required_flags": [
+          "family_story_told"
+        ],
+        "forbidden_flags": [
+          "game_ended"
+        ]
+      },
+      "sets_flag": "bonus_mother_phone",
+      "direction": "Aoi ist kurz weg (Toilette/Bestellung), ihr Handy klingelt hartnäckig — {player_name} geht ran: Aois Mutter (speaker: お母さん), pures höfliches Japanisch, kein Netz. Kurzes Gespräch (wer bist du, ist Aoi da, richte Grüße aus). Danach kommt Aoi zurück und ist halb entsetzt, halb beeindruckt. Die Mutter ist ab jetzt neugierig auf {player_name}.",
+      "didactic_hint": "Telefon-Keigo: もしもし, 〜と申します, 少々お待ちください"
+    },
+    {
+      "id": "ending_sommerfest",
+      "title": "Sommerfest",
+      "type": "ending",
+      "priority": 100,
+      "trigger": {
+        "min_day": 90,
+        "min_score": 75,
+        "min_topics_mastered": 10,
+        "required_flags": [
+          "arc1_resolved"
+        ],
+        "forbidden_flags": [
+          "game_ended"
+        ]
+      },
+      "sets_flag": "game_ended",
+      "location_hint": "shrine",
+      "direction": "DAS FINALE (verstecktes bestes Ende): Am Morgen des Abflugtags zieht Aoi {player_name} nicht zum Flughafen, sondern zum Matsuri am Kitazawa-Hachiman-Schrein — die Familie ist mit einem Hayashiya-Stand da. {player_name} hilft mit: いらっしゃいませ! Service-Japanisch live, der Vater nickt anerkennend. Zum Abschluss, zwischen Lampions, sagt Aoi leise: „…du könntest ja wiederkommen. Oder bleiben.“ Kein Kuss, kein Abschluss — ein offener, leuchtender Moment. Dann scene_end und story_flag. Dieser Beat darf 2-3 Szenen dauern.",
+      "didactic_hint": "Service-Japanisch: いらっしゃいませ, 〜はいかがですか",
+      "epilogue": "Der Rückflug ging ohne dich. Nur um einen Tag verschoben, hast du gesagt. Aoi hat gelacht und nicht widersprochen. Zwischen Lampions und Unagi-Duft hat sich die Frage, wo du hingehörst, für einen Abend von selbst beantwortet."
+    },
+    {
+      "id": "ending_zwei_staedte",
+      "title": "Zwei Städte",
+      "type": "ending",
+      "priority": 80,
+      "trigger": {
+        "min_day": 90,
+        "min_score": 60,
+        "min_topics_mastered": 8,
+        "required_flags": [],
+        "forbidden_flags": [
+          "game_ended"
+        ]
+      },
+      "sets_flag": "game_ended",
+      "location_hint": "train_station",
+      "direction": "DAS FINALE: Abschied am Bahnhof — aber kein trauriger. Aoi kommt mit einem Plan: Im Winter besucht sie {player_name} (ihr Auslandssemester-Traum wird konkret!), und zu Neujahr kommt {player_name} zurück — Hatsumode am Schrein, versprochen. Ein Versprechen statt eines Endes. Ihr letzter Satz fällt auf Japanisch, und {player_name} versteht ihn ohne Übersetzung — mache das explizit. Dann scene_end und story_flag.",
+      "didactic_hint": "Versprechen: 約束, また会おうね",
+      "epilogue": "90 Tage, zwei Städte, ein Plan. Im Winter steht sie vor deiner Tür, und zu Neujahr stehst du wieder am Südausgang. Das Wörterbuch brauchst du inzwischen selten — den Rückflug hast du gebraucht, aber nur den einen."
+    },
+    {
+      "id": "ending_brief",
+      "title": "Der Brief",
+      "type": "ending",
+      "priority": 60,
+      "trigger": {
+        "min_day": 90,
+        "min_score": 60,
+        "required_flags": [],
+        "forbidden_flags": [
+          "game_ended"
+        ]
+      },
+      "sets_flag": "game_ended",
+      "location_hint": "train_station",
+      "direction": "DAS FINALE (bittersüß): Am Gleis drückt Aoi {player_name} einen handgeschriebenen Brief in die Hand — komplett auf Japanisch. „Lies ihn, wenn du ihn lesen kannst. Nicht mit einer App. Versprich es.“ Sie lächelt dabei, aber die Augen nicht ganz. Viel bleibt ungesagt, WEIL die Sprache noch fehlt — mache das fühlbar, ohne Vorwurf. Dann scene_end und story_flag.",
+      "didactic_hint": "Versprechen & Zukunft: 約束する, いつか",
+      "epilogue": "Der Brief liegt in deiner Schublade. Du hast ihn hundertmal angesehen und die Hälfte verstanden. Jeden Abend ein bisschen mehr. Vielleicht ist das ihr eigentliches Geschenk: ein Grund, weiterzulernen."
+    },
+    {
+      "id": "ending_absolvent",
+      "title": "Der Absolvent",
+      "type": "ending",
+      "priority": 40,
+      "trigger": {
+        "min_day": 90,
+        "min_score": 0,
+        "min_topics_mastered": 8,
+        "required_flags": [],
+        "forbidden_flags": [
+          "game_ended"
+        ]
+      },
+      "sets_flag": "game_ended",
+      "location_hint": "cafe",
+      "direction": "DAS FINALE: Ein letzter Kaffee im Stammcafé. Aoi ist aufrichtig stolz — „mein bester Schüler“ — und lässt {player_name} zum Spaß die Rechnung komplett auf Japanisch regeln. Herzlicher, respektvoller Abschied unter Freunden; Adressen werden getauscht. Aber es schwingt mit: Das hier war ein Kapitel, kein Anfang. Dann scene_end und story_flag.",
+      "didactic_hint": "Dank & Abschied: お世話になりました",
+      "epilogue": "Dein Japanisch ist gekommen, um zu bleiben. Ihr schreibt euch manchmal — kurze Nachrichten, ihre immer mit einem Emoji zu viel. Was hätte sein können, fragt der Zug nach Narita nicht."
+    },
+    {
+      "id": "ending_tourist",
+      "title": "Der Tourist",
+      "type": "ending",
+      "priority": 0,
+      "trigger": {
+        "min_day": 90,
+        "min_score": 0,
+        "required_flags": [],
+        "forbidden_flags": [
+          "game_ended"
+        ]
+      },
+      "sets_flag": "game_ended",
+      "location_hint": "shimokitazawa_station",
+      "direction": "DAS FINALE: Abschied am Südausgang, wo alles begann. Ein gemeinsames Foto an derselben Stelle wie am ersten Tag, ein paar einfache Sätze, ein Winken, bis der Zug weg ist. Warm und leicht — 90 schöne Tage, nicht mehr und nicht weniger. Kein Drama. Dann scene_end und story_flag.",
+      "didactic_hint": "Einfacher Abschied: 元気でね, ありがとう",
+      "epilogue": "Tokio wurde wieder eine Stadt auf einer Karte, Aoi ein Name im Chatverlauf. Aber manchmal, wenn irgendwo Ramen dampft, hörst du sie „こっちこっち!“ rufen — und lächelst."
     }
   ]
 }

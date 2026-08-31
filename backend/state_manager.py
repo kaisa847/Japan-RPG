@@ -467,6 +467,50 @@ class StateManager:
         if sets_flag:
             self.state.flags[sets_flag] = True
 
+    # Mastery threshold used for "topics mastered" counts (story triggers)
+    TOPIC_MASTERED_THRESHOLD = 0.6
+    # Vocab milestones Aoi acknowledges once each
+    VOCAB_MILESTONES = (50, 100, 200)
+
+    def learning_stats(self) -> dict:
+        """Compact learning stats for story triggers and the recap screen."""
+        topics_mastered = sum(
+            1 for t in self.state.learning.topics.values()
+            if t.mastery >= self.TOPIC_MASTERED_THRESHOLD
+        )
+        return {
+            "vocab_count": len(self.state.learning.vocab),
+            "topics_mastered": topics_mastered,
+            "level": self.state.learning.overall_level,
+        }
+
+    def pending_milestone_note(self, player_name: str = "Spieler") -> str | None:
+        """One-time director notes for progress milestones.
+
+        Returns a short German note for the system prompt when a level-up
+        or vocab milestone hasn't been acknowledged yet, and marks it as
+        celebrated (via flags) so it fires only once.
+        """
+        flags = self.state.flags
+        level = self.state.learning.overall_level
+        if level != "N5" and not flags.get(f"milestone_level_{level}"):
+            flags[f"milestone_level_{level}"] = True
+            return (
+                f"MEILENSTEIN: {player_name} hat gerade Niveau {level} erreicht. "
+                f"Lass Aoi das beiläufig, aber aufrichtig würdigen "
+                f"(z.B. Rückblick auf die Anfänge) — kein großes Zeremoniell."
+            )
+        vocab_count = len(self.state.learning.vocab)
+        for m in self.VOCAB_MILESTONES:
+            if vocab_count >= m and not flags.get(f"milestone_vocab_{m}"):
+                flags[f"milestone_vocab_{m}"] = True
+                return (
+                    f"MEILENSTEIN: {player_name} kennt inzwischen über {m} Vokabeln "
+                    f"aus euren Gesprächen. Lass Aoi den Fortschritt einmal "
+                    f"beiläufig würdigen."
+                )
+        return None
+
     def _update_weak_points(self) -> None:
         """Recalculate the top-5 weakest topics."""
         if not self.state.learning.topics:
