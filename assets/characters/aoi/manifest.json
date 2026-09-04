@@ -90,6 +90,12 @@
     "thinking",
     "worried"
   ],
+  "no_blink_faces": [
+    "blink",
+    "happy",
+    "laughing",
+    "sleepy"
+  ],
   "outfits": {
     "casual2": {
       "poses": {

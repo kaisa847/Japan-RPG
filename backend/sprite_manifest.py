@@ -127,6 +127,12 @@ class SpriteManifests:
             if isinstance(f, str) and f in faces
         ]
 
+        # Faces with (half-)closed eyes by design: blinking is skipped there
+        no_blink_faces = [
+            f for f in (raw.get("no_blink_faces") or [])
+            if isinstance(f, str) and f in faces
+        ]
+
         outfits: dict[str, dict] = {}
         raw_outfits = raw.get("outfits")
         if isinstance(raw_outfits, dict):
@@ -147,6 +153,7 @@ class SpriteManifests:
             "poses": clean_poses,
             "faces": list(faces),
             "talk_faces": talk_faces,
+            "no_blink_faces": no_blink_faces,
             "outfits": outfits,
         }
 

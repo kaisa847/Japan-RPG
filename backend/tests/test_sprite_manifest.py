@@ -86,6 +86,19 @@ class TestSpriteManifests:
         sm = SpriteManifests(assets_dir=str(assets_dir))
         assert sm.get("aoi")["talk_faces"] == ["neutral", "happy"]
 
+    def test_no_blink_faces_filtered_to_known_faces(self, tmp_path):
+        char_dir = tmp_path / "characters" / "x"
+        char_dir.mkdir(parents=True)
+        manifest = {
+            "poses": {"stand": {"body": "poses/stand.png"}},
+            "faces": ["neutral", "happy", "blink"],
+            "blink_face": "blink",
+            "no_blink_faces": ["happy", "blink", "not_a_face"],
+        }
+        (char_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+        sm = SpriteManifests(assets_dir=str(tmp_path))
+        assert sm.get("x")["no_blink_faces"] == ["happy", "blink"]
+
     def test_outfitless_manifest_has_no_outfits(self, tmp_path):
         char_dir = tmp_path / "characters" / "plain"
         char_dir.mkdir(parents=True)

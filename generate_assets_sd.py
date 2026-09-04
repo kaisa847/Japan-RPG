@@ -728,6 +728,10 @@ POSE_PROMPTS = {
 
 BLINK_PROMPT = "closed eyes, gentle eyelashes, relaxed face"
 
+# Faces whose eyes are already (half-)closed by design — blinking on top
+# of them looks wrong, the engine skips it via manifest.no_blink_faces.
+CLOSED_EYE_FACES = {"happy", "laughing", "sleepy", "blink"}
+
 
 def controlnet_unit(skeleton_png: Path) -> dict:
     image_b64 = base64.b64encode(skeleton_png.read_bytes()).decode()
@@ -967,6 +971,9 @@ def write_manifest(char_id: str, char: dict) -> None:
     }
     if talk_faces:
         manifest["talk_faces"] = talk_faces
+    no_blink = sorted(f for f in faces if f in CLOSED_EYE_FACES)
+    if no_blink:
+        manifest["no_blink_faces"] = no_blink
     if outfits:
         manifest["outfits"] = outfits
     if manifest["blink_face"] is None:

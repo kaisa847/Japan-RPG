@@ -1128,6 +1128,9 @@ class VNEngine {
     _startBlink(characterId, manifest) {
         this._stopBlink();
         if (!manifest.blink_face) return;
+        // No blinking on faces whose eyes are already closed by design
+        const face = this._currentComposite && this._currentComposite.face;
+        if (face && (manifest.no_blink_faces || []).includes(face)) return;
         const blinkUrl =
             `${CONFIG.ASSET_PATHS.characters}/${characterId}/faces/${manifest.blink_face}.png`;
         this._preloadImage(blinkUrl);
