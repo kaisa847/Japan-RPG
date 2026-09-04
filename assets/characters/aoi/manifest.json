@@ -1,0 +1,361 @@
+{
+  "version": 1,
+  "default_pose": "stand",
+  "default_face": "neutral",
+  "blink_face": "blink",
+  "poses": {
+    "arms_crossed": {
+      "body": "poses/arms_crossed.png",
+      "anchor": {
+        "x": 0.47,
+        "y": 0.131,
+        "w": 0.375
+      }
+    },
+    "hands_clasped": {
+      "body": "poses/hands_clasped.png",
+      "anchor": {
+        "x": 0.47,
+        "y": 0.131,
+        "w": 0.375
+      }
+    },
+    "phone": {
+      "body": "poses/phone.png",
+      "anchor": {
+        "x": 0.47,
+        "y": 0.131,
+        "w": 0.375
+      }
+    },
+    "pointing": {
+      "body": "poses/pointing.png",
+      "anchor": {
+        "x": 0.47,
+        "y": 0.131,
+        "w": 0.375
+      }
+    },
+    "stand": {
+      "body": "poses/stand.png",
+      "anchor": {
+        "x": 0.47,
+        "y": 0.131,
+        "w": 0.375
+      }
+    },
+    "wave": {
+      "body": "poses/wave.png",
+      "anchor": {
+        "x": 0.47,
+        "y": 0.131,
+        "w": 0.375
+      }
+    }
+  },
+  "faces": [
+    "ahegao",
+    "angry",
+    "blink",
+    "curious",
+    "determined",
+    "disgusted",
+    "embarrassed",
+    "excited",
+    "happy",
+    "laughing",
+    "neutral",
+    "shocked",
+    "sleepy",
+    "surprised",
+    "talking",
+    "thinking",
+    "worried"
+  ],
+  "talk_faces": [
+    "ahegao",
+    "angry",
+    "curious",
+    "determined",
+    "disgusted",
+    "embarrassed",
+    "excited",
+    "happy",
+    "laughing",
+    "neutral",
+    "shocked",
+    "sleepy",
+    "surprised",
+    "talking",
+    "thinking",
+    "worried"
+  ],
+  "no_blink_faces": [
+    "blink",
+    "happy",
+    "laughing",
+    "sleepy"
+  ],
+  "outfits": {
+    "casual2": {
+      "poses": {
+        "arms_crossed": {
+          "body": "poses/casual2/arms_crossed.png",
+          "anchor": {
+            "x": 0.47,
+            "y": 0.131,
+            "w": 0.375
+          }
+        },
+        "hands_clasped": {
+          "body": "poses/casual2/hands_clasped.png",
+          "anchor": {
+            "x": 0.47,
+            "y": 0.131,
+            "w": 0.375
+          }
+        },
+        "phone": {
+          "body": "poses/casual2/phone.png",
+          "anchor": {
+            "x": 0.47,
+            "y": 0.131,
+            "w": 0.375
+          }
+        },
+        "pointing": {
+          "body": "poses/casual2/pointing.png",
+          "anchor": {
+            "x": 0.47,
+            "y": 0.131,
+            "w": 0.375
+          }
+        },
+        "stand": {
+          "body": "poses/casual2/stand.png",
+          "anchor": {
+            "x": 0.47,
+            "y": 0.131,
+            "w": 0.375
+          }
+        },
+        "wave": {
+          "body": "poses/casual2/wave.png",
+          "anchor": {
+            "x": 0.47,
+            "y": 0.131,
+            "w": 0.375
+          }
+        }
+      }
+    },
+    "pajama": {
+      "poses": {
+        "arms_crossed": {
+          "body": "poses/pajama/arms_crossed.png",
+          "anchor": {
+            "x": 0.47,
+            "y": 0.131,
+            "w": 0.375
+          }
+        },
+        "hands_clasped": {
+          "body": "poses/pajama/hands_clasped.png",
+          "anchor": {
+            "x": 0.47,
+            "y": 0.131,
+            "w": 0.375
+          }
+        },
+        "phone": {
+          "body": "poses/pajama/phone.png",
+          "anchor": {
+            "x": 0.47,
+            "y": 0.131,
+            "w": 0.375
+          }
+        },
+        "pointing": {
+          "body": "poses/pajama/pointing.png",
+          "anchor": {
+            "x": 0.47,
+            "y": 0.131,
+            "w": 0.375
+          }
+        },
+        "stand": {
+          "body": "poses/pajama/stand.png",
+          "anchor": {
+            "x": 0.47,
+            "y": 0.131,
+            "w": 0.375
+          }
+        },
+        "wave": {
+          "body": "poses/pajama/wave.png",
+          "anchor": {
+            "x": 0.47,
+            "y": 0.131,
+            "w": 0.375
+          }
+        }
+      }
+    },
+    "rain": {
+      "poses": {
+        "arms_crossed": {
+          "body": "poses/rain/arms_crossed.png",
+          "anchor": {
+            "x": 0.47,
+            "y": 0.131,
+            "w": 0.375
+          }
+        },
+        "hands_clasped": {
+          "body": "poses/rain/hands_clasped.png",
+          "anchor": {
+            "x": 0.47,
+            "y": 0.131,
+            "w": 0.375
+          }
+        },
+        "phone": {
+          "body": "poses/rain/phone.png",
+          "anchor": {
+            "x": 0.47,
+            "y": 0.131,
+            "w": 0.375
+          }
+        },
+        "pointing": {
+          "body": "poses/rain/pointing.png",
+          "anchor": {
+            "x": 0.47,
+            "y": 0.131,
+            "w": 0.375
+          }
+        },
+        "stand": {
+          "body": "poses/rain/stand.png",
+          "anchor": {
+            "x": 0.47,
+            "y": 0.131,
+            "w": 0.375
+          }
+        },
+        "wave": {
+          "body": "poses/rain/wave.png",
+          "anchor": {
+            "x": 0.47,
+            "y": 0.131,
+            "w": 0.375
+          }
+        }
+      }
+    },
+    "winter": {
+      "poses": {
+        "arms_crossed": {
+          "body": "poses/winter/arms_crossed.png",
+          "anchor": {
+            "x": 0.47,
+            "y": 0.131,
+            "w": 0.375
+          }
+        },
+        "hands_clasped": {
+          "body": "poses/winter/hands_clasped.png",
+          "anchor": {
+            "x": 0.47,
+            "y": 0.131,
+            "w": 0.375
+          }
+        },
+        "phone": {
+          "body": "poses/winter/phone.png",
+          "anchor": {
+            "x": 0.47,
+            "y": 0.131,
+            "w": 0.375
+          }
+        },
+        "pointing": {
+          "body": "poses/winter/pointing.png",
+          "anchor": {
+            "x": 0.47,
+            "y": 0.131,
+            "w": 0.375
+          }
+        },
+        "stand": {
+          "body": "poses/winter/stand.png",
+          "anchor": {
+            "x": 0.47,
+            "y": 0.131,
+            "w": 0.375
+          }
+        },
+        "wave": {
+          "body": "poses/winter/wave.png",
+          "anchor": {
+            "x": 0.47,
+            "y": 0.131,
+            "w": 0.375
+          }
+        }
+      }
+    },
+    "yukata": {
+      "poses": {
+        "arms_crossed": {
+          "body": "poses/yukata/arms_crossed.png",
+          "anchor": {
+            "x": 0.47,
+            "y": 0.131,
+            "w": 0.375
+          }
+        },
+        "hands_clasped": {
+          "body": "poses/yukata/hands_clasped.png",
+          "anchor": {
+            "x": 0.47,
+            "y": 0.131,
+            "w": 0.375
+          }
+        },
+        "phone": {
+          "body": "poses/yukata/phone.png",
+          "anchor": {
+            "x": 0.47,
+            "y": 0.131,
+            "w": 0.375
+          }
+        },
+        "pointing": {
+          "body": "poses/yukata/pointing.png",
+          "anchor": {
+            "x": 0.47,
+            "y": 0.131,
+            "w": 0.375
+          }
+        },
+        "stand": {
+          "body": "poses/yukata/stand.png",
+          "anchor": {
+            "x": 0.47,
+            "y": 0.131,
+            "w": 0.375
+          }
+        },
+        "wave": {
+          "body": "poses/yukata/wave.png",
+          "anchor": {
+            "x": 0.47,
+            "y": 0.131,
+            "w": 0.375
+          }
+        }
+      }
+    }
+  }
+}

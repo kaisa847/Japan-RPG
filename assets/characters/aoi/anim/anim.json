@@ -1,0 +1,1166 @@
+{
+  "standard": {
+    "neutral": {
+      "eyes_closed": {
+        "file": "standard/neutral_eyes_closed.png",
+        "x": 0.3109,
+        "y": 0.0951,
+        "w": 0.3156,
+        "h": 0.0482
+      },
+      "mouth": {
+        "file": "standard/neutral_mouth.png",
+        "x": 0.3703,
+        "y": 0.1315,
+        "w": 0.1969,
+        "h": 0.0488
+      }
+    },
+    "happy": {
+      "eyes_closed": {
+        "file": "standard/happy_eyes_closed.png",
+        "x": 0.3156,
+        "y": 0.0951,
+        "w": 0.3125,
+        "h": 0.0482
+      },
+      "mouth": {
+        "file": "standard/happy_mouth.png",
+        "x": 0.375,
+        "y": 0.1315,
+        "w": 0.1938,
+        "h": 0.0482
+      }
+    },
+    "excited": {
+      "eyes_closed": {
+        "file": "standard/excited_eyes_closed.png",
+        "x": 0.3016,
+        "y": 0.0898,
+        "w": 0.3297,
+        "h": 0.0501
+      },
+      "mouth": {
+        "file": "standard/excited_mouth.png",
+        "x": 0.3641,
+        "y": 0.1283,
+        "w": 0.2047,
+        "h": 0.0508
+      }
+    },
+    "curious": {
+      "eyes_closed": {
+        "file": "standard/curious_eyes_closed.png",
+        "x": 0.3062,
+        "y": 0.0879,
+        "w": 0.3297,
+        "h": 0.0501
+      },
+      "mouth": {
+        "file": "standard/curious_mouth.png",
+        "x": 0.3688,
+        "y": 0.1263,
+        "w": 0.2047,
+        "h": 0.0508
+      }
+    },
+    "talking": {
+      "eyes_closed": {
+        "file": "standard/talking_eyes_closed.png",
+        "x": 0.3156,
+        "y": 0.0944,
+        "w": 0.3172,
+        "h": 0.0488
+      },
+      "mouth": {
+        "file": "standard/talking_mouth.png",
+        "x": 0.375,
+        "y": 0.1315,
+        "w": 0.1984,
+        "h": 0.0488
+      }
+    },
+    "laughing": {
+      "eyes_closed": {
+        "file": "standard/laughing_eyes_closed.png",
+        "x": 0.3078,
+        "y": 0.0885,
+        "w": 0.3453,
+        "h": 0.0527
+      },
+      "mouth": {
+        "file": "standard/laughing_mouth.png",
+        "x": 0.3734,
+        "y": 0.1296,
+        "w": 0.2141,
+        "h": 0.0527
+      }
+    },
+    "surprised": {
+      "eyes_closed": {
+        "file": "standard/surprised_eyes_closed.png",
+        "x": 0.3234,
+        "y": 0.0911,
+        "w": 0.3141,
+        "h": 0.0488
+      },
+      "mouth": {
+        "file": "standard/surprised_mouth.png",
+        "x": 0.3828,
+        "y": 0.1283,
+        "w": 0.1953,
+        "h": 0.0482
+      }
+    },
+    "thinking": {
+      "eyes_closed": {
+        "file": "standard/thinking_eyes_closed.png",
+        "x": 0.3047,
+        "y": 0.0905,
+        "w": 0.3266,
+        "h": 0.0501
+      },
+      "mouth": {
+        "file": "standard/thinking_mouth.png",
+        "x": 0.3672,
+        "y": 0.1289,
+        "w": 0.2016,
+        "h": 0.0501
+      }
+    },
+    "embarrassed": {
+      "eyes_closed": {
+        "file": "standard/embarrassed_eyes_closed.png",
+        "x": 0.3203,
+        "y": 0.0977,
+        "w": 0.3031,
+        "h": 0.0469
+      },
+      "mouth": {
+        "file": "standard/embarrassed_mouth.png",
+        "x": 0.3766,
+        "y": 0.1328,
+        "w": 0.1906,
+        "h": 0.0469
+      }
+    },
+    "determined": {
+      "eyes_closed": {
+        "file": "standard/determined_eyes_closed.png",
+        "x": 0.3109,
+        "y": 0.0918,
+        "w": 0.3156,
+        "h": 0.0482
+      },
+      "mouth": {
+        "file": "standard/determined_mouth.png",
+        "x": 0.3703,
+        "y": 0.1283,
+        "w": 0.1969,
+        "h": 0.0488
+      }
+    },
+    "worried": {
+      "eyes_closed": {
+        "file": "standard/worried_eyes_closed.png",
+        "x": 0.325,
+        "y": 0.097,
+        "w": 0.2938,
+        "h": 0.0462
+      },
+      "mouth": {
+        "file": "standard/worried_mouth.png",
+        "x": 0.3797,
+        "y": 0.1315,
+        "w": 0.1844,
+        "h": 0.0456
+      }
+    },
+    "sleepy": {
+      "eyes_closed": {
+        "file": "standard/sleepy_eyes_closed.png",
+        "x": 0.3125,
+        "y": 0.0898,
+        "w": 0.3438,
+        "h": 0.0521
+      },
+      "mouth": {
+        "file": "standard/sleepy_mouth.png",
+        "x": 0.3766,
+        "y": 0.1309,
+        "w": 0.2156,
+        "h": 0.0521
+      }
+    }
+  },
+  "yukata": {
+    "neutral": {
+      "eyes_closed": {
+        "file": "yukata/neutral_eyes_closed.png",
+        "x": 0.3047,
+        "y": 0.0898,
+        "w": 0.3312,
+        "h": 0.0508
+      },
+      "mouth": {
+        "file": "yukata/neutral_mouth.png",
+        "x": 0.3672,
+        "y": 0.1289,
+        "w": 0.2062,
+        "h": 0.0508
+      }
+    },
+    "happy": {
+      "eyes_closed": {
+        "file": "yukata/happy_eyes_closed.png",
+        "x": 0.3031,
+        "y": 0.0866,
+        "w": 0.3391,
+        "h": 0.0521
+      },
+      "mouth": {
+        "file": "yukata/happy_mouth.png",
+        "x": 0.3672,
+        "y": 0.127,
+        "w": 0.2109,
+        "h": 0.0521
+      }
+    },
+    "excited": {
+      "eyes_closed": {
+        "file": "yukata/excited_eyes_closed.png",
+        "x": 0.3078,
+        "y": 0.0879,
+        "w": 0.3359,
+        "h": 0.0514
+      },
+      "mouth": {
+        "file": "yukata/excited_mouth.png",
+        "x": 0.3703,
+        "y": 0.1276,
+        "w": 0.2109,
+        "h": 0.0514
+      }
+    },
+    "curious": {
+      "eyes_closed": {
+        "file": "yukata/curious_eyes_closed.png",
+        "x": 0.3125,
+        "y": 0.0924,
+        "w": 0.3172,
+        "h": 0.0488
+      },
+      "mouth": {
+        "file": "yukata/curious_mouth.png",
+        "x": 0.3719,
+        "y": 0.1296,
+        "w": 0.1984,
+        "h": 0.0488
+      }
+    },
+    "talking": {
+      "eyes_closed": {
+        "file": "yukata/talking_eyes_closed.png",
+        "x": 0.3109,
+        "y": 0.0885,
+        "w": 0.3359,
+        "h": 0.0514
+      },
+      "mouth": {
+        "file": "yukata/talking_mouth.png",
+        "x": 0.3734,
+        "y": 0.1283,
+        "w": 0.2109,
+        "h": 0.0514
+      }
+    },
+    "laughing": {
+      "eyes_closed": {
+        "file": "yukata/laughing_eyes_closed.png",
+        "x": 0.3078,
+        "y": 0.0892,
+        "w": 0.3312,
+        "h": 0.0508
+      },
+      "mouth": {
+        "file": "yukata/laughing_mouth.png",
+        "x": 0.3703,
+        "y": 0.1283,
+        "w": 0.2062,
+        "h": 0.0508
+      }
+    },
+    "surprised": {
+      "eyes_closed": {
+        "file": "yukata/surprised_eyes_closed.png",
+        "x": 0.3047,
+        "y": 0.0879,
+        "w": 0.3406,
+        "h": 0.0521
+      },
+      "mouth": {
+        "file": "yukata/surprised_mouth.png",
+        "x": 0.3688,
+        "y": 0.1283,
+        "w": 0.2125,
+        "h": 0.0521
+      }
+    },
+    "thinking": {
+      "eyes_closed": {
+        "file": "yukata/thinking_eyes_closed.png",
+        "x": 0.3031,
+        "y": 0.0905,
+        "w": 0.3297,
+        "h": 0.0501
+      },
+      "mouth": {
+        "file": "yukata/thinking_mouth.png",
+        "x": 0.3656,
+        "y": 0.1289,
+        "w": 0.2047,
+        "h": 0.0508
+      }
+    },
+    "embarrassed": {
+      "eyes_closed": {
+        "file": "yukata/embarrassed_eyes_closed.png",
+        "x": 0.3109,
+        "y": 0.0931,
+        "w": 0.3141,
+        "h": 0.0488
+      },
+      "mouth": {
+        "file": "yukata/embarrassed_mouth.png",
+        "x": 0.3703,
+        "y": 0.1302,
+        "w": 0.1953,
+        "h": 0.0482
+      }
+    },
+    "determined": {
+      "eyes_closed": {
+        "file": "yukata/determined_eyes_closed.png",
+        "x": 0.3125,
+        "y": 0.0924,
+        "w": 0.3141,
+        "h": 0.0488
+      },
+      "mouth": {
+        "file": "yukata/determined_mouth.png",
+        "x": 0.3719,
+        "y": 0.1296,
+        "w": 0.1953,
+        "h": 0.0482
+      }
+    },
+    "worried": {
+      "eyes_closed": {
+        "file": "yukata/worried_eyes_closed.png",
+        "x": 0.325,
+        "y": 0.0944,
+        "w": 0.2969,
+        "h": 0.0462
+      },
+      "mouth": {
+        "file": "yukata/worried_mouth.png",
+        "x": 0.3797,
+        "y": 0.1289,
+        "w": 0.1875,
+        "h": 0.0462
+      }
+    },
+    "sleepy": {
+      "eyes_closed": {
+        "file": "yukata/sleepy_eyes_closed.png",
+        "x": 0.3047,
+        "y": 0.0879,
+        "w": 0.3375,
+        "h": 0.0514
+      },
+      "mouth": {
+        "file": "yukata/sleepy_mouth.png",
+        "x": 0.3688,
+        "y": 0.1276,
+        "w": 0.2094,
+        "h": 0.0521
+      }
+    }
+  },
+  "winter": {
+    "neutral": {
+      "eyes_closed": {
+        "file": "winter/neutral_eyes_closed.png",
+        "x": 0.3125,
+        "y": 0.0918,
+        "w": 0.3125,
+        "h": 0.0482
+      },
+      "mouth": {
+        "file": "winter/neutral_mouth.png",
+        "x": 0.3719,
+        "y": 0.1283,
+        "w": 0.1938,
+        "h": 0.0482
+      }
+    },
+    "happy": {
+      "eyes_closed": {
+        "file": "winter/happy_eyes_closed.png",
+        "x": 0.3109,
+        "y": 0.0905,
+        "w": 0.3172,
+        "h": 0.0488
+      },
+      "mouth": {
+        "file": "winter/happy_mouth.png",
+        "x": 0.3703,
+        "y": 0.1276,
+        "w": 0.1984,
+        "h": 0.0488
+      }
+    },
+    "excited": {
+      "eyes_closed": {
+        "file": "winter/excited_eyes_closed.png",
+        "x": 0.3234,
+        "y": 0.0918,
+        "w": 0.2969,
+        "h": 0.0462
+      },
+      "mouth": {
+        "file": "winter/excited_mouth.png",
+        "x": 0.3781,
+        "y": 0.1263,
+        "w": 0.1875,
+        "h": 0.0462
+      }
+    },
+    "curious": {
+      "eyes_closed": {
+        "file": "winter/curious_eyes_closed.png",
+        "x": 0.3078,
+        "y": 0.0905,
+        "w": 0.3172,
+        "h": 0.0488
+      },
+      "mouth": {
+        "file": "winter/curious_mouth.png",
+        "x": 0.3672,
+        "y": 0.1276,
+        "w": 0.1984,
+        "h": 0.0488
+      }
+    },
+    "talking": {
+      "eyes_closed": {
+        "file": "winter/talking_eyes_closed.png",
+        "x": 0.3156,
+        "y": 0.0905,
+        "w": 0.3094,
+        "h": 0.0475
+      },
+      "mouth": {
+        "file": "winter/talking_mouth.png",
+        "x": 0.3734,
+        "y": 0.1263,
+        "w": 0.1938,
+        "h": 0.0482
+      }
+    },
+    "laughing": {
+      "eyes_closed": {
+        "file": "winter/laughing_eyes_closed.png",
+        "x": 0.3172,
+        "y": 0.0898,
+        "w": 0.3094,
+        "h": 0.0475
+      },
+      "mouth": {
+        "file": "winter/laughing_mouth.png",
+        "x": 0.375,
+        "y": 0.1257,
+        "w": 0.1938,
+        "h": 0.0482
+      }
+    },
+    "surprised": {
+      "eyes_closed": {
+        "file": "winter/surprised_eyes_closed.png",
+        "x": 0.3109,
+        "y": 0.0892,
+        "w": 0.3188,
+        "h": 0.0495
+      },
+      "mouth": {
+        "file": "winter/surprised_mouth.png",
+        "x": 0.3719,
+        "y": 0.1263,
+        "w": 0.1969,
+        "h": 0.0495
+      }
+    },
+    "thinking": {
+      "eyes_closed": {
+        "file": "winter/thinking_eyes_closed.png",
+        "x": 0.3109,
+        "y": 0.0918,
+        "w": 0.3094,
+        "h": 0.0475
+      },
+      "mouth": {
+        "file": "winter/thinking_mouth.png",
+        "x": 0.3688,
+        "y": 0.1276,
+        "w": 0.1938,
+        "h": 0.0482
+      }
+    },
+    "embarrassed": {
+      "eyes_closed": {
+        "file": "winter/embarrassed_eyes_closed.png",
+        "x": 0.3188,
+        "y": 0.0938,
+        "w": 0.3016,
+        "h": 0.0475
+      },
+      "mouth": {
+        "file": "winter/embarrassed_mouth.png",
+        "x": 0.375,
+        "y": 0.1289,
+        "w": 0.1891,
+        "h": 0.0475
+      }
+    },
+    "determined": {
+      "eyes_closed": {
+        "file": "winter/determined_eyes_closed.png",
+        "x": 0.3109,
+        "y": 0.0924,
+        "w": 0.3141,
+        "h": 0.0488
+      },
+      "mouth": {
+        "file": "winter/determined_mouth.png",
+        "x": 0.3703,
+        "y": 0.1296,
+        "w": 0.1953,
+        "h": 0.0482
+      }
+    },
+    "worried": {
+      "eyes_closed": {
+        "file": "winter/worried_eyes_closed.png",
+        "x": 0.3109,
+        "y": 0.0911,
+        "w": 0.3141,
+        "h": 0.0488
+      },
+      "mouth": {
+        "file": "winter/worried_mouth.png",
+        "x": 0.3703,
+        "y": 0.1283,
+        "w": 0.1953,
+        "h": 0.0482
+      }
+    },
+    "sleepy": {
+      "eyes_closed": {
+        "file": "winter/sleepy_eyes_closed.png",
+        "x": 0.3094,
+        "y": 0.0892,
+        "w": 0.3172,
+        "h": 0.0488
+      },
+      "mouth": {
+        "file": "winter/sleepy_mouth.png",
+        "x": 0.3688,
+        "y": 0.1263,
+        "w": 0.1984,
+        "h": 0.0488
+      }
+    }
+  },
+  "rain": {
+    "neutral": {
+      "eyes_closed": {
+        "file": "rain/neutral_eyes_closed.png",
+        "x": 0.3109,
+        "y": 0.0911,
+        "w": 0.325,
+        "h": 0.0501
+      },
+      "mouth": {
+        "file": "rain/neutral_mouth.png",
+        "x": 0.3719,
+        "y": 0.1296,
+        "w": 0.2031,
+        "h": 0.0495
+      }
+    },
+    "happy": {
+      "eyes_closed": {
+        "file": "rain/happy_eyes_closed.png",
+        "x": 0.3156,
+        "y": 0.0892,
+        "w": 0.3203,
+        "h": 0.0495
+      },
+      "mouth": {
+        "file": "rain/happy_mouth.png",
+        "x": 0.3766,
+        "y": 0.127,
+        "w": 0.1984,
+        "h": 0.0495
+      }
+    },
+    "excited": {
+      "eyes_closed": {
+        "file": "rain/excited_eyes_closed.png",
+        "x": 0.3094,
+        "y": 0.0892,
+        "w": 0.3328,
+        "h": 0.0514
+      },
+      "mouth": {
+        "file": "rain/excited_mouth.png",
+        "x": 0.3719,
+        "y": 0.1289,
+        "w": 0.2078,
+        "h": 0.0508
+      }
+    },
+    "curious": {
+      "eyes_closed": {
+        "file": "rain/curious_eyes_closed.png",
+        "x": 0.3156,
+        "y": 0.0924,
+        "w": 0.3203,
+        "h": 0.0495
+      },
+      "mouth": {
+        "file": "rain/curious_mouth.png",
+        "x": 0.3766,
+        "y": 0.1302,
+        "w": 0.1984,
+        "h": 0.0495
+      }
+    },
+    "talking": {
+      "eyes_closed": {
+        "file": "rain/talking_eyes_closed.png",
+        "x": 0.3141,
+        "y": 0.0885,
+        "w": 0.3219,
+        "h": 0.0495
+      },
+      "mouth": {
+        "file": "rain/talking_mouth.png",
+        "x": 0.375,
+        "y": 0.1263,
+        "w": 0.2,
+        "h": 0.0495
+      }
+    },
+    "laughing": {
+      "eyes_closed": {
+        "file": "rain/laughing_eyes_closed.png",
+        "x": 0.3094,
+        "y": 0.0872,
+        "w": 0.3344,
+        "h": 0.0514
+      },
+      "mouth": {
+        "file": "rain/laughing_mouth.png",
+        "x": 0.3719,
+        "y": 0.127,
+        "w": 0.2094,
+        "h": 0.0514
+      }
+    },
+    "surprised": {
+      "eyes_closed": {
+        "file": "rain/surprised_eyes_closed.png",
+        "x": 0.3078,
+        "y": 0.0892,
+        "w": 0.3312,
+        "h": 0.0508
+      },
+      "mouth": {
+        "file": "rain/surprised_mouth.png",
+        "x": 0.3703,
+        "y": 0.1283,
+        "w": 0.2062,
+        "h": 0.0508
+      }
+    },
+    "thinking": {
+      "eyes_closed": {
+        "file": "rain/thinking_eyes_closed.png",
+        "x": 0.3078,
+        "y": 0.0892,
+        "w": 0.3266,
+        "h": 0.0501
+      },
+      "mouth": {
+        "file": "rain/thinking_mouth.png",
+        "x": 0.3703,
+        "y": 0.1276,
+        "w": 0.2016,
+        "h": 0.0501
+      }
+    },
+    "embarrassed": {
+      "eyes_closed": {
+        "file": "rain/embarrassed_eyes_closed.png",
+        "x": 0.3125,
+        "y": 0.0931,
+        "w": 0.3172,
+        "h": 0.0488
+      },
+      "mouth": {
+        "file": "rain/embarrassed_mouth.png",
+        "x": 0.3719,
+        "y": 0.1302,
+        "w": 0.1984,
+        "h": 0.0488
+      }
+    },
+    "determined": {
+      "eyes_closed": {
+        "file": "rain/determined_eyes_closed.png",
+        "x": 0.3047,
+        "y": 0.0885,
+        "w": 0.3328,
+        "h": 0.0514
+      },
+      "mouth": {
+        "file": "rain/determined_mouth.png",
+        "x": 0.3672,
+        "y": 0.1283,
+        "w": 0.2078,
+        "h": 0.0508
+      }
+    },
+    "worried": {
+      "eyes_closed": {
+        "file": "rain/worried_eyes_closed.png",
+        "x": 0.3094,
+        "y": 0.0898,
+        "w": 0.3312,
+        "h": 0.0508
+      },
+      "mouth": {
+        "file": "rain/worried_mouth.png",
+        "x": 0.3719,
+        "y": 0.1289,
+        "w": 0.2062,
+        "h": 0.0508
+      }
+    },
+    "sleepy": {
+      "eyes_closed": {
+        "file": "rain/sleepy_eyes_closed.png",
+        "x": 0.3047,
+        "y": 0.0853,
+        "w": 0.3406,
+        "h": 0.0521
+      },
+      "mouth": {
+        "file": "rain/sleepy_mouth.png",
+        "x": 0.3688,
+        "y": 0.1257,
+        "w": 0.2125,
+        "h": 0.0521
+      }
+    }
+  },
+  "pajama": {
+    "neutral": {
+      "eyes_closed": {
+        "file": "pajama/neutral_eyes_closed.png",
+        "x": 0.3219,
+        "y": 0.0951,
+        "w": 0.3078,
+        "h": 0.0482
+      },
+      "mouth": {
+        "file": "pajama/neutral_mouth.png",
+        "x": 0.3797,
+        "y": 0.1315,
+        "w": 0.1922,
+        "h": 0.0475
+      }
+    },
+    "happy": {
+      "eyes_closed": {
+        "file": "pajama/happy_eyes_closed.png",
+        "x": 0.3125,
+        "y": 0.0905,
+        "w": 0.3203,
+        "h": 0.0495
+      },
+      "mouth": {
+        "file": "pajama/happy_mouth.png",
+        "x": 0.3734,
+        "y": 0.1283,
+        "w": 0.1984,
+        "h": 0.0495
+      }
+    },
+    "excited": {
+      "eyes_closed": {
+        "file": "pajama/excited_eyes_closed.png",
+        "x": 0.3156,
+        "y": 0.0898,
+        "w": 0.3281,
+        "h": 0.0501
+      },
+      "mouth": {
+        "file": "pajama/excited_mouth.png",
+        "x": 0.3781,
+        "y": 0.1283,
+        "w": 0.2031,
+        "h": 0.0501
+      }
+    },
+    "curious": {
+      "eyes_closed": {
+        "file": "pajama/curious_eyes_closed.png",
+        "x": 0.3125,
+        "y": 0.0918,
+        "w": 0.325,
+        "h": 0.0501
+      },
+      "mouth": {
+        "file": "pajama/curious_mouth.png",
+        "x": 0.3734,
+        "y": 0.1302,
+        "w": 0.2031,
+        "h": 0.0495
+      }
+    },
+    "talking": {
+      "eyes_closed": {
+        "file": "pajama/talking_eyes_closed.png",
+        "x": 0.3156,
+        "y": 0.0885,
+        "w": 0.325,
+        "h": 0.0501
+      },
+      "mouth": {
+        "file": "pajama/talking_mouth.png",
+        "x": 0.3766,
+        "y": 0.127,
+        "w": 0.2031,
+        "h": 0.0495
+      }
+    },
+    "laughing": {
+      "eyes_closed": {
+        "file": "pajama/laughing_eyes_closed.png",
+        "x": 0.3188,
+        "y": 0.0938,
+        "w": 0.3156,
+        "h": 0.0482
+      },
+      "mouth": {
+        "file": "pajama/laughing_mouth.png",
+        "x": 0.3781,
+        "y": 0.1302,
+        "w": 0.1969,
+        "h": 0.0488
+      }
+    },
+    "surprised": {
+      "eyes_closed": {
+        "file": "pajama/surprised_eyes_closed.png",
+        "x": 0.3156,
+        "y": 0.0918,
+        "w": 0.3172,
+        "h": 0.0488
+      },
+      "mouth": {
+        "file": "pajama/surprised_mouth.png",
+        "x": 0.375,
+        "y": 0.1289,
+        "w": 0.1984,
+        "h": 0.0488
+      }
+    },
+    "thinking": {
+      "eyes_closed": {
+        "file": "pajama/thinking_eyes_closed.png",
+        "x": 0.3109,
+        "y": 0.0924,
+        "w": 0.3203,
+        "h": 0.0495
+      },
+      "mouth": {
+        "file": "pajama/thinking_mouth.png",
+        "x": 0.3719,
+        "y": 0.1302,
+        "w": 0.1984,
+        "h": 0.0495
+      }
+    },
+    "embarrassed": {
+      "eyes_closed": {
+        "file": "pajama/embarrassed_eyes_closed.png",
+        "x": 0.3188,
+        "y": 0.0924,
+        "w": 0.3078,
+        "h": 0.0482
+      },
+      "mouth": {
+        "file": "pajama/embarrassed_mouth.png",
+        "x": 0.3766,
+        "y": 0.1289,
+        "w": 0.1922,
+        "h": 0.0475
+      }
+    },
+    "determined": {
+      "eyes_closed": {
+        "file": "pajama/determined_eyes_closed.png",
+        "x": 0.3188,
+        "y": 0.0944,
+        "w": 0.3062,
+        "h": 0.0475
+      },
+      "mouth": {
+        "file": "pajama/determined_mouth.png",
+        "x": 0.3766,
+        "y": 0.1302,
+        "w": 0.1906,
+        "h": 0.0475
+      }
+    },
+    "worried": {
+      "eyes_closed": {
+        "file": "pajama/worried_eyes_closed.png",
+        "x": 0.3203,
+        "y": 0.0944,
+        "w": 0.3078,
+        "h": 0.0482
+      },
+      "mouth": {
+        "file": "pajama/worried_mouth.png",
+        "x": 0.3781,
+        "y": 0.1309,
+        "w": 0.1922,
+        "h": 0.0475
+      }
+    },
+    "sleepy": {
+      "eyes_closed": {
+        "file": "pajama/sleepy_eyes_closed.png",
+        "x": 0.3062,
+        "y": 0.0892,
+        "w": 0.3359,
+        "h": 0.0514
+      },
+      "mouth": {
+        "file": "pajama/sleepy_mouth.png",
+        "x": 0.3688,
+        "y": 0.1289,
+        "w": 0.2109,
+        "h": 0.0514
+      }
+    }
+  },
+  "casual2": {
+    "neutral": {
+      "eyes_closed": {
+        "file": "casual2/neutral_eyes_closed.png",
+        "x": 0.3172,
+        "y": 0.0898,
+        "w": 0.3141,
+        "h": 0.0488
+      },
+      "mouth": {
+        "file": "casual2/neutral_mouth.png",
+        "x": 0.3766,
+        "y": 0.127,
+        "w": 0.1953,
+        "h": 0.0482
+      }
+    },
+    "happy": {
+      "eyes_closed": {
+        "file": "casual2/happy_eyes_closed.png",
+        "x": 0.3141,
+        "y": 0.0938,
+        "w": 0.3094,
+        "h": 0.0475
+      },
+      "mouth": {
+        "file": "casual2/happy_mouth.png",
+        "x": 0.3719,
+        "y": 0.1296,
+        "w": 0.1938,
+        "h": 0.0482
+      }
+    },
+    "excited": {
+      "eyes_closed": {
+        "file": "casual2/excited_eyes_closed.png",
+        "x": 0.3219,
+        "y": 0.0911,
+        "w": 0.3078,
+        "h": 0.0482
+      },
+      "mouth": {
+        "file": "casual2/excited_mouth.png",
+        "x": 0.3797,
+        "y": 0.1276,
+        "w": 0.1922,
+        "h": 0.0475
+      }
+    },
+    "curious": {
+      "eyes_closed": {
+        "file": "casual2/curious_eyes_closed.png",
+        "x": 0.3188,
+        "y": 0.0938,
+        "w": 0.3062,
+        "h": 0.0475
+      },
+      "mouth": {
+        "file": "casual2/curious_mouth.png",
+        "x": 0.3766,
+        "y": 0.1296,
+        "w": 0.1906,
+        "h": 0.0475
+      }
+    },
+    "talking": {
+      "eyes_closed": {
+        "file": "casual2/talking_eyes_closed.png",
+        "x": 0.3094,
+        "y": 0.0898,
+        "w": 0.3312,
+        "h": 0.0508
+      },
+      "mouth": {
+        "file": "casual2/talking_mouth.png",
+        "x": 0.3719,
+        "y": 0.1289,
+        "w": 0.2062,
+        "h": 0.0508
+      }
+    },
+    "laughing": {
+      "eyes_closed": {
+        "file": "casual2/laughing_eyes_closed.png",
+        "x": 0.3109,
+        "y": 0.0905,
+        "w": 0.3281,
+        "h": 0.0501
+      },
+      "mouth": {
+        "file": "casual2/laughing_mouth.png",
+        "x": 0.3734,
+        "y": 0.1289,
+        "w": 0.2031,
+        "h": 0.0501
+      }
+    },
+    "surprised": {
+      "eyes_closed": {
+        "file": "casual2/surprised_eyes_closed.png",
+        "x": 0.3156,
+        "y": 0.0905,
+        "w": 0.3219,
+        "h": 0.0495
+      },
+      "mouth": {
+        "file": "casual2/surprised_mouth.png",
+        "x": 0.3766,
+        "y": 0.1283,
+        "w": 0.2,
+        "h": 0.0495
+      }
+    },
+    "thinking": {
+      "eyes_closed": {
+        "file": "casual2/thinking_eyes_closed.png",
+        "x": 0.3031,
+        "y": 0.0905,
+        "w": 0.3297,
+        "h": 0.0501
+      },
+      "mouth": {
+        "file": "casual2/thinking_mouth.png",
+        "x": 0.3656,
+        "y": 0.1289,
+        "w": 0.2047,
+        "h": 0.0508
+      }
+    },
+    "embarrassed": {
+      "eyes_closed": {
+        "file": "casual2/embarrassed_eyes_closed.png",
+        "x": 0.3156,
+        "y": 0.0938,
+        "w": 0.3109,
+        "h": 0.0482
+      },
+      "mouth": {
+        "file": "casual2/embarrassed_mouth.png",
+        "x": 0.3734,
+        "y": 0.1302,
+        "w": 0.1953,
+        "h": 0.0482
+      }
+    },
+    "determined": {
+      "eyes_closed": {
+        "file": "casual2/determined_eyes_closed.png",
+        "x": 0.3172,
+        "y": 0.0924,
+        "w": 0.3094,
+        "h": 0.0475
+      },
+      "mouth": {
+        "file": "casual2/determined_mouth.png",
+        "x": 0.375,
+        "y": 0.1283,
+        "w": 0.1938,
+        "h": 0.0482
+      }
+    },
+    "worried": {
+      "eyes_closed": {
+        "file": "casual2/worried_eyes_closed.png",
+        "x": 0.3172,
+        "y": 0.0924,
+        "w": 0.3125,
+        "h": 0.0482
+      },
+      "mouth": {
+        "file": "casual2/worried_mouth.png",
+        "x": 0.3766,
+        "y": 0.1289,
+        "w": 0.1938,
+        "h": 0.0482
+      }
+    },
+    "sleepy": {
+      "eyes_closed": {
+        "file": "casual2/sleepy_eyes_closed.png",
+        "x": 0.3062,
+        "y": 0.0885,
+        "w": 0.3359,
+        "h": 0.0514
+      },
+      "mouth": {
+        "file": "casual2/sleepy_mouth.png",
+        "x": 0.3688,
+        "y": 0.1283,
+        "w": 0.2109,
+        "h": 0.0514
+      }
+    }
+  }
+}

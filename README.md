@@ -92,7 +92,10 @@ Affection-Deltas pro Interaktion werden auf +/-1 geclampt und mit Faktor 0.5 ged
 - **Posen:** stand, wave, arms_crossed, hands_clasped, pointing, phone — die KI waehlt per `<pose>`-Tag passend zur Koerpersprache
 - **Staging:** `<staging>`-Tag fuer Inszenierung: Position (left/center/right) und Nahaufnahme (near), animiert
 - **Blinzeln:** Bei Manifest mit `blink_face` blinzelt der Charakter alle 2,5-6s — Gesichtswechsel bei gleicher Pose sind schnelle Patch-Crossfades
-- **16 Gesichts-Ausdruecke** und **18 Hintergruende:** Orte in Shimokitazawa und Umgebung
+- **Mundbewegung:** Waehrend der Typewriter tippt, wechselt der Gesichts-Patch mit seiner `faces/<id>_talk.png`-Variante (Manifest-Feld `talk_faces`) — Lippenbewegung synchron zum Text
+- **Outfits:** `<outfit>`-Tag (standard, casual2, yukata, winter, rain, pajama). Im Manifest liegen pro Outfit eigene Pose-Koerper (`outfits.<id>.poses`), die Gesichter werden geteilt. Outfit-Kontinuitaet schlaegt Posen-Treue: fehlt eine Pose im Outfit-Set, wird dessen Default-Pose genutzt statt das Outfit zu wechseln
+- **THA3-Live-Modus (optional):** Laeuft `tools/tha3_service.py` (Port 8001, Talking Head Anime 3), ersetzt ein neuronal animierter Live-Stream (Atmung, Blinzeln, Kopfbewegung, Lippen, Expression-Morphs) die Sprites — Auto-Detect, Fallback auf Sprite-Rendering
+- **16 Gesichts-Ausdruecke** und **18 Hintergruende:** Orte in Shimokitazawa und Umgebung; Hintergruende in zwei Stilen (anime aktiv, photo als Alternative in `assets/backgrounds_photo/`; Umschalten: `python generate_assets_sd.py switch-style photo|anime`)
 - **Ueberblendungen:** Sanfte Fade-Uebergaenge (300ms) fuer Hintergrund- und Charakterwechsel
 - **Asset-Caching:** Bilder werden vorab geladen und gecacht
 - **Szenen-Navigation:** Zurueckblaettern durch vergangene Szenen (bis zu 100 gespeichert)
@@ -222,6 +225,42 @@ Benutzt Pillow (PIL). Farben pro Charakter: Aoi (Kornblumenblau), Tanaka (Olivgr
 
 Diese Platzhalter koennen jederzeit durch echte Grafiken ersetzt werden -- das Spiel erkennt automatisch vorhandene PNG/JPG/WEBP-Dateien ueber den `/api/assets/available`-Endpunkt.
 
+### `generate_assets_sd.py` -- Echte Assets per Stable Diffusion (lokal)
+
+Produziert die committeten Spiel-Assets ueber die lokale A1111-WebUI-API
+(`sd.webui` mit `--api`; ControlNet-Extension + xinsir-OpenPose-Modell fuer
+Posen). Identitaets-Konsistenz kommt vom LoRA `aoi_identity_v1` (Trigger
+`aoihayashi`, trainiert mit kohya sd-scripts auf den Referenz-Sprites;
+liegt in der WebUI unter `models/Lora/`).
+
+```bash
+python generate_assets_sd.py --style anime            # 18 Hintergruende (Anime-Stil)
+python generate_assets_sd.py --style photo            # dito fotorealistisch
+python generate_assets_sd.py switch-style anime|photo # aktiven Stil umschalten
+python generate_assets_sd.py pose [--outfit yukata]   # 6 Pose-Koerper (ControlNet/OpenPose)
+python generate_assets_sd.py faces                    # 17 Gesichts-Patches + _talk-Varianten + manifest.json
+python generate_assets_sd.py sprite --expression happy --outfit rain  # Legacy-Einzelsprites
+python generate_assets_sd.py anim --outfit standard   # Blinzel/Mund-Patches fuer Legacy-Sprites
+```
+
+OpenPose-Skelette fuer die 6 Posen: `python tools/openpose_poses.py`
+(identische Kopf-/Fussposition ueber alle Posen). Freistellen laeuft
+automatisch via rembg (isnet-anime). Details: `docs/ASSET_PIPELINE.md`.
+
+### `tools/tha3_service.py` -- THA3-Live-Animation (optional)
+
+Neuronale Echtzeit-Animation der Aoi aus einem einzigen Sprite
+(Talking Head Anime 3, Installation unter `sd.webui/tha3-demo`):
+
+```bash
+set PYTHONPATH=C:\Users\kaisa\AppData\Local\sd.webui\tha3-demo
+C:\Users\kaisa\AppData\Local\sd.webui\system\python\python.exe tools\tha3_service.py
+```
+
+Streamt transparente PNG-Frames (~20 fps) auf Port 8001; das Frontend
+erkennt den Service automatisch (`LIVE_ANIM_URL` in `frontend/config.js`).
+Modellwahl per `THA3_MODEL=standard_float|separable_half`.
+
 ### `pytest` -- Tests ausfuehren
 
 ```bash
@@ -335,6 +374,7 @@ Jede KI-generierte Szene folgt diesem XML-Schema:
   <character>aoi</character>           <!-- leer fuer Erzaehler -->
   <expression>happy</expression>
   <pose>wave</pose>                    <!-- optional, aus dem Sprite-Manifest -->
+  <outfit>yukata</outfit>              <!-- optional, aus der Outfit-Liste des Manifests -->
   <staging>right near</staging>        <!-- optional: left/center/right, near -->
   <background>cafe_shimokitazawa</background>
   <dialog_jp>今日はいい天気ですね！</dialog_jp>

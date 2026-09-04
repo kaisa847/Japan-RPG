@@ -8,6 +8,9 @@ data/.jwt_secret
 data/users.json
 data/saves/
 .pytest_cache/
-assets/
+# Assets are committed (KI-generiert). Only local scratch stays out:
+assets/backgrounds/_legacy/
+assets/characters/aoi/variants/
+assets/characters/aoi/Neuer Ordner/
 .claude/
 *- Kopie*

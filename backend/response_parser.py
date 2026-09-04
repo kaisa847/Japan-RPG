@@ -212,6 +212,7 @@ class SceneData(BaseModel):
     speaker: Optional[str] = None
     expression: str = "neutral"
     pose: Optional[str] = None
+    outfit: Optional[str] = None
     staging: list[str] = []
     background: Optional[str] = None
     dialog_jp: str = ""
@@ -260,6 +261,10 @@ class ResponseParser:
         # Pose: free-form id here; validated against the sprite manifest
         # by the caller (unknown poses fall back to the default pose).
         pose = ResponseParser._sanitize_character_id(data.get("pose", "")) or None
+
+        # Outfit: free-form id, validated against the sprite manifest by
+        # the caller (unknown outfits fall back to standard).
+        outfit = ResponseParser._sanitize_character_id(data.get("outfit", "")) or None
 
         # Staging: space-separated tokens, unknown ones silently dropped
         staging = [
@@ -318,6 +323,7 @@ class ResponseParser:
             speaker=speaker,
             expression=expression,
             pose=pose,
+            outfit=outfit,
             staging=staging,
             background=background,
             dialog_jp=dialog_jp,
@@ -344,7 +350,7 @@ class ResponseParser:
         try:
             root = ET.fromstring(scene_xml)
             result = {}
-            for tag in ("character", "speaker", "expression", "pose", "staging",
+            for tag in ("character", "speaker", "expression", "pose", "outfit", "staging",
                         "background",
                         "dialog_jp", "dialog_jp_furigana", "dialog_de"):
                 elem = root.find(tag)
@@ -357,7 +363,7 @@ class ResponseParser:
     @staticmethod
     def _parse_regex_fallback(scene_xml: str) -> dict:
         result = {}
-        for tag in ("character", "speaker", "expression", "pose", "staging",
+        for tag in ("character", "speaker", "expression", "pose", "outfit", "staging",
                      "background",
                      "dialog_jp", "dialog_jp_furigana", "dialog_de"):
             match = re.search(rf"<{tag}>(.*?)</{tag}>", scene_xml, re.DOTALL)

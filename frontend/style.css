@@ -141,6 +141,12 @@ button {
 #character-layer.staged-right { left: 70%; }
 #character-layer.staged-near  { transform: translateX(-50%) scale(1.18); }
 
+/* THA3 live stream: 512x512 upper body, sized to read like the visible
+   part of a full-body sprite */
+#character-layer.live {
+    height: 58%;
+}
+
 #character-sprite,
 #character-body {
     display: block;

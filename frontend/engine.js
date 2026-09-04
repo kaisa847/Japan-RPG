@@ -108,8 +108,14 @@ class VNEngine {
         this.isAdmin = false;
 
         // Layered sprite state
-        this._currentComposite = null;   // {character, pose, face} when layered mode active
+        this._currentComposite = null;   // {character, pose, face, bodyUrl} when layered mode active
         this._blinkTimeout = null;
+        this._flapTimeout = null;        // mouth flap while dialog is typing
+        this._flapping = false;
+
+        // THA3 live animation service (neural real-time animation)
+        this.liveAnimAvailable = false;
+        this.liveAnimActive = false;
 
         // TTS state
         this.ttsAvailable = false;
@@ -696,11 +702,39 @@ class VNEngine {
         }
     }
 
+    // THA3 live animation service: when reachable, Aoi renders as a
+    // neurally animated live stream instead of static/layered sprites.
+    async _checkLiveAnim() {
+        if (!CONFIG.LIVE_ANIM_ENABLED || !CONFIG.LIVE_ANIM_URL) return;
+        try {
+            const ctrl = new AbortController();
+            const t = setTimeout(() => ctrl.abort(), 1500);
+            const resp = await fetch(`${CONFIG.LIVE_ANIM_URL}/health`, { signal: ctrl.signal });
+            clearTimeout(t);
+            if (resp.ok) {
+                this.liveAnimAvailable = true;
+                console.log("[VNEngine] THA3 live animation service detected.");
+            }
+        } catch (e) {
+            console.log("[VNEngine] No THA3 live animation service (sprite rendering).");
+        }
+    }
+
+    _postLiveState(state) {
+        if (!this.liveAnimAvailable) return;
+        fetch(`${CONFIG.LIVE_ANIM_URL}/state`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(state),
+        }).catch(() => {});
+    }
+
     async _fetchAvailableAssets() {
         try {
             const response = await fetch(`${CONFIG.API_BASE_URL}/api/assets/available`);
             if (response.ok) {
                 this.availableAssets = await response.json();
+                await this._checkLiveAnim();
             }
         } catch (e) {
             console.warn("Could not fetch available assets:", e);
@@ -876,6 +910,7 @@ class VNEngine {
         this._updateChatAvatar(sceneData);
         await this._transitionCharacter(
             sceneData.character, sceneData.expression, sceneData.pose,
+            sceneData.outfit,
         );
         this._updateCharacterName(sceneData.character, sceneData.speaker);
         this._typewriteDialog(
@@ -917,20 +952,63 @@ class VNEngine {
             && this.availableAssets.manifests[characterId]) || null;
     }
 
-    async _transitionCharacter(characterId, expression, pose) {
+    async _transitionCharacter(characterId, expression, pose, outfit) {
         if (!characterId) {
             this._stopBlink();
+            this._stopMouthFlap();
+            this._stopLiveMode();
             this._currentComposite = null;
             this.characterLayer.classList.add("hidden");
             this.characterMissingLabel.classList.add("hidden");
             return;
         }
+
+        // Live mode: the legacy sprite <img> carries the THA3 stream;
+        // scene changes only update the service state.
+        if (this.liveAnimAvailable && characterId === "aoi") {
+            this._stopBlink();
+            this._currentComposite = null;
+            this._postLiveState({
+                expression: expression || "neutral",
+                outfit: outfit || "standard",
+                talking: false,
+            });
+            if (!this.liveAnimActive) {
+                this.liveAnimActive = true;
+                this.characterLayer.classList.add("live");
+                this.characterBody.classList.add("hidden");
+                this.characterFace.classList.add("hidden");
+                this.characterSprite.src = `${CONFIG.LIVE_ANIM_URL}/stream`;
+                this.characterSprite.classList.remove("hidden");
+                this.characterSprite.onerror = () => {
+                    console.warn("[VNEngine] Live stream failed, falling back to sprites.");
+                    this.liveAnimAvailable = false;
+                    this._stopLiveMode();
+                    this._transitionCharacter(characterId, expression, pose, outfit);
+                };
+            }
+            this.characterSprite.alt = `${characterId} - live`;
+            this._setMissingLabel(null);
+            this.characterLayer.classList.remove("fade-out", "hidden");
+            return;
+        }
+        this._stopLiveMode();
+
         const manifest = this._getManifest(characterId);
         if (manifest) {
-            await this._transitionLayered(characterId, manifest, expression, pose);
+            await this._transitionLayered(characterId, manifest, expression, pose, outfit);
         } else {
             await this._transitionLegacy(characterId, expression);
         }
+    }
+
+    _stopLiveMode() {
+        if (!this.liveAnimActive) return;
+        this.liveAnimActive = false;
+        this.characterLayer.classList.remove("live");
+        this.characterSprite.onerror = null;
+        this.characterSprite.src = "";
+        this.characterSprite.classList.add("hidden");
     }
 
     /** Legacy mode: one full sprite per expression. */
@@ -951,12 +1029,25 @@ class VNEngine {
         this.characterLayer.classList.remove("fade-out", "hidden");
     }
 
-    /** Layered mode: pose body + face patch, composed via manifest anchor. */
-    async _transitionLayered(characterId, manifest, expression, pose) {
+    /** Layered mode: pose body + face patch, composed via manifest anchor.
+     *  Outfits swap the pose-body table; faces are shared across outfits.
+     *  Outfit continuity wins over pose accuracy: if the outfit set lacks
+     *  the requested pose, its default pose is used before falling back to
+     *  the standard outfit. */
+    async _transitionLayered(characterId, manifest, expression, pose, outfit) {
         this._stopBlink();
+        this._stopMouthFlap();
 
-        const poseId = (pose && manifest.poses[pose]) ? pose : manifest.default_pose;
-        const poseDef = manifest.poses[poseId];
+        let poseTable = manifest.poses;
+        const outfitSet = outfit && outfit !== "standard"
+            && manifest.outfits && manifest.outfits[outfit];
+        if (outfitSet) {
+            if (outfitSet.poses[pose] || outfitSet.poses[manifest.default_pose]) {
+                poseTable = outfitSet.poses;
+            }
+        }
+        const poseId = (pose && poseTable[pose]) ? pose : manifest.default_pose;
+        const poseDef = poseTable[poseId] || manifest.poses[manifest.default_pose];
         const faceId = manifest.faces.includes(expression)
             ? expression : manifest.default_face;
 
@@ -975,7 +1066,7 @@ class VNEngine {
 
         const sameBody = this._currentComposite
             && this._currentComposite.character === characterId
-            && this._currentComposite.pose === poseId
+            && this._currentComposite.bodyUrl === bodyUrl
             && !this.characterLayer.classList.contains("hidden");
 
         if (sameBody) {
@@ -1000,7 +1091,10 @@ class VNEngine {
             this.characterLayer.classList.remove("fade-out", "hidden");
         }
 
-        this._currentComposite = { character: characterId, pose: poseId, face: faceId };
+        this._currentComposite = {
+            character: characterId, pose: poseId, face: faceId,
+            bodyUrl, faceUrl, manifest,
+        };
         this._startBlink(characterId, manifest);
     }
 
@@ -1034,6 +1128,9 @@ class VNEngine {
     _startBlink(characterId, manifest) {
         this._stopBlink();
         if (!manifest.blink_face) return;
+        // No blinking on faces whose eyes are already closed by design
+        const face = this._currentComposite && this._currentComposite.face;
+        if (face && (manifest.no_blink_faces || []).includes(face)) return;
         const blinkUrl =
             `${CONFIG.ASSET_PATHS.characters}/${characterId}/faces/${manifest.blink_face}.png`;
         this._preloadImage(blinkUrl);
@@ -1042,6 +1139,7 @@ class VNEngine {
             const delay = 2500 + Math.random() * 3500;
             this._blinkTimeout = setTimeout(() => {
                 if (!this._currentComposite) return;
+                if (this._flapping) { schedule(); return; }
                 const original = this.characterFace.src;
                 this.characterFace.src = blinkUrl;
                 this._blinkTimeout = setTimeout(() => {
@@ -1051,6 +1149,46 @@ class VNEngine {
             }, delay);
         };
         schedule();
+    }
+
+    // --- Mouth flap while dialog text is typing ---
+    // Layered mode: alternates the face patch with its faces/<id>_talk.png
+    // variant (manifest.talk_faces). Live mode: toggles the service state.
+
+    _startMouthFlap() {
+        if (this.liveAnimActive) {
+            this._postLiveState({ talking: true });
+            return;
+        }
+        const c = this._currentComposite;
+        if (!c || !c.manifest || !(c.manifest.talk_faces || []).includes(c.face)) return;
+        const talkUrl = c.faceUrl.replace(/\.png$/, "_talk.png");
+        this._preloadImage(talkUrl);
+        this._flapping = true;
+        let open = false;
+        const flap = () => {
+            if (!this._flapping || !this._currentComposite) return;
+            open = !open;
+            this.characterFace.src = open ? talkUrl : c.faceUrl;
+            this._flapTimeout = setTimeout(flap, 90 + Math.random() * 80);
+        };
+        flap();
+    }
+
+    _stopMouthFlap() {
+        if (this.liveAnimActive) {
+            this._postLiveState({ talking: false });
+        }
+        if (this._flapTimeout) {
+            clearTimeout(this._flapTimeout);
+            this._flapTimeout = null;
+        }
+        if (this._flapping) {
+            this._flapping = false;
+            if (this._currentComposite) {
+                this.characterFace.src = this._currentComposite.faceUrl;
+            }
+        }
     }
 
     _stopBlink() {
@@ -1078,6 +1216,7 @@ class VNEngine {
             clearTimeout(this.typewriterTimeout);
             this.typewriterTimeout = null;
         }
+        this._stopMouthFlap();
 
         this.dialogText.innerHTML = "";
         this.translationText.textContent = dialogDe || "";
@@ -1106,8 +1245,10 @@ class VNEngine {
             } else {
                 this.dialogText.innerHTML = rubyHtml;
                 this._applyFuriganaVisibility();
+                this._stopMouthFlap();
             }
         };
+        this._startMouthFlap();
         type();
     }
 
@@ -1477,6 +1618,8 @@ class VNEngine {
             this.characterSprite.classList.add("hidden");
             this.characterLayer.classList.add("hidden");
             this._stopBlink();
+            this._stopMouthFlap();
+            this._stopLiveMode();
             this._currentComposite = null;
             this.characterMissingLabel.classList.add("hidden");
             this.backgroundMissingLabel.classList.add("hidden");
@@ -1558,6 +1701,8 @@ class VNEngine {
         this.characterSprite.classList.add("hidden");
         this.characterLayer.classList.add("hidden");
         this._stopBlink();
+        this._stopMouthFlap();
+        this._stopLiveMode();
         this._currentComposite = null;
         this.characterMissingLabel.classList.add("hidden");
         this.backgroundMissingLabel.classList.add("hidden");

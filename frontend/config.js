@@ -27,4 +27,8 @@ const CONFIG = {
         ENABLED_BY_DEFAULT: true,
         LOCAL_STORAGE_KEY: "tts_enabled",
     },
+    // THA3 live animation service (tools/tha3_service.py); auto-detected.
+    // Uses the page's hostname so LAN devices reach it too.
+    LIVE_ANIM_URL: `http://${window.location.hostname}:8001`,
+    LIVE_ANIM_ENABLED: true,
 };
