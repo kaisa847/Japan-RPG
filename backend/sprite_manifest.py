@@ -25,7 +25,15 @@ Manifest schema (version 1):
           "anchor": { "x": 0.5, "y": 0.15, "w": 0.35 }
         }
       },
-      "faces": ["neutral", "happy", ...]
+      "faces": ["neutral", "happy", ...],
+      // optional: face ids that have a faces/<id>_talk.png variant for
+      // the lip-flap animation while dialog text is typing
+      "talk_faces": ["neutral", "happy", ...],
+      // optional: per-outfit pose bodies; faces are shared across outfits
+      "outfits": {
+        "yukata": { "poses": { "stand": { "body": "poses/yukata/stand.png",
+                                           "anchor": { ... } } } }
+      }
     }
 """
 
@@ -69,17 +77,8 @@ class SpriteManifests:
                 )
 
     @staticmethod
-    def _validate(raw: dict, char_id: str) -> dict | None:
-        poses = raw.get("poses")
-        faces = raw.get("faces")
-        if not isinstance(poses, dict) or not poses:
-            logger.warning("Manifest %s: no poses, ignoring", char_id)
-            return None
-        if not isinstance(faces, list) or not faces:
-            logger.warning("Manifest %s: no faces, ignoring", char_id)
-            return None
-
-        clean_poses: dict[str, dict] = {}
+    def _clean_pose_table(poses: dict, char_id: str) -> dict[str, dict]:
+        clean: dict[str, dict] = {}
         for pose_id, pose in poses.items():
             if not isinstance(pose, dict) or not pose.get("body"):
                 logger.warning("Manifest %s: pose %r invalid, skipping", char_id, pose_id)
@@ -93,8 +92,21 @@ class SpriteManifests:
                 }
             except (TypeError, ValueError):
                 clean_anchor = {"x": 0.5, "y": 0.15, "w": 0.35}
-            clean_poses[pose_id] = {"body": pose["body"], "anchor": clean_anchor}
+            clean[pose_id] = {"body": pose["body"], "anchor": clean_anchor}
+        return clean
 
+    @classmethod
+    def _validate(cls, raw: dict, char_id: str) -> dict | None:
+        poses = raw.get("poses")
+        faces = raw.get("faces")
+        if not isinstance(poses, dict) or not poses:
+            logger.warning("Manifest %s: no poses, ignoring", char_id)
+            return None
+        if not isinstance(faces, list) or not faces:
+            logger.warning("Manifest %s: no faces, ignoring", char_id)
+            return None
+
+        clean_poses = cls._clean_pose_table(poses, char_id)
         if not clean_poses:
             return None
 
@@ -110,6 +122,23 @@ class SpriteManifests:
         if blink_face is not None and blink_face not in faces:
             blink_face = None
 
+        talk_faces = [
+            f for f in (raw.get("talk_faces") or [])
+            if isinstance(f, str) and f in faces
+        ]
+
+        outfits: dict[str, dict] = {}
+        raw_outfits = raw.get("outfits")
+        if isinstance(raw_outfits, dict):
+            for outfit_id, outfit in raw_outfits.items():
+                if not isinstance(outfit, dict):
+                    continue
+                outfit_poses = cls._clean_pose_table(
+                    outfit.get("poses") or {}, f"{char_id}/{outfit_id}"
+                )
+                if outfit_poses:
+                    outfits[outfit_id] = {"poses": outfit_poses}
+
         return {
             "version": 1,
             "default_pose": default_pose,
@@ -117,6 +146,8 @@ class SpriteManifests:
             "blink_face": blink_face,
             "poses": clean_poses,
             "faces": list(faces),
+            "talk_faces": talk_faces,
+            "outfits": outfits,
         }
 
     # --- Queries ---
@@ -138,6 +169,25 @@ class SpriteManifests:
         m = self.manifests.get(char_id or "")
         if m and pose in m["poses"]:
             return pose
+        return None
+
+    def outfit_ids(self, char_id: str) -> list[str]:
+        """Outfits with layered bodies, 'standard' always first."""
+        m = self.manifests.get(char_id or "")
+        if not m or not m.get("outfits"):
+            return []
+        return ["standard"] + sorted(m["outfits"].keys())
+
+    def validate_outfit(self, char_id: str, outfit: str | None) -> str | None:
+        """Return the outfit if it exists for this character, else None
+        ('standard' is always valid when a manifest exists)."""
+        if not outfit:
+            return None
+        m = self.manifests.get(char_id or "")
+        if not m:
+            return None
+        if outfit == "standard" or outfit in (m.get("outfits") or {}):
+            return outfit
         return None
 
     def to_api_dict(self) -> dict:

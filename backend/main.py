@@ -146,6 +146,7 @@ class GenerateSceneResponse(BaseModel):
     speaker: Optional[str] = None
     expression: str = "neutral"
     pose: Optional[str] = None
+    outfit: Optional[str] = None
     staging: list[str] = []
     background: Optional[str] = None
     dialog_jp: str = ""
@@ -584,6 +585,7 @@ async def get_game_state(
             "speaker": s.last_scene.get("speaker"),
             "expression": s.last_scene.get("expression", "neutral"),
             "pose": s.last_scene.get("pose"),
+            "outfit": s.last_scene.get("outfit"),
             "staging": s.last_scene.get("staging", []),
             "background": s.last_scene.get("background"),
             "dialog_jp": s.last_scene.get("dialog_jp", ""),
@@ -700,6 +702,7 @@ async def generate_scene(
     ]
     sprite_manifests: SpriteManifests = request.app.state.sprite_manifests
     available_poses = sprite_manifests.pose_ids("aoi") or None
+    available_outfits = sprite_manifests.outfit_ids("aoi") or None
 
     # Story beats pause during the prologue (the chat has its own script)
     active_beat = None
@@ -739,6 +742,7 @@ async def generate_scene(
             due_vocab=due_vocab,
             story_beat_block=story_beat_block,
             available_poses=available_poses,
+            available_outfits=available_outfits,
             player_profile=player_profile,
             phase=sm.state.phase,
         )
@@ -852,6 +856,7 @@ async def generate_scene(
     # Validate pose against the sprite manifest (unknown -> None,
     # frontend falls back to the character's default pose)
     pose = sprite_manifests.validate_pose(scene.character or "", scene.pose)
+    outfit = sprite_manifests.validate_outfit(scene.character or "", scene.outfit)
 
     # Store last scene for restoring UI state
     scene_dict = {
@@ -859,6 +864,7 @@ async def generate_scene(
         "speaker": scene.speaker,
         "expression": scene.expression,
         "pose": pose,
+        "outfit": outfit,
         "staging": scene.staging,
         "background": scene.background,
         "dialog_jp": scene.dialog_jp,
@@ -875,6 +881,7 @@ async def generate_scene(
         speaker=scene.speaker,
         expression=scene.expression,
         pose=pose,
+        outfit=outfit,
         staging=scene.staging,
         background=scene.background,
         dialog_jp=scene.dialog_jp,
@@ -983,6 +990,7 @@ async def load_from_slot(
             "speaker": loaded.last_scene.get("speaker"),
             "expression": loaded.last_scene.get("expression", "neutral"),
             "pose": loaded.last_scene.get("pose"),
+            "outfit": loaded.last_scene.get("outfit"),
             "staging": loaded.last_scene.get("staging", []),
             "background": loaded.last_scene.get("background"),
             "dialog_jp": loaded.last_scene.get("dialog_jp", ""),

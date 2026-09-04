@@ -41,6 +41,7 @@ SPRACHNIVEAU ({jlpt_level}):
   <speaker>Anzeigename, NUR wenn eine Nebenfigur spricht (z.B. マスター) — sonst weglassen</speaker>
   <expression>expression_name</expression>
   <pose>pose_id (nur aus der Posen-Liste; weglassen wenn keine gelistet)</pose>
+  <outfit>outfit_id (nur aus der Outfit-Liste; weglassen wenn keine gelistet)</outfit>
   <staging>left/center/right und/oder near (optional, siehe Regeln)</staging>
   <background>background_id</background>
   <dialog_jp>Japanischer Dialog hier</dialog_jp>
@@ -74,7 +75,7 @@ SPRACHNIVEAU ({jlpt_level}):
 VERFÜGBARE EXPRESSIONS FÜR AOI:
 {aoi_expressions}
 
-{pose_block}VERFÜGBARE HINTERGRÜNDE:
+{pose_block}{outfit_block}VERFÜGBARE HINTERGRÜNDE:
 {available_backgrounds}
 
 AKTUELLER SPIELSTAND:
@@ -329,6 +330,7 @@ class ClaudeHandler:
         due_vocab: list[dict] | None = None,
         story_beat_block: str | None = None,
         available_poses: list[str] | None = None,
+        available_outfits: list[str] | None = None,
         player_profile: dict | None = None,
         phase: str = "main",
     ) -> str:
@@ -438,6 +440,17 @@ class ClaudeHandler:
                 f"VERFÜGBARE POSEN FÜR AOI:\n{', '.join(available_poses)}\n\n"
             )
 
+        outfit_block = ""
+        if available_outfits:
+            outfit_block = (
+                f"VERFÜGBARE OUTFITS FÜR AOI:\n{', '.join(available_outfits)}\n"
+                "OUTFIT-REGELN: 'standard' ist der Normalfall. Wechsle das Outfit "
+                "nur bei plausiblem Anlass (yukata bei Festival/Feuerwerk, winter "
+                "bei Kälte, rain bei Regen, pajama morgens/abends zuhause, casual2 "
+                "als Abwechslung an einem neuen Tag). Innerhalb einer Szene bleibt "
+                "das Outfit gleich — niemand zieht sich mitten im Gespräch um.\n\n"
+            )
+
         return SYSTEM_PROMPT_TEMPLATE.format(
             premise=premise,
             profile_block=profile_block,
@@ -453,6 +466,7 @@ class ClaudeHandler:
             vocab_block=vocab_block,
             story_block=story_block,
             pose_block=pose_block,
+            outfit_block=outfit_block,
             aoi_expressions=aoi_expressions,
             available_backgrounds=backgrounds,
             game_state_summary=game_state_summary,
@@ -493,6 +507,7 @@ class ClaudeHandler:
         due_vocab: list[dict] | None = None,
         story_beat_block: str | None = None,
         available_poses: list[str] | None = None,
+        available_outfits: list[str] | None = None,
         player_profile: dict | None = None,
         phase: str = "main",
     ) -> SceneData:
@@ -502,6 +517,7 @@ class ClaudeHandler:
             jlpt_level=jlpt_level, memories=memories,
             due_vocab=due_vocab, story_beat_block=story_beat_block,
             available_poses=available_poses,
+            available_outfits=available_outfits,
             player_profile=player_profile, phase=phase,
         )
 
@@ -541,6 +557,7 @@ class ClaudeHandler:
         due_vocab: list[dict] | None = None,
         story_beat_block: str | None = None,
         available_poses: list[str] | None = None,
+        available_outfits: list[str] | None = None,
         player_profile: dict | None = None,
         phase: str = "main",
     ) -> SceneData:
@@ -552,6 +569,7 @@ class ClaudeHandler:
                 jlpt_level=jlpt_level, memories=memories,
                 due_vocab=due_vocab, story_beat_block=story_beat_block,
                 available_poses=available_poses,
+                available_outfits=available_outfits,
                 player_profile=player_profile, phase=phase,
             )
         except APITimeoutError:
